@@ -102,6 +102,17 @@ test('primary text colors meet normal-text contrast against main surfaces', asyn
   }
 });
 
+test('dialog body copy meets normal-text contrast on the dialog surface', async () => {
+  const css = await readFile(path.join(servedRoot, 'style.css'), 'utf8');
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((match) => ({ selectors: match[1].split(',').map((selector) => selector.trim()), body: match[2] }));
+  const lastColor = (selector) => rules.filter((rule) => rule.selectors.includes(selector)).flatMap((rule) => [...rule.body.matchAll(/(?:^|;)\s*color\s*:\s*(#[0-9a-f]{6}|#[0-9a-f]{3})\b/gi)].map((match) => match[1])).at(-1);
+  const lastBackground = (selector) => rules.filter((rule) => rule.selectors.includes(selector)).flatMap((rule) => [...rule.body.matchAll(/background\s*:\s*(#[0-9a-f]{6}|#[0-9a-f]{3})\b/gi)].map((match) => match[1])).at(-1);
+  const copy = lastColor('.detail-copy'), surface = lastBackground('dialog');
+  assert.ok(copy && surface, 'The detail dialog needs a declared copy color and surface');
+  const ratio = contrast(copy, surface);
+  assert.ok(ratio >= 4.5, `.detail-copy on dialog: ${ratio.toFixed(2)}:1, needs 4.5:1`);
+});
+
 test('served payload excludes private retained files and local workspace paths', async () => {
   const files = await servedFiles();
   assert.ok(files.length > 0, 'The served directory cannot be empty');
