@@ -1,0 +1,21 @@
+{
+  "name": "cribscore-research-desk",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "test": "node --test --test-concurrency=4 tests/*.test.mjs scripts/sec-adapter.test.mjs server/*/*.test.mjs server/*/tests/*.test.mjs",
+    "preview:file": "node scripts/build-file-preview.mjs",
+    "capture:sec": "node scripts/sec-adapter.mjs",
+    "build": "node scripts/build-worker.mjs",
+    "validate:worker": "node scripts/validate-worker.mjs",
+    "db:generate": "drizzle-kit generate",
+    "preview:worker": "node scripts/serve-worker-preview.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "drizzle-kit": "0.31.10",
+    "drizzle-orm": "0.45.2"
+  }
+}

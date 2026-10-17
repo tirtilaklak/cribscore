@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "1.0",
+  "status": "verified",
+  "observedAt": "2026-10-16T23:47:54.848Z",
+  "records": [
+    {
+      "id": "aapl-2023-original-net-income",
+      "issuer": {
+        "name": "Apple Inc.",
+        "cik": "0000320193"
+      },
+      "metric": {
+        "taxonomy": "us-gaap",
+        "concept": "NetIncomeLoss",
+        "label": "Net income",
+        "accountingBasis": "US-GAAP"
+      },
+      "value": 96995,
+      "unit": "USD",
+      "scale": 1000000,
+      "period": {
+        "start": "2022-09-25",
+        "end": "2023-09-30",
+        "type": "duration",
+        "fiscalYear": 2023
+      },
+      "scope": "consolidated",
+      "dimensions": [],
+      "source": {
+        "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/aapl-20230930.htm",
+        "indexUrl": "https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/0000320193-23-000106-index.html",
+        "accession": "0000320193-23-000106",
+        "form": "10-K",
+        "original": true,
+        "location": "Consolidated Statements of Operations, printed page 28; context c-1; fact f-105",
+        "sha256": "3edfd02456723c368f49078841f7efc80b79edf3c118cd65854d82ec96a1fc88",
+        "indexSha256": "ce2b5125c09b615c9bc47ac81aebd2b2a396004f7da7c5fc4b75ab4878edf433",
+        "acceptedAt": "2023-11-02T18:08:27-04:00",
+        "acceptedTimezone": "America/New_York",
+        "publishedAt": null,
+        "publishedDate": "2023-11-03",
+        "publishedTimePrecision": "date",
+        "publicAvailabilityObservedAt": "2026-10-16T23:47:54.831Z",
+        "fetchedAt": "2026-10-16T23:47:54.831Z",
+        "ingestedAt": "2026-10-16T23:47:54.848Z",
+        "mode": "reconstructed_public_history",
+        "parserVersion": "sec-original-v1",
+        "contextId": "c-1",
+        "factId": "f-105",
+        "unitId": "usd"
+      },
+      "rights": [
+        {
+          "reviewId": "sec-facts-review-20261016-v1",
+          "version": 1,
+          "reviewedAt": "2026-10-16T23:34:24Z",
+          "validFrom": "2026-10-16T23:34:24Z",
+          "expiresAt": "2026-10-17T23:34:24Z",
+          "termsUrl": "https://www.sec.gov/privacy",
+          "purpose": "historical_financial_facts",
+          "sourceBinding": {
+            "cik": "0000320193",
+            "accession": "0000320193-23-000106",
+            "urls": [
+              "https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/aapl-20230930.htm",
+              "https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/0000320193-23-000106-index.html"
+            ]
+          },
+          "sources": [
+            "https://www.sec.gov/about/developer-resources",
+            "https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data",
+            "https://www.sec.gov/privacy"
+          ],
+          "operations": {
+            "fetch": "allowed",
+            "store": "allowed",
+            "transform": "allowed",
+            "display": "allowed"
+          },
+          "scope": "Single original Apple Inc. 2023 Form 10-K, accession 0000320193-23-000106. Read two specific SEC archive documents, retain private audit bytes, extract and display only a few attributed historical financial facts with original source links. No issuer narrative, exhibits, logos, images, bulk crawling or public source-document redistribution.",
+          "rationale": "SEC access guidance permits downloading public filings with declared user agent and moderated requests. SEC website dissemination guidance permits copying with citation. Financial figures and identifiers are facts; this review does not claim third-party issuer-authored documents are US-government works or blanket public domain. Retain original issuer attribution and restrict output to factual fields. Review expires in 24 hours and every operation is checked against its actual time.",
+          "limits": [
+            "Terms review is a scoped engineering assessment, not external legal clearance.",
+            "Stop on 403, 429, access denials or redirects. Do not rotate identities, proxies or endpoints.",
+            "No market feed, companyfacts API, automated FRED/ALFRED access or paid data."
+          ]
+        }
+      ],
+      "limitations": [
+        "Historical as-reported observation; later non-reliance or restatement review is not complete.",
+        "Exact historical publication time is unknown. Public availability was observed at capture only.",
+        "No validated forecast, current valuation, price feed or investment action."
+      ]
+    }
+  ],
+  "blockers": [],
+  "automation": {
+    "status": "manual-run-only",
+    "scheduleConfigured": false
+  }
+}

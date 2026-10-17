@@ -1,0 +1,1423 @@
+{
+  "event_evidence": {
+    "schema_version": "1.1",
+    "research_checked_at_utc": "2026-10-17T00:15:39Z",
+    "market_as_of_date": "2026-10-16",
+    "market_timezone": "America/New_York",
+    "publication_status": "verified_event_watchlist_only",
+    "return_ranking_status": "not_computable_from_verified_inputs",
+    "display_label": "Company-confirmed catalysts within the five-session window October 19–23, 2026",
+    "important_limitations": [
+      "This is a deliberately small event-watchlist, not a complete US-stock screen or a ranking by expected return.",
+      "Scheduled earnings are two-sided risk events. Event presence does not establish the direction or size of a future return.",
+      "No current price, 20-day dollar-volume, bid/ask spread, adjusted-price history, consensus surprise, or options-implied move was verified. Prices, scores, probabilities, ranks and return forecasts must remain null.",
+      "Large, familiar listed issuers were chosen for a practical research universe; liquidity thresholds have not been measured or verified.",
+      "Search-engine cache snippets sometimes contain stale stock quotes. Do not treat retrieval time as a market-data timestamp.",
+      "Scheduled events can change. Recheck original company pages before publication or refresh. A static snapshot must retain its checked-at timestamp and become visibly stale after the horizon."
+    ],
+    "horizons": {
+      "last_completed_regular_session": "2026-10-16",
+      "next_trading_day": "2026-10-19",
+      "next_week_start": "2026-10-19",
+      "next_week_end": "2026-10-23",
+      "regular_session_open_et": "09:30",
+      "regular_session_close_et": "16:00",
+      "next_session_open_utc": "2026-10-19T13:30:00Z",
+      "next_session_close_utc": "2026-10-19T20:00:00Z",
+      "next_week_close_utc": "2026-10-23T20:00:00Z",
+      "return_definition_if_prices_later_supplied": "Day: 2026-10-19 regular-session open to that session close. Week: the same October 19 open through the fifth regular-session close on 2026-10-23. Use prices and distributions reconciled to one consistent share basis. The October 16 close is a historical reference only; exclude the untradeable prior-close-to-entry/weekend opening gap. Opening and closing prices are prospective simulation references, not guaranteed fills.",
+      "calendar_source_urls": [
+        "https://www.nyse.com/trade/hours-calendars",
+        "https://www.nyse.com/publicdocs/nyse/ICE_NYSE_2026_Yearly_Trading_Calendar.pdf",
+        "https://www.nasdaq.net/PublicPages/assets/MyMID/Trade_Calendar_2026.pdf"
+      ],
+      "calendar_note": "October 19–23 are Monday–Friday, with no scheduled NYSE market holiday or early close listed. Unscheduled closures or individual halts are not forecast.",
+      "publication_timing_assumption": "This window applies to a snapshot published after the October 16 close and before the October 19 regular-session open. If publication is at or after that open, compute a new first-session entry and five-session exit; do not reuse the old entry.",
+      "last_completed_regular_session_role": "Historical reference and input-availability date only; never an executable entry or an earned opening-gap return.",
+      "session_dates": [
+        "2026-10-19",
+        "2026-10-20",
+        "2026-10-21",
+        "2026-10-22",
+        "2026-10-23"
+      ],
+      "next_week_definition": "Rolling five exchange sessions beginning with the first regular-session open after publication, not the next calendar week.",
+      "entry_at_utc": "2026-10-19T13:30:00Z",
+      "entry_reference": "Prospective regular-session opening price on 2026-10-19, currently unobserved; simulation reference, not a guaranteed fill.",
+      "entry_reference_price": null,
+      "day_exit_at_utc": "2026-10-19T20:00:00Z",
+      "week_exit_at_utc": "2026-10-23T20:00:00Z",
+      "window_state_rule": "After the October 19 entry open, label this snapshot Window in progress; archive it after its selected exit. A new entry requires a new snapshot.",
+      "event_boundary_rule": "Pre-entry releases cannot receive an in-window future-catalyst badge. Releases after the chosen exit are outside the holding window. Date-only events that cross a boundary have unknown eligibility."
+    },
+    "candidates": [
+      {
+        "ticker": "NFLX",
+        "name": "Netflix, Inc.",
+        "exchange": "NASDAQ",
+        "event_type": "earnings_and_outlook",
+        "event_status": "company_confirmed_future",
+        "event_date": "2026-10-20",
+        "results_release_time_local": "approximately 13:01 America/Los_Angeles",
+        "results_release_at_utc": "2026-10-20T20:01:00Z",
+        "results_release_session": "after_regular_close",
+        "webcast_at_utc": "2026-10-20T20:45:00Z",
+        "event_summary": "Third-quarter 2026 results and business outlook are scheduled for Tuesday after the regular session, followed by a management video interview.",
+        "next_day_regular_session_event": false,
+        "next_week_event": true,
+        "announcement_date": "2026-09-14",
+        "primary_source_title": "Netflix to Announce Third Quarter 2026 Financial Results",
+        "primary_source_url": "https://ir.netflix.net/investor-news-and-events/financial-releases/press-release-details/2026/Netflix-to-Announce-Third-Quarter-2026-Financial-Results/default.aspx",
+        "evidence_checked_at_utc": "2026-10-17T00:14:42Z",
+        "last_price": null,
+        "liquidity_verified": false,
+        "directional_signal": "not_established",
+        "expected_return_next_day": null,
+        "expected_return_next_week": null,
+        "rank_next_day": null,
+        "rank_next_week": null
+      },
+      {
+        "ticker": "TSLA",
+        "name": "Tesla, Inc.",
+        "exchange": "NASDAQ",
+        "event_type": "earnings_and_outlook",
+        "event_status": "company_confirmed_future",
+        "event_date": "2026-10-21",
+        "results_release_time_local": null,
+        "results_release_at_utc": null,
+        "results_release_session": "after_regular_close",
+        "webcast_at_utc": "2026-10-21T21:30:00Z",
+        "event_summary": "Third-quarter 2026 financial results are scheduled after Wednesday's regular close; the Q&A webcast is at 17:30 Eastern.",
+        "next_day_regular_session_event": false,
+        "next_week_event": true,
+        "announcement_date": "2026-10-02",
+        "primary_source_title": "Tesla Third Quarter 2026 Production, Deliveries & Deployments",
+        "primary_source_url": "https://ir.tesla.com/press-release/tesla-third-quarter-2026-production-deliveries-and-deployments",
+        "ticker_exchange_source_url": "https://ir.tesla.com/_flysystem/s3/sec/000162828026064366/000162828026064366-gen.pdf",
+        "historical_fact_note": "The October 2 operations update is already public. The issuer says vehicle deliveries and energy-storage deployments alone should not be used as indicators of quarterly financial results.",
+        "evidence_checked_at_utc": "2026-10-17T00:15:39Z",
+        "last_price": null,
+        "liquidity_verified": false,
+        "directional_signal": "not_established",
+        "expected_return_next_day": null,
+        "expected_return_next_week": null,
+        "rank_next_day": null,
+        "rank_next_week": null
+      },
+      {
+        "ticker": "IBM",
+        "name": "International Business Machines Corporation",
+        "exchange": "NYSE",
+        "event_type": "earnings_call",
+        "event_status": "company_confirmed_future",
+        "event_date": "2026-10-21",
+        "results_release_time_local": null,
+        "results_release_at_utc": null,
+        "results_release_session": "not_exactly_specified_in_announcement",
+        "webcast_at_utc": "2026-10-21T21:00:00Z",
+        "event_summary": "Third-quarter 2026 earnings call is scheduled for Wednesday at 17:00 Eastern; IBM says its earnings release will be available before the webcast, without specifying the exact release time.",
+        "next_day_regular_session_event": false,
+        "next_week_event": true,
+        "announcement_date": "2026-10-07",
+        "primary_source_title": "IBM to Announce Third-Quarter 2026 Financial Results",
+        "primary_source_url": "https://newsroom.ibm.com/2026-10-07-ibm-to-announce-third-quarter-2026-financial-results",
+        "evidence_checked_at_utc": "2026-10-17T00:14:42Z",
+        "last_price": null,
+        "liquidity_verified": false,
+        "directional_signal": "not_established",
+        "expected_return_next_day": null,
+        "expected_return_next_week": null,
+        "rank_next_day": null,
+        "rank_next_week": null
+      },
+      {
+        "ticker": "TXN",
+        "name": "Texas Instruments Incorporated",
+        "exchange": "NASDAQ",
+        "event_type": "earnings_call",
+        "event_status": "company_confirmed_future_subject_to_change",
+        "event_date": "2026-10-21",
+        "results_release_time_local": null,
+        "results_release_at_utc": null,
+        "results_release_session": "not_exactly_specified_in_announcement",
+        "webcast_at_utc": "2026-10-21T20:30:00Z",
+        "event_summary": "Third-quarter 2026 earnings call is scheduled for Wednesday at 15:30 Central Daylight Time, or 16:30 Eastern. Exact financial-release timing is not specified by this announcement.",
+        "next_day_regular_session_event": false,
+        "next_week_event": true,
+        "announcement_date": "2026-10-01",
+        "primary_source_title": "Texas Instruments to webcast Q3 2026 earnings conference call",
+        "primary_source_url": "https://investor.ti.com/node/38586/pdf",
+        "corroborating_primary_source_url": "https://investor.ti.com/upcoming-events",
+        "evidence_checked_at_utc": "2026-10-17T00:15:13Z",
+        "last_price": null,
+        "liquidity_verified": false,
+        "directional_signal": "not_established",
+        "expected_return_next_day": null,
+        "expected_return_next_week": null,
+        "rank_next_day": null,
+        "rank_next_week": null
+      },
+      {
+        "ticker": "PG",
+        "name": "The Procter & Gamble Company",
+        "exchange": "NYSE",
+        "event_type": "earnings_call",
+        "event_status": "company_confirmed_future",
+        "event_date": "2026-10-22",
+        "results_release_time_local": null,
+        "results_release_at_utc": null,
+        "results_release_session": "not_exactly_specified_in_announcement",
+        "webcast_at_utc": "2026-10-22T12:30:00Z",
+        "event_summary": "Fiscal first-quarter 2026/27 results discussion is scheduled for Thursday at 08:30 Eastern, before the regular market opens. The exact earnings-release time is not stated.",
+        "next_day_regular_session_event": false,
+        "next_week_event": true,
+        "announcement_date": "2026-09-24",
+        "primary_source_title": "P&G to Webcast Discussion of First Quarter 26/27 Earnings Results on October 22",
+        "primary_source_url": "https://www.pginvestor.com/news/news-details/2026/PG-to-Webcast-Discussion-of-First-Quarter-2627-Earnings-Results-on-October-22/default.aspx",
+        "evidence_checked_at_utc": "2026-10-17T00:15:13Z",
+        "last_price": null,
+        "liquidity_verified": false,
+        "directional_signal": "not_established",
+        "expected_return_next_day": null,
+        "expected_return_next_week": null,
+        "rank_next_day": null,
+        "rank_next_week": null
+      }
+    ],
+    "next_day_specific_evidence": {
+      "verified_during_regular_session_events_in_this_set": 0,
+      "interpretation": "None of the five verified company events occurs before the next-day close on October 19. Their later-in-week presence cannot alone justify a next-day return ranking.",
+      "additional_lead_not_admitted": {
+        "ticker": "ZION",
+        "date": "2026-10-19",
+        "status": "primary_search_index_lists_date_but_opened_page_did_not_render_event_details",
+        "primary_url": "https://zionsbancorp.com/investors/investor-overview/default.aspx",
+        "note": "Do not display exact release timing, score, or a confirmed event card until the company's rendered event detail or announcement has been retrieved. Secondary sites disagree about whether the date is confirmed or estimated."
+      }
+    },
+    "rejected_stale_results": [
+      {
+        "url": "https://investor.ti.com/static-files/c11b1e9c-bf55-403d-8e59-e0a026ca8ff4",
+        "reason": "It is the October 21, 2025 earnings-call transcript, despite mentioning 2026 guidance. It is not the upcoming October 2026 event."
+      },
+      {
+        "url": "https://s204.q4cdn.com/332108499/files/doc_financials/2026/q1/Q1-FY-2026-Earnings-Slides-web.pdf",
+        "reason": "The fiscal-2026 label masks a historical October 24, 2025 event. It is not P&G's October 22, 2026 first-quarter 2026/27 results discussion."
+      }
+    ],
+    "publication_rights": {
+      "recommended_display": "Original short summaries of event facts with dates, timestamps and direct source links. No issuer logos, copied releases, source screenshots, market prices, chart history or third-party ratings supplied.",
+      "issuer_content_republication_license_verified": false,
+      "quote_feed_license_verified": false,
+      "market_data_redistribution_rights_verified": false,
+      "rule": "Public accessibility does not establish redistribution or AI/non-display rights. Verify applicable provider/exchange terms before supplying quotes or derived market-data signals to a public product.",
+      "primary_policy_reference_urls": [
+        "https://nasdaqtrader.com/TraderNews.aspx?id=DN2026-4",
+        "https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data",
+        "https://data.sec.gov/"
+      ],
+      "sec_access_note": "SEC permits free access/download of EDGAR information and publishes a fair-access ceiling of 10 requests per second. An API's availability is not a blanket license to reuse third-party filing exhibits or commercial quote feeds."
+    },
+    "horizon_revised_at_utc": "2026-10-17T00:20:42Z",
+    "horizon_contract": "short-horizon-ranking-builder-spec.md section 2; first regular-session open after publication through the selected terminal close"
+  },
+  "operating_evidence": {
+    "schema_version": "1.0",
+    "checked_at_utc": "2026-10-17T02:40:41.433Z",
+    "market_session_reference": "2026-10-16",
+    "mode": "evidence_only",
+    "ranking_basis": "none_until_required_gates_pass",
+    "predictive_status": "unvalidated",
+    "screened_count": 6,
+    "ranked_count": 0,
+    "blocked_count": 6,
+    "conclusion": {
+      "next_day": "No sufficiently evidenced next-day upside pick from this targeted review. All verified forthcoming company information events occur after October 19 close; JNJ is older than the one-session freshness limit.",
+      "next_week": "JNJ has a recent forward operating revision; TXN, NFLX, PG and TSLA supply distinct two-sided operating tests. IBM remains a recovery/caution case after a guidance cut. Dated references, share effects and funding limitations remain visible. These are unranked research hypotheses, not a ranked buy list.",
+      "qualitative_preference": "The cases test different operating mechanisms. They remain alphabetical and unranked until mandatory market data, rights and complete company evidence are reviewed; the added cases do not satisfy a minimum pick count."
+    },
+    "horizons": {
+      "next_day_entry_at_utc": "2026-10-19T13:30:00Z",
+      "next_day_exit_at_utc": "2026-10-19T20:00:00Z",
+      "week_entry_at_utc": "2026-10-19T13:30:00Z",
+      "week_exit_at_utc": "2026-10-23T20:00:00Z",
+      "return_reference": "Prospective Oct19 regular-session open to chosen terminal regular-session close; Oct16 close is only a prior reference, not an executable fill.",
+      "expires_at_utc": "2026-10-23T20:00:00Z"
+    },
+    "macro_context": [
+      {
+        "fact": "September CPI-U increased 0.6% month on month (seasonally adjusted) and 3.7% year on year (unadjusted), released October 14.",
+        "source_ref": "cpi",
+        "interpretation": "Budget and valuation risk; no claimed company-specific beta or future Fed outcome."
+      },
+      {
+        "fact": "September manufacturing output rose 0.3%; total industrial production rose 0.7%, with utilities up 3.5%.",
+        "source_ref": "industrial_production",
+        "interpretation": "Do not equate headline industrial output with broad chip demand."
+      },
+      {
+        "fact": "September16 FOMC raised the target rate to 3.75–4.00%; next scheduled meeting October27–28 is beyond the chosen exit.",
+        "source_ref": "fed_statement",
+        "calendar_source_ref": "fed_calendar",
+        "interpretation": "Rate expectations can change during the week, but the decision is not an in-window catalyst."
+      },
+      {
+        "fact": "H.15 October 16 release: October 15 nominal Treasury yields were 4.77% at 2 years and 5.10% at 10 years.",
+        "source_ref": "fed_h15",
+        "interpretation": "Dated financing context only. This does not establish a company-specific sensitivity or a next-session return signal."
+      }
+    ],
+    "hypotheses": [
+      {
+        "rank": null,
+        "expected_return": null,
+        "gain_probability": null,
+        "price_reference": null,
+        "liquidity_verified": false,
+        "market_expectations": "unavailable",
+        "already_priced_in": "unknown; current price response and consensus not verified",
+        "ready_to_trade": false,
+        "ticker": "JNJ",
+        "company": "Johnson & Johnson",
+        "cik": "0000200406",
+        "route_if_other_gates_pass": "A",
+        "status": "fresh_positive_revision_needs_review",
+        "day_eligible": false,
+        "week_freshness_pass": true,
+        "week_rank_eligible": false,
+        "what_changed": "October 13 FY2026 reported-sales midpoint rose to $101.2bn from $101.1bn; issuer-stated adjusted diluted EPS midpoint rose to $11.10 from $11.04, citing operating performance.",
+        "guidance": {
+          "currency": "USD",
+          "period": "FY2026",
+          "basis": "non-GAAP adjusted diluted EPS, excludes intangible amortization and special items",
+          "before_range": [
+            10.96,
+            11.11
+          ],
+          "after_range": [
+            11.05,
+            11.15
+          ],
+          "issuer_stated_before_midpoint": 11.04,
+          "issuer_stated_after_midpoint": 11.1,
+          "issuer_stated_delta": 0.06,
+          "unrounded_range_midpoint_before": 11.035,
+          "unrounded_range_midpoint_after": 11.1,
+          "midpoint_rounding_note": "Issuer rounds prior midpoint to $11.04; exact arithmetic from the displayed range gives $11.035. Do not present $0.06 as an exact unrounded calculation.",
+          "sales_before_usd_billion": [
+            100.8,
+            101.4
+          ],
+          "sales_after_usd_billion": [
+            101,
+            101.4
+          ]
+        },
+        "positive_case": "Pharma launch growth offsets patent erosion and slower MedTech growth; a higher revenue-and-EPS guide is more informative than an earnings date alone. Continued reassessment is a hypothesis, not demonstrated next-week drift.",
+        "evidence_chain": [
+          {
+            "link": "macro",
+            "kind": "limitation",
+            "text": "No specific fresh macro-to-JNJ transmission sufficient to predict this horizon was established."
+          },
+          {
+            "link": "industry_company",
+            "kind": "fact",
+            "text": "Innovative Medicine operational sales grew 7.9%, compared with 2.5% in MedTech. The company's non-GAAP, currency-excluded full-year sales and adjusted diluted-EPS midpoints also increased from its July 29 guide, with the same illustrative euro exchange-rate assumption. Management credits operating performance for higher guidance, but the release supplies no quantified product-by-product bridge to the forward EPS revision."
+          },
+          {
+            "link": "event",
+            "kind": "fact",
+            "text": "October 13 results are already known. No new October 19–23 company catalyst was verified."
+          },
+          {
+            "link": "each_share",
+            "kind": "fact",
+            "text": "Q3 diluted shares increased to 2,448.6m from 2,428.6m; adjusted EPS fell year on year to $2.59 from $2.80 despite the forward raise."
+          }
+        ],
+        "counter_case": "The October raise remains below July 15's issuer-stated adjusted diluted-EPS midpoint of $11.68, before the July 29 reset to $11.04 for the Firefly acquisition and Sail collaboration. The proposed ovarian-talc agreement remains conditional, including participation covering at least 95% of remaining claims; GAAP Q3 EPS was $0.09. A complete forward EPS bridge across operations, taxes, transactions, adjustments and future diluted shares remains unreviewed.",
+        "funding_check": "At June 28, cash and marketable securities totaled $20.758bn and debt carrying value was $49.036bn. These are historical balances, not current funding amounts; October prepared-remarks balances and full-year FCF guidance were not corroborated by this captured source set. The October 13 release separately estimates approximately $15.1bn year-to-date FCF as of that date, rather than final full-year cash flow. Adjusted EPS still reflects the Firefly and Sail transactions. H1 dividends and cash buybacks totaled $10.607bn, exceeding operating cash flow less capex of $8.760bn; this does not establish which funding source financed distributions or a current funding gap. The proposed talc resolution remains conditional; an accounting charge is not confirmation of payment or completed resolution. The July proposed ovarian-talc commitment was $5.5bn, with a first payment of no more than $3bn in 2027 if conditions are met; neither completion nor payment is established.",
+        "invalidation_trigger": "New lower FY2026 revenue/EPS guidance, adverse material settlement/financing developments, or evidence that adjustments rather than operations explain the raise. A favorable price entry remains unestablished without price/valuation review.",
+        "catalyst": {
+          "in_holding_window": false,
+          "source_date": "2026-10-13",
+          "status": "already_public_not_future_catalyst",
+          "future_event_verified": false
+        },
+        "source_refs": [
+          "jnj_q3",
+          "jnj_reset",
+          "jnj_remarks",
+          "jnj_talc",
+          "jnj_oct13_8k",
+          "jnj_oct13_results",
+          "jnj_june_10q",
+          "jnj_july_talc_sec"
+        ],
+        "research_application": {
+          "kind": "product_design_interpretation",
+          "concentric_effect": "The comparable forward revenue and adjusted diluted-EPS raise makes this a possible route-A research case for the five-session freshness rule. The October 13 release is too old for the one-session rule. The higher share count, earlier Firefly/Sail EPS reset and conditional legal funding commitments remain offsets.",
+          "nobel_effect": "The retained 2013 asset-pricing lens prevents treating a known guidance raise as demonstrated mispricing or next-week drift. The 2017 process lens motivates an explicit counter-case and a new-guidance/operating-driver invalidation check. These are Cribscore design applications, not tested return signals.",
+          "ordering_effect": "Alphabetical and unranked while required inputs are missing. No Nobel year or prize count changes order.",
+          "nobel_lens_ids": [
+            "nobel-2013",
+            "nobel-2017"
+          ],
+          "methodology_refs": [
+            "concentric_layers.forward_earnings",
+            "concentric_layers.per_share",
+            "catalyst_contract",
+            "earnings_and_valuation_contract"
+          ],
+          "company_source_refs": [
+            "jnj_q3",
+            "jnj_reset",
+            "jnj_remarks",
+            "jnj_talc"
+          ]
+        }
+      },
+      {
+        "rank": null,
+        "expected_return": null,
+        "gain_probability": null,
+        "price_reference": null,
+        "liquidity_verified": false,
+        "market_expectations": "unavailable",
+        "already_priced_in": "unknown; current price response and consensus not verified",
+        "ready_to_trade": false,
+        "ticker": "TXN",
+        "company": "Texas Instruments",
+        "cik": "0000097476",
+        "route_if_other_gates_pass": "B",
+        "status": "conditional_operating_recovery",
+        "day_eligible": false,
+        "week_rank_eligible": false,
+        "what_changed": "Known Q2 revenue rose 23% year on year, led by industrial, data center and automotive; the October 21 report can test whether recovery continued.",
+        "company_reference": {
+          "period": "Q3 2026",
+          "currency": "USD",
+          "revenue_range_billion": [
+            5.65,
+            6.15
+          ],
+          "revenue_midpoint_billion": 5.9,
+          "diluted_eps_range": [
+            2.23,
+            2.57
+          ],
+          "diluted_eps_midpoint": 2.4,
+          "basis": "management guidance, not market consensus"
+        },
+        "evidence_chain": [
+          {
+            "link": "macro",
+            "kind": "fact_plus_inference",
+            "text": "September US manufacturing output rose 0.3%, versus headline IP +0.7% heavily supported by utilities. That is cautious contextual support for factory demand, not a direct forecast of TI global orders."
+          },
+          {
+            "link": "industry_company",
+            "kind": "fact",
+            "text": "TI sells analog/embedded chips to industrial, automotive and data-center markets. Q2 demand and declining inventory days support a testable recovery hypothesis."
+          },
+          {
+            "link": "event",
+            "kind": "fact",
+            "text": "October 21 16:30 ET earnings call lies inside the five-session window; exact release minute is unspecified."
+          },
+          {
+            "link": "each_share",
+            "kind": "fact",
+            "text": "Q2 EPS was $2.14 including a $0.05 benefit absent from original guidance; diluted shares rose to 920m from 912m. EPS growth was not driven by a shrinking share denominator."
+          }
+        ],
+        "positive_case": "A favorable test is Q3 revenue and operating-supported EPS above the $5.9bn/$2.40 company midpoints, with Q4 demand guidance showing continued broad recovery and further inventory normalization. Beating the upper range would be stronger operating evidence, but still not proof of a market surprise.",
+        "counter_case": "Revenue/EPS below $5.65bn/$2.23, renewed customer inventory caution, or weak Q4 demand guidance would undermine the thesis. Higher factory depreciation, tax effects and incentives can obscure cash/profit quality.",
+        "funding_check": "At June 30, cash and short-term investments were $7.001bn and debt carrying value was $14.052bn. The $1bn revolver was undrawn and no commercial paper was outstanding. The pending all-cash Silicon Labs deal, disclosed at roughly $7.5bn enterprise value, was expected in first-half 2027, subject to conditions; a separate undrawn $5bn delayed-draw facility was conditioned on its completion. Inventory days were 196. TI-defined FCF adds CHIPS cash proceeds: H1 proceeds were $1.104bn, while operating cash flow already included a separate $301m CHIPS tax-credit cash benefit. Incentive timing and lower capital spending must be distinguished from customer-driven cash conversion. The September 17 release plans a $1.52 quarterly dividend, subject to formal board declaration; the stated October 30 record and November 10 payment dates are outside this holding window. No ex-dividend date was supplied and no distribution is credited here.",
+        "invalidation_trigger": "Q3 misses lower company guide or management describes renewed order/inventory deterioration; also reject EPS-only upside caused mainly by tax benefits or a revised share basis.",
+        "catalyst": {
+          "event_date": "2026-10-21",
+          "webcast_at_utc": "2026-10-21T20:30:00Z",
+          "release_at_utc": null,
+          "precision": "exact_webcast_time_release_minute_unknown",
+          "in_holding_window": true,
+          "status": "company_confirmed_subject_to_change"
+        },
+        "source_refs": [
+          "txn_q2",
+          "txn_10q",
+          "txn_event",
+          "industrial_production",
+          "txn_planned_dividend"
+        ],
+        "research_application": {
+          "kind": "product_design_interpretation",
+          "concentric_effect": "Company industrial exposure and its dated guidance define a two-sided demand test. Revenue and operating-supported EPS must improve together; tax effects, share growth and CHIPS cash receipts limit an EPS-only or cash-only interpretation. The earnings call is outside the one-session window and inside the five-session window.",
+          "nobel_effect": "The retained 2011 policy/identification lens prevents mapping US manufacturing output mechanically to TI global orders. The 2013 lens keeps a beat of company guidance separate from an unpriced market surprise. These are Cribscore design applications, not tested return signals.",
+          "ordering_effect": "Alphabetical and unranked while required inputs are missing. No Nobel year or prize count changes order.",
+          "nobel_lens_ids": [
+            "nobel-2011",
+            "nobel-2013"
+          ],
+          "methodology_refs": [
+            "concentric_layers.macro",
+            "concentric_layers.forward_earnings",
+            "concentric_layers.per_share",
+            "catalyst_contract"
+          ],
+          "company_source_refs": [
+            "txn_q2",
+            "txn_10q",
+            "txn_event",
+            "industrial_production"
+          ]
+        }
+      },
+      {
+        "rank": null,
+        "expected_return": null,
+        "gain_probability": null,
+        "price_reference": null,
+        "liquidity_verified": false,
+        "market_expectations": "unavailable",
+        "already_priced_in": "unknown; current price response and consensus not verified",
+        "ready_to_trade": false,
+        "ticker": "NFLX",
+        "company": "Netflix",
+        "cik": "0001065280",
+        "route_if_other_gates_pass": "B",
+        "status": "conditional_monetization_and_margin",
+        "day_eligible": false,
+        "week_rank_eligible": false,
+        "what_changed": "No fresh FY operating upgrade established: July narrowed revenue guidance around the same $51.2bn midpoint and kept 31.5% operating margin. The upcoming report can test pricing, ads and second-half cost leverage.",
+        "company_reference": {
+          "period": "Q3 2026",
+          "revenue_usd_billion": 12.86,
+          "operating_margin_percent": 33.2,
+          "diluted_eps_usd": 0.82,
+          "basis": "management forecast, split-adjusted, not consensus",
+          "fy_revenue_usd_billion": [
+            51,
+            51.4
+          ],
+          "fy_operating_margin_percent": 31.5
+        },
+        "evidence_chain": [
+          {
+            "link": "macro",
+            "kind": "inference",
+            "text": "Faster household inflation is a risk to discretionary subscriptions and advertisers; no quantified Netflix sensitivity or current advertising-market surprise was established."
+          },
+          {
+            "link": "industry_company",
+            "kind": "fact",
+            "text": "Membership, pricing and ads drive revenue; management expected slower content-amortization growth in the second half."
+          },
+          {
+            "link": "event",
+            "kind": "fact",
+            "text": "October 20 after-close results can reveal Q3 monetization and the Q4 outlook, leaving three regular sessions before Friday exit."
+          },
+          {
+            "link": "each_share",
+            "kind": "fact",
+            "text": "Q2 diluted shares fell about 2%; EPS grew partly through the denominator. Comparatives reflect the November 2025 10-for-one split."
+          }
+        ],
+        "positive_case": "Exceed own $12.860bn revenue and 33.2% margin forecasts together, demonstrate subscription/ad monetization, and retain or raise annual revenue/margin. Expense deferral or buybacks alone are weaker evidence.",
+        "counter_case": "Revenue misses, weaker retention after price increases, lower ad outlook, or content costs prevent intended margin gains. A favorable operating result may already be expected by investors.",
+        "funding_check": "At June 30, cash was $9.099bn and debt carrying value $14.309bn. Content obligations were $25.107bn across maturities, including $11.940bn due within twelve months; they are not all current debt. The June total excludes estimates for unknown future titles beyond known minimums; Netflix expected those additional obligations to be significant. Q2 repurchases cost $4.7bn. Q2 operating income rose $418m year over year, but operating cash flow fell 28% to $1.744bn; Netflix cited higher content payments and unfavorable working capital. Upfront content payments can precede amortization, so this quarter alone does not establish persistent cash-flow deterioration. Q1 raised the annual FCF outlook from about $11bn to $12.5bn primarily for the after-tax WBD termination-fee effect; Q2 retained it and noted related higher cash taxes. The $2.8bn fee was received in Q1, so H1 cash flow is not clean recurring cash generation and Q2 cash flow must not be confused with H1. A July 22 filing reports a completed US$1bn offering of 5.250% notes due 2036, intended partly to refinance 2026 notes. Subsequent repayment and current net debt were not verified; the offering does not establish a $1bn net-debt increase.",
+        "invalidation_trigger": "Revenue misses company forecast alongside weaker operating margin/outlook, reduced ad expectations, or recurring cash generation insufficient for the stated operating case. An EPS-only beat is not confirmation.",
+        "catalyst": {
+          "event_date": "2026-10-20",
+          "release_at_utc": "2026-10-20T20:01:00Z",
+          "webcast_at_utc": "2026-10-20T20:45:00Z",
+          "precision": "approximate_release_minute_exact_interview_time",
+          "in_holding_window": true,
+          "status": "company_confirmed"
+        },
+        "source_refs": [
+          "nflx_q2",
+          "nflx_q1",
+          "nflx_10q",
+          "nflx_event",
+          "cpi",
+          "nflx_jul22_notes"
+        ],
+        "research_application": {
+          "kind": "product_design_interpretation",
+          "concentric_effect": "An unchanged annual guidance midpoint does not qualify as a fresh forward raise. The later report instead supplies a conditional revenue-and-margin test. Reduced diluted shares, expense timing and a nonrecurring cash benefit cannot alone confirm operating improvement.",
+          "nobel_effect": "The retained 2013 asset-pricing lens keeps the company forecast distinct from market expectations and a favorable business result distinct from a return forecast. The 2017 process lens motivates a specific revenue/margin counter-case. These are Cribscore design applications, not tested return signals.",
+          "ordering_effect": "Alphabetical and unranked while required inputs are missing. No Nobel year or prize count changes order.",
+          "nobel_lens_ids": [
+            "nobel-2013",
+            "nobel-2017"
+          ],
+          "methodology_refs": [
+            "concentric_layers.forward_earnings",
+            "concentric_layers.per_share",
+            "earnings_and_valuation_contract",
+            "catalyst_contract"
+          ],
+          "company_source_refs": [
+            "nflx_q2",
+            "nflx_q1",
+            "nflx_10q",
+            "nflx_event"
+          ]
+        }
+      },
+      {
+        "ticker": "TSLA",
+        "company": "Tesla, Inc.",
+        "cik": "0001318605",
+        "route_if_other_gates_pass": "B",
+        "status": "conditional_margin_and_cash_conversion_watch",
+        "day_eligible": false,
+        "week_rank_eligible": false,
+        "what_changed": "October 2 disclosed Q3 deliveries and deployments; October 21 can reveal their margins and cash conversion. Q2 revenue growth did not produce operating-profit growth. September's new undrawn financing capacity increases flexibility and financing obligations; it does not establish an operating upgrade.",
+        "company_reference": {
+          "period": "Q2 2026 actuals, three months ended June 30",
+          "basis": "GAAP historical actuals used as an analyst comparison; not company Q3 guidance or market consensus",
+          "is_company_guidance": false,
+          "is_consensus": false,
+          "revenue_usd_billion": 28.236,
+          "operating_income_usd_billion": 0.398,
+          "operating_margin_percent": 1.4,
+          "operating_margin_calculation": "398 / 28236 * 100, rounded to one decimal",
+          "diluted_eps_usd": 0.32,
+          "diluted_eps_non_gaap_usd": 0.33,
+          "energy_gross_margin_percent": 20.4,
+          "automotive_gross_margin_excluding_credits_non_gaap_percent": 16.3,
+          "free_cash_flow_non_gaap_usd_billion": -1.092,
+          "q3_company_revenue_forecast": null,
+          "q3_company_eps_forecast": null,
+          "forecast_review_limit": "No quantitative Q3 revenue/EPS forecast established in reviewed filings, July update financial/outlook sections and October operations release; the July earnings call was not reviewed."
+        },
+        "evidence_chain": [
+          {
+            "link": "macro",
+            "kind": "inference",
+            "text": "Financing costs, consumer demand and tariffs could affect vehicle affordability, pricing and battery costs. The filings describe these exposures; no current quantified sensitivity or market surprise is established.",
+            "source_refs": [
+              "tsla_10q"
+            ]
+          },
+          {
+            "link": "industry_company",
+            "kind": "fact",
+            "text": "Q2 revenue was $28.236bn versus $22.496bn a year earlier, while operating income fell to $398m from $923m. Automotive margin excluding credits improved to 16.3% from 15.0%; energy margin fell to 20.4% from 30.3%, including vendor-cell warranty charges. Net income benefited from about $1bn of pretax SpaceX fair-value gain and a $274m tax benefit. Announced Q3 deliveries of 486,532 and storage deployments of 13.7GWh do not determine financial results.",
+            "source_refs": [
+              "tsla_10q",
+              "tsla_q2_update",
+              "tsla_q3_operations"
+            ]
+          },
+          {
+            "link": "event",
+            "kind": "fact",
+            "text": "October 21 results are scheduled after the regular close, followed by a 17:30 Eastern webcast, leaving two regular sessions in the October 19–23 window. Exact release minute is unspecified.",
+            "source_refs": [
+              "tsla_q3_operations"
+            ]
+          },
+          {
+            "link": "each_share",
+            "kind": "fact",
+            "text": "Q2 diluted weighted shares were 3.540bn versus 3.519bn. June issued/outstanding shares of 3.949bn include restricted awards on a different basis. Equity compensation expense was $1.151bn. Company non-GAAP EPS of $0.33 removes investment/tax items but adds back equity compensation, compared with GAAP EPS of $0.32; neither figure alone demonstrates operating improvement.",
+            "source_refs": [
+              "tsla_10q",
+              "tsla_10k",
+              "tsla_q2_update"
+            ]
+          }
+        ],
+        "positive_case": "Analyst test: stronger operating profit and margin against Q2, supported by automotive and energy gross profits, with cash conversion adequate for the investment plan. Separate pricing, volume, mix, credits, warranty effects and expense timing. A revenue or EPS increase alone is insufficient.",
+        "counter_case": "Revenue or deliveries rise while pricing, energy margins or rising expenses further weaken operating profit; working-capital support reverses or investment cash needs outpace operations. Unrealized investment gains, tax benefits and borrowing capacity do not resolve those weaknesses.",
+        "funding_check": "June cash plus short-term investments totaled $43.524bn; debt/finance-lease carrying value was $9.342bn. Q2 company FCF was -$1.092bn: CFO $4.697bn less capex $5.789bn. H1 CFO benefited from working capital; FY capex expectation exceeded $25bn. September 29 facilities total $30bn, undrawn then, replacing an undrawn $5bn revolver; management then planned no 2026 draw. Covenant liquidity is separately defined. The September 29 summary also requires rating-based fees on unused revolving and undrawn term-loan commitments, payable quarterly; no fee amount or later draw is established here.",
+        "invalidation_trigger": "The report fails to demonstrate operating-margin and cash-conversion support for the demand and investment case, or new financing/share disclosures materially weaken per-share economics. Apply the same test to adverse evidence; no automatic trade or score follows.",
+        "catalyst": {
+          "event_date": "2026-10-21",
+          "release_at_utc": null,
+          "release_session": "after_regular_close",
+          "webcast_at_utc": "2026-10-21T21:30:00Z",
+          "precision": "after_close_release_exact_webcast_time",
+          "in_holding_window": true,
+          "status": "company_confirmed"
+        },
+        "source_refs": [
+          "tsla_10q",
+          "tsla_10k",
+          "tsla_q2_update",
+          "tsla_financing",
+          "tsla_q3_operations",
+          "tsla_10ka"
+        ],
+        "research_application": {
+          "kind": "product_design_interpretation",
+          "concentric_effect": "Follow affordability and cost exposures into actual margins, cash investment and diluted-share economics. The known delivery update supports an earnings test; it is not a verified forward earnings raise or an entry signal.",
+          "nobel_effect": "The retained 2013 asset-pricing lens separates public operating information from unpriced return opportunity. The 2017 process lens motivates a predeclared adverse margin/cash test. These are process applications of the two supplied documents, not validated return rules or a claim to have read all cited papers.",
+          "ordering_effect": "Unranked while mandatory market, rights and review inputs remain missing. Prize-year counts do not affect order.",
+          "nobel_lens_ids": [
+            "nobel-2013",
+            "nobel-2017"
+          ],
+          "methodology_refs": [
+            "concentric_layers.macro",
+            "concentric_layers.forward_earnings",
+            "concentric_layers.per_share",
+            "earnings_and_valuation_contract",
+            "catalyst_contract"
+          ],
+          "company_source_refs": [
+            "tsla_10q",
+            "tsla_10k",
+            "tsla_q2_update",
+            "tsla_financing",
+            "tsla_q3_operations",
+            "tsla_10ka"
+          ]
+        },
+        "review_limits": [
+          "Targeted original statement/note/MD&A review, not full issuer or legal review; no gate attestation.",
+          "April 30 10-K/A governance, compensation and ownership sections were selectively reviewed. Its December 31 ownership denominator differs from the annual statement's share count and remains unreconciled; do not use it as the current EPS denominator. Full proxy and incorporated award agreements remain outside this review.",
+          "September financing is the filed summary; full credit agreements were deferred to the September 30 10-Q and were not reviewed.",
+          "July update financial/outlook/reconciliation text was reviewed; its images, the earnings call, full proxy or award documents, October litigation updates, complete all-form filing history and subsequent Q3 financial statements were not reviewed.",
+          "Quoted historical balances are not current cash, debt or covenant headroom. Issuer FCF is non-GAAP CFO less capex; capex includes energy generation/storage purchases. No recurring-cash normalization was established.",
+          "No price, adjusted return history, benchmark, liquidity, current consensus, valuation, score review or ranking approval is established."
+        ],
+        "rank": null,
+        "expected_return": null,
+        "gain_probability": null,
+        "price_reference": null,
+        "liquidity_verified": false,
+        "market_expectations": "unavailable",
+        "already_priced_in": "unknown; current price response and consensus not verified",
+        "ready_to_trade": false
+      },
+      {
+        "ticker": "PG",
+        "company": "The Procter & Gamble Company",
+        "cik": "0000080424",
+        "route_if_other_gates_pass": "B",
+        "status": "conditional_demand_and_margin_recovery",
+        "day_eligible": false,
+        "week_rank_eligible": false,
+        "what_changed": "July-reported Q4 organic sales were flat, Core EPS fell 3% and core operating margin fell 130 basis points. July call slides also flag \"Q1 EPS -5% or more\" under Core EPS guidance. October 22 results can test demand and margins against that cautious context; no fresh operating upgrade is established.",
+        "company_reference": {
+          "period": "FY2027 ending June 30, 2027",
+          "source_date": "2026-07-29",
+          "currency": "USD",
+          "all_in_sales_growth_percent": [
+            1,
+            3
+          ],
+          "organic_sales_growth_percent": [
+            1,
+            3
+          ],
+          "core_diluted_eps_range": [
+            6.89,
+            7.11
+          ],
+          "core_diluted_eps_midpoint": 7.0,
+          "core_diluted_eps_growth_percent": [
+            0,
+            3
+          ],
+          "organic_growth_discontinuation_headwind_bps": [
+            30,
+            50
+          ],
+          "quarterly_earnings_guidance": {
+            "period": "FY2027 Q1",
+            "issuer_wording": "Q1 EPS -5% or more",
+            "metric_context": "Core EPS, based on the visually verified parent bullet on slide 24",
+            "source_date": "2026-07-29",
+            "source_ref": "pg_fy2026_slides",
+            "basis": "Directional Core-EPS guidance; no quarterly dollar range is supplied or inferred. Full accounting and forward-share review remains incomplete."
+          },
+          "basis": "July 29 management annual guidance; Core EPS is non-GAAP diluted EPS. Separate directional Q1 wording is retained below, not converted to a dollar target or market consensus. The later Thorne agreement requires reconciliation with this reference."
+        },
+        "evidence_chain": [
+          {
+            "link": "macro",
+            "kind": "fact_plus_limitation",
+            "text": "In its July 29, 2026 FY2027 guidance, management assumed about $1bn of after-tax headwind from higher energy, transportation and raw-material costs; this is an annual company assumption, not realized or current costs, and it does not quantify a link from current CPI to PG's holding-window returns.",
+            "source_refs": [
+              "pg_fy2026_slides"
+            ]
+          },
+          {
+            "link": "industry_company",
+            "kind": "fact",
+            "text": "Q4 organic volume was flat. Core operating margin was 19.5% versus 20.8%; productivity savings did not fully offset reinvestment and other cost/mix pressures."
+          },
+          {
+            "link": "event",
+            "kind": "fact",
+            "text": "The October 22 results discussion is scheduled for 08:30 Eastern, inside the five-session window. The exact earnings-release time is unspecified."
+          },
+          {
+            "link": "each_share",
+            "kind": "fact",
+            "text": "FY2026 Core EPS rose to $6.89 from $6.83 while Core earnings attributable to P&G fell to $16.688bn from $16.775bn and diluted shares fell to 2,422.5m from 2,454.4m. EPS growth alone does not demonstrate stronger operations."
+          }
+        ],
+        "positive_case": "A favorable operating test would combine positive Q1 organic volume, a smaller year-on-year Core operating-margin decline than Q4's 130 basis points, and support for the annual organic-sales and Core-EPS ranges. A smaller margin decline supports repeatable recovery only if the disclosed drivers extend beyond tariff-recovery recognition; review current tariff costs, productivity, mix and reinvestment separately. These volume/margin tests are analyst-defined; the separate July Q1 Core-EPS wording supplies company context, not verified market expectations.",
+        "counter_case": "Continued volume weakness, persistent margin pressure or lower annual guidance would weaken the recovery hypothesis. An EPS decline alone does not establish a miss of the July Q1 wording. Separate the planned 30–50 basis-point annual discontinuation headwind from underlying demand, and distinguish tax, currency and share-count effects from operating improvement.",
+        "funding_check": "June 30 cash was $9.942bn and balance-sheet debt $34.138bn. FY2026 operating cash less capex was $15.147bn versus $15.260bn of dividends and repurchases; company-adjusted FCF of $15.835bn adds back a $688m tax payment. The August $3.8bn Thorne agreement remains subject to closing conditions in the reviewed filing; current closing and funding status need review.",
+        "invalidation_trigger": "A lower annual organic-sales or Core-EPS guide, or broad volume weakness with continued margin deterioration, would invalidate the favorable test. Reassess if adjustment definitions, share assumptions or acquisition funding change; an EPS-only improvement is insufficient.",
+        "catalyst": {
+          "event_date": "2026-10-22",
+          "webcast_at_utc": "2026-10-22T12:30:00Z",
+          "release_at_utc": null,
+          "precision": "exact_webcast_time_release_minute_unknown",
+          "in_holding_window": true,
+          "status": "company_confirmed_subject_to_change"
+        },
+        "source_refs": [
+          "pg_fy2026_results",
+          "pg_10k",
+          "pg_event",
+          "pg_fy2026_slides"
+        ],
+        "research_application": {
+          "kind": "product_design_interpretation",
+          "concentric_effect": "The operating chain runs from consumer volume and pricing through margins to annual earnings, diluted shares and cash funding. The dated event supports a conditional five-session question; the known annual guide supplies a reference, not a new upgrade or a quarterly target. Cash adjustments and share shrinkage prevent EPS-only confirmation.",
+          "nobel_effect": "The retained 2013 asset-pricing lens keeps known guidance separate from demonstrated mispricing. The 2017 process lens motivates a stated adverse case and observable invalidation. These are Cribscore design applications, not tested return signals.",
+          "ordering_effect": "Alphabetical and unranked while required inputs are missing. No Nobel year or prize count changes order.",
+          "nobel_lens_ids": [
+            "nobel-2013",
+            "nobel-2017"
+          ],
+          "methodology_refs": [
+            "concentric_layers.macro",
+            "concentric_layers.forward_earnings",
+            "concentric_layers.per_share",
+            "catalyst_contract"
+          ],
+          "company_source_refs": [
+            "pg_fy2026_results",
+            "pg_10k",
+            "pg_event",
+            "pg_fy2026_slides"
+          ]
+        },
+        "review_limits": [
+          "Annual FY2027 ranges and the July slide wording \"Q1 EPS -5% or more\" under Core EPS are company references. No Q1 dollar range or current market consensus was established; full quarterly accounting and forward-share review remains incomplete.",
+          "Periodic-report review targeted financial, share, adjustment, funding and subsequent-event sections. Both additional July 29 mains, the complete presentation text and slide 24 image are now reviewed; other slide images and complete current material-event coverage remain unreviewed.",
+          "Thorne closing/funding, incorporation into guidance and renewal of the $4.8bn facility expiring in October 2026 remain unresolved.",
+          "The October 22 discussion time is verified in the retained event record; the exact earnings-release minute is unknown.",
+          "Current source-rights/cutoff, accounting attestations, price, liquidity and market-expectation gates remain blocked. This is an unranked research hypothesis."
+        ],
+        "rank": null,
+        "expected_return": null,
+        "gain_probability": null,
+        "price_reference": null,
+        "liquidity_verified": false,
+        "market_expectations": "unavailable",
+        "already_priced_in": "unknown; current price response and consensus not verified",
+        "ready_to_trade": false
+      }
+    ],
+    "caution_watch": [
+      {
+        "rank": null,
+        "expected_return": null,
+        "gain_probability": null,
+        "price_reference": null,
+        "liquidity_verified": false,
+        "market_expectations": "unavailable",
+        "already_priced_in": "unknown; current price response and consensus not verified",
+        "ready_to_trade": false,
+        "ticker": "IBM",
+        "company": "International Business Machines",
+        "cik": "0000051143",
+        "status": "caution_conditional_recovery_after_cut",
+        "route_if_other_gates_pass": "B",
+        "day_eligible": false,
+        "week_rank_eligible": false,
+        "what_changed": "July cut FY constant-currency revenue-growth guidance from more than 5% to 4–5%; FCF growth of approximately $1bn was retained. This is adverse known information, not a fresh bullish revision.",
+        "company_reference": {
+          "fy_constant_currency_revenue_growth_percent": [
+            4,
+            5
+          ],
+          "fy_free_cash_flow_growth_usd_billion": 1,
+          "basis": "management outlook, not consensus"
+        },
+        "positive_case": "October 21 evidence that delayed Z/Transaction Processing deals closed, backlog converted and recurring software remained healthy, with growth/FCF guidance sustained or raised, would support a recovery interpretation. Check whether cash generation excluding Financing receivables improves, and how inventory, cash taxes and net interest affect the annual cash-flow guide.",
+        "counter_case": "Repeated deal slippage, another revenue cut, weak recurring demand or FCF downgrade would favor the adverse interpretation. AI announcements alone cannot repair operating evidence.",
+        "evidence_chain": [
+          {
+            "link": "macro_company",
+            "kind": "fact_plus_inference",
+            "text": "Management described customer capex shifting toward constrained servers/storage/memory and industry-wide cybersecurity concerns, and acknowledged that IBM failed to adapt quickly enough and close large deals on schedule. Broader technology demand does not guarantee IBM receives the spending."
+          },
+          {
+            "link": "each_share",
+            "kind": "fact",
+            "text": "Q2 GAAP EPS fell 2% while non-GAAP EPS rose 5%; diluted shares increased 0.6%. H1 FCF was approximately flat and non-Financing debt increased."
+          }
+        ],
+        "funding_check": "June liquidity $8.178bn; total debt $61.987bn includes Financing debt $13.047bn. Non-Financing debt rose $2.773bn YTD. IBM-defined FCF excludes changes in Financing receivables and deducts net capital spending, including software investment and asset-sale proceeds; it is not simply GAAP operating cash flow less property capex. Q2 2026 company-defined FCF fell 11% year over year to $2.540bn despite higher GAAP operating cash flow; reduced cash use in Financing receivables explains the divergence. Separate acquisitions and adjusted items from recurring cash conversion. H1 2026 cash dividends of US$3.166bn were a separate financing outflow, not a deduction in IBM-defined FCF. An August 14 filing separately disclosed C$2.75bn of notes, with August 17 closing scheduled subject to conditions; the reviewed filing does not confirm settlement. This Canadian-dollar offering is not mechanically added to the historical US-dollar balance and current debt remains unverified.",
+        "invalidation_trigger": "No verified delayed-deal conversion, reduced growth/FCF outlook, or worsening recurring demand. Retain as caution/event watch unless operating evidence improves.",
+        "catalyst": {
+          "event_date": "2026-10-21",
+          "webcast_at_utc": "2026-10-21T21:00:00Z",
+          "release_at_utc": null,
+          "precision": "exact_webcast_time_release_before_webcast",
+          "in_holding_window": true,
+          "status": "company_confirmed"
+        },
+        "source_refs": [
+          "ibm_q2",
+          "ibm_q1",
+          "ibm_letter",
+          "ibm_10q",
+          "ibm_event",
+          "ibm_aug14_notes"
+        ],
+        "research_application": {
+          "kind": "product_design_interpretation",
+          "concentric_effect": "An actual revenue-guidance cut keeps IBM in caution/recovery watch. Delayed-deal conversion, recurring demand and cash-flow guidance are the observable tests; adjusted EPS growth is checked against GAAP results, share growth and debt.",
+          "nobel_effect": "The retained 2017 process lens motivates retaining adverse evidence rather than treating an AI theme as recovery confirmation. The 2013 lens separates an operating recovery from demonstrated stock mispricing. Funding review comes from company accounting and the concentric method; the 2022 bank-run model is not directly applied to IBM.",
+          "ordering_effect": "Alphabetical and unranked while required inputs are missing. No Nobel year or prize count changes order.",
+          "nobel_lens_ids": [
+            "nobel-2013",
+            "nobel-2017"
+          ],
+          "methodology_refs": [
+            "concentric_layers.forward_earnings",
+            "concentric_layers.per_share",
+            "research_card",
+            "prospective_review_ledger"
+          ],
+          "company_source_refs": [
+            "ibm_q2",
+            "ibm_q1",
+            "ibm_letter",
+            "ibm_10q",
+            "ibm_event"
+          ]
+        }
+      }
+    ],
+    "publication_gates": {
+      "latest_completed_session_OHLCV": "missing",
+      "60_session_consolidated_liquidity": "missing",
+      "corporate_actions_security_master": "not_fully_reconciled",
+      "quote_display_rights": "not_verified",
+      "all_latest_required_filings_and_later_material_announcements": "partial_review_only",
+      "market_consensus": "not_available; optional unless claiming surprise",
+      "event_dates": "Verified for NFLX/TXN/IBM/TSLA/PG; no new in-window JNJ event verified",
+      "ranked_upside_list": "blocked"
+    },
+    "quote_attempts": {
+      "tool": "web.finance",
+      "tickers": [
+        "JNJ",
+        "NFLX",
+        "IBM",
+        "TXN"
+      ],
+      "result": "No usable quote response from the finance tool. No fallback quote scraping or personal financial account access used.",
+      "last_price": null
+    },
+    "display_instructions": [
+      "Keep hypotheses separate from a gated ranked-candidate list; do not silently turn array order into a return ranking.",
+      "Keep ranks, prices, returns and probabilities null. Do not display a verified-liquidity badge.",
+      "Label favorable/adverse tests as analyst interpretation; distinguish company guidance, historical actuals and market consensus.",
+      "Preserve source and event timestamps; after entry show window-in-progress and after exit archive.",
+      "JNJ has already-known information, not a future event badge. All five company-confirmed events are outside the next-day holding window.",
+      "Use original short fact summaries and links. No copied issuer releases, logos or unlicensed quote displays.",
+      "Replace the older evidence JSON prior-close return definition with the prospective-open definition above."
+    ],
+    "sources": {
+      "jnj_q3": {
+        "url": "https://investor.jnj.com/investor-news/news-details/2026/Johnson--Johnson-reports-Q3-2026-results-raises-2026-guidance/default.aspx",
+        "published_date": "2026-10-13",
+        "type": "issuer_results"
+      },
+      "jnj_reset": {
+        "url": "https://www.sec.gov/Archives/edgar/data/200406/000020040626000163/jnj-20260729.htm",
+        "published_date": "2026-07-29",
+        "type": "SEC_8K"
+      },
+      "jnj_remarks": {
+        "url": "https://www.jnj.com/media-center/press-releases/johnson-johnson-q3-2026-earnings-ceo-and-cfo-prepared-remarks",
+        "published_date": "2026-10-13",
+        "type": "issuer_prepared_remarks",
+        "access_note": "Earlier review used indexed remarks content; direct document access was unsuccessful. October balance-sheet/FCF amounts are not admitted as corroborated facts in this update; no retry was made."
+      },
+      "jnj_talc": {
+        "url": "https://investor.jnj.com/investor-news/news-details/2026/Johnson--Johnson-Announces-a-Proposed-Resolution-of-Ovarian-Talc-Litigation/default.aspx",
+        "published_date": "2026-07-27",
+        "type": "issuer_proposed_settlement"
+      },
+      "txn_q2": {
+        "url": "https://www.ti.com/about-ti/newsroom/news-releases/2026/2026-07-22-ti-reports-second-quarter-2026-financial-results-and-shareholder-returns.html",
+        "published_date": "2026-07-22",
+        "type": "issuer_results"
+      },
+      "txn_10q": {
+        "url": "https://www.sec.gov/Archives/edgar/data/97476/000009747626000152/txn-20260630.htm",
+        "published_date": "2026-07-24",
+        "type": "SEC_10Q",
+        "access_note": "Targeted retained statement, EPS, debt, supplemental and MD&A sections read; not full subsequent-filing or corporate-action coverage."
+      },
+      "txn_event": {
+        "url": "https://investor.ti.com/node/38586/pdf",
+        "published_date": "2026-10-01",
+        "type": "issuer_event"
+      },
+      "nflx_q2": {
+        "url": "https://s22.q4cdn.com/959853165/files/doc_financials/2026/q2/FINAL-Q2-26-Shareholder-Letter.pdf",
+        "type": "issuer_shareholder_letter",
+        "published_date_precision": "date_verified_on_PDF_page_1",
+        "published_date": "2026-07-16",
+        "access_note": "Targeted Q3/FY forecast and FCF sections read in exact Q2 PDF text. Company forecasts, not market consensus; no exact original publication minute or full-document visual review established."
+      },
+      "nflx_q1": {
+        "url": "https://s22.q4cdn.com/959853165/files/doc_financials/2026/q1/FINAL-Q1-26-Shareholder-Letter.pdf",
+        "type": "issuer_shareholder_letter",
+        "published_date": "2026-04-16",
+        "access_note": "Targeted forecast and FCF sections read in the exact Q1/Q2 PDF texts; full-document visual review and raw response-byte hashes were not available."
+      },
+      "nflx_10q": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528026000212/nflx-20260630.htm",
+        "type": "SEC_10Q",
+        "published_date": "2026-07-17",
+        "access_note": "Targeted statements, debt, content obligations, WBD fee and share sections read; balances are June 30, not current. Complete later coverage remains unfinished."
+      },
+      "nflx_event": {
+        "url": "https://ir.netflix.net/investor-news-and-events/financial-releases/press-release-details/2026/Netflix-to-Announce-Third-Quarter-2026-Financial-Results/default.aspx",
+        "published_date": "2026-09-14",
+        "type": "issuer_event"
+      },
+      "ibm_q2": {
+        "url": "https://newsroom.ibm.com/2026-07-22-IBM-RELEASES-SECOND-QUARTER-RESULTS",
+        "published_date": "2026-07-22",
+        "type": "issuer_results"
+      },
+      "ibm_q1": {
+        "url": "https://newsroom.ibm.com/2026-04-22-IBM-RELEASES-FIRST-QUARTER-RESULTS",
+        "published_date": "2026-04-22",
+        "type": "issuer_results"
+      },
+      "ibm_letter": {
+        "url": "https://newsroom.ibm.com/2026-07-14-Arvind-Krishnas-Letter-to-IBM-Investors",
+        "published_date": "2026-07-14",
+        "type": "issuer_CEO_letter"
+      },
+      "ibm_10q": {
+        "url": "https://www.sec.gov/Archives/edgar/data/51143/000005114326000078/ibm-20260630.htm",
+        "type": "SEC_10Q",
+        "published_date": "2026-07-23",
+        "access_note": "Targeted share, liquidity/debt and company-defined cash-flow sections read. Complete annual/subsequent coverage and current balances remain unverified."
+      },
+      "ibm_event": {
+        "url": "https://newsroom.ibm.com/2026-10-07-ibm-to-announce-third-quarter-2026-financial-results",
+        "published_date": "2026-10-07",
+        "type": "issuer_event"
+      },
+      "cpi": {
+        "url": "https://www.bls.gov/news.release/archives/cpi_10142026.htm",
+        "published_date": "2026-10-14",
+        "type": "BLS"
+      },
+      "industrial_production": {
+        "url": "https://www.federalreserve.gov/releases/g17/current/default.htm",
+        "published_date": "2026-10-16",
+        "type": "Federal_Reserve",
+        "archived_pdf_url": "https://www.federalreserve.gov/releases/g17/20261016/g17.pdf",
+        "access_note": "Current HTML/indexed official release verified; direct dated PDF returned internal error. Preserve source date because current URL will roll forward."
+      },
+      "fed_statement": {
+        "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260916a.htm",
+        "published_date": "2026-09-16",
+        "type": "FOMC"
+      },
+      "fed_calendar": {
+        "url": "https://www.federalreserve.gov/newsevents/2026-october.htm",
+        "type": "Federal_Reserve_calendar"
+      },
+      "fed_h15": {
+        "url": "https://www.federalreserve.gov/releases/h15/",
+        "published_date": "2026-10-16",
+        "access_note": "Official table read October 17; observations October 15; not realtime."
+      },
+      "cpi_api": {
+        "url": "https://api.bls.gov/publicAPI/v1/timeseries/data/CUUR0000SA0",
+        "published_date": "2026-09 observation",
+        "access_note": "API captured October 17; current vintage, exact original release timing not established by this capture."
+      },
+      "jnj_oct13_8k": {
+        "url": "https://www.sec.gov/Archives/edgar/data/200406/000020040626000189/jnj-20261013.htm",
+        "published_date": "2026-10-13",
+        "access_note": "Main filing and linked exhibits read in retained extracted text; exact public release time unknown."
+      },
+      "jnj_oct13_results": {
+        "url": "https://www.sec.gov/Archives/edgar/data/200406/000020040626000189/a2026q3exhibit991.htm",
+        "published_date": "2026-10-13",
+        "access_note": "Guidance and estimated YTD cash-flow qualifications corroborated; not complete company coverage."
+      },
+      "txn_planned_dividend": {
+        "url": "https://www.sec.gov/Archives/edgar/data/97476/000095010326014118/dp253473_ex99.htm",
+        "published_date": "2026-09-17",
+        "access_note": "Planned increase is contingent on board declaration; record/payment outside holding window."
+      },
+      "ibm_aug14_notes": {
+        "url": "https://www.sec.gov/Archives/edgar/data/51143/000110465926097089/tm2623193d1_ex1-1.htm",
+        "published_date": "2026-08-14",
+        "access_note": "Underwriting agreement dated August 10; scheduled closing does not independently confirm settlement."
+      },
+      "nflx_jul22_notes": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1065280/000119312526312575/d171951d8k.htm",
+        "published_date": "2026-07-22",
+        "access_note": "Completed offering; intended refinancing is not confirmation of subsequent repayment."
+      },
+      "jnj_june_10q": {
+        "url": "https://www.sec.gov/Archives/edgar/data/200406/000020040626000153/jnj-20260628.htm",
+        "published_date": "2026-07-23",
+        "access_note": "Targeted statements, EPS/share, funding and subsequent-development sections read; June figures do not validate October balances."
+      },
+      "jnj_july_talc_sec": {
+        "url": "https://www.sec.gov/Archives/edgar/data/200406/000020040626000155/exhibit991.htm",
+        "published_date": "2026-07-27",
+        "type": "SEC_8K_exhibit",
+        "access_note": "Conditional proposed resolution; threshold applies to remaining claims. No completed payment or resolution established."
+      },
+      "tsla_10q": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026049270/tsla-20260630.htm",
+        "published_date": "2026-07-23",
+        "access_note": "selected original statements, notes and MD&A"
+      },
+      "tsla_10k": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026003952/tsla-20251231.htm",
+        "published_date": "2026-01-29",
+        "access_note": "selected liquidity, outlook and EPS accounting sections"
+      },
+      "tsla_q2_update": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026049213/exhibit991.htm",
+        "published_date": "2026-07-22",
+        "access_note": "extracted financial summary, outlook, variance bridge and reconciliations; images not reviewed"
+      },
+      "tsla_financing": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026063820/tsla-20260929.htm",
+        "published_date": "2026-09-29",
+        "access_note": "items 1.01, 1.02, 2.03 and exhibit inventory; summary not underlying agreements"
+      },
+      "tsla_q3_operations": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026064366/exhibit991111111.htm",
+        "published_date": "2026-10-02",
+        "access_note": "complete extracted exhibit text"
+      },
+      "pg_fy2026_results": {
+        "url": "https://www.sec.gov/Archives/edgar/data/80424/000008042426000093/fy2526q4amj8-kexhibit991.htm",
+        "published_date": "2026-07-29",
+        "type": "SEC_8K_earnings_exhibit",
+        "access_note": "Retained full text reviewed; annual FY2027 guidance and Q4/FY2026 results are separate periods. Exact original publication time is unestablished."
+      },
+      "pg_10k": {
+        "url": "https://www.sec.gov/Archives/edgar/data/80424/000008042426000103/pg-20260630.htm",
+        "published_date": "2026-08-04",
+        "type": "SEC_10K",
+        "access_note": "June 30, 2026 annual report; financial, share, adjustment, liquidity and subsequent-event sections reviewed. This is a targeted review, not complete company coverage."
+      },
+      "pg_event": {
+        "url": "https://www.pginvestor.com/news/news-details/2026/PG-to-Webcast-Discussion-of-First-Quarter-2627-Earnings-Results-on-October-22/default.aspx",
+        "published_date": "2026-09-24",
+        "type": "issuer_event",
+        "access_note": "Existing verified event record reused; 08:30 Eastern is the results-discussion time, not a verified release minute."
+      },
+      "tsla_10ka": {
+        "url": "https://www.sec.gov/Archives/edgar/data/1318605/000110465926053166/tm2611837d1_10ka.htm",
+        "published_date": "2026-04-30",
+        "type": "SEC_10KA_Part_III",
+        "access_note": "Selected explanatory note, equity-award and ownership bases, pledge policy and related-party disclosures; not full amendment or incorporated exhibits. Historical ownership-share basis remains unreconciled; current case uses June/Q2 figures."
+      },
+      "pg_fy2026_slides": {
+        "url": "https://www.sec.gov/Archives/edgar/data/80424/000008042426000097/q4fy2026earningsslides.htm",
+        "published_date": "2026-07-29",
+        "type": "SEC_8K_earnings_presentation",
+        "reviewed_image_url": "https://www.sec.gov/Archives/edgar/data/80424/000008042426000097/q4fy2026earningsslides024.jpg",
+        "access_note": "Complete presentation text and slide 24 image reviewed. The Q1 wording is nested under Core EPS; other slide images were not reviewed. No quarterly dollar range is inferred."
+      }
+    },
+    "source_checks": [
+      {
+        "id": "sec_ibm",
+        "name": "SEC filing inventory · IBM",
+        "status": "Inventory rechecked · no new filings",
+        "observed_at": "2026-10-17T01:26:03.104Z",
+        "url": "https://data.sec.gov/submissions/CIK0000051143.json",
+        "related_sources": [
+          {
+            "label": "Dated financing source",
+            "url": "https://www.sec.gov/Archives/edgar/data/51143/000110465926097089/tm2623193d1_ex1-1.htm"
+          }
+        ],
+        "note": "Companyfacts and recent filing metadata captured. Latest 10-Q filed 2026-07-23; latest 8-K filed 2026-10-01. Filing materiality, original financial context and complete required coverage remain unreviewed. No price data. A later bounded read of the October 1 governance filing and August 14 financing filing/exhibit added dated C$2.75bn offering context; settlement is unconfirmed in that subset. It supplies no operating-guidance upgrade. Targeted quarterly and incorporated annual sections corroborated dated balances/share basis and clarified the company-defined FCF adjustment for Financing receivables. Complete issuer coverage remains unfinished.",
+        "source_kind": "sec_submissions",
+        "response_sha256": "48b6180e7fe331232ccbdda20c012f61b5b1ed42251c4d74c05c6db2f07326f8",
+        "last_check": {
+          "observed_at": "2026-10-17T16:35:39.488Z",
+          "url": "https://data.sec.gov/submissions/CIK0000051143.json",
+          "source_kind": "sec_submissions",
+          "outcome": "unchanged",
+          "sha256": "48b6180e7fe331232ccbdda20c012f61b5b1ed42251c4d74c05c6db2f07326f8"
+        }
+      },
+      {
+        "id": "sec_ibm_companyfacts",
+        "name": "SEC financial facts · IBM",
+        "source_kind": "sec_companyfacts",
+        "status": "Captured once · context review incomplete",
+        "observed_at": "2026-10-17T01:22:00.759Z",
+        "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000051143.json",
+        "response_sha256": "1660477fa5713e5749c3038cf22b3c776414acfc6e1e721d1772c91101dc5e5c",
+        "note": "Raw API fact candidates require original filing-context and restatement checks. Complete company coverage remains unfinished. The later filing-inventory request did not refresh this endpoint. No price data."
+      },
+      {
+        "id": "sec_jnj",
+        "name": "SEC filing inventory · JNJ",
+        "status": "Inventory rechecked · no new filings",
+        "observed_at": "2026-10-17T01:25:39.881Z",
+        "url": "https://data.sec.gov/submissions/CIK0000200406.json",
+        "related_sources": [
+          {
+            "label": "October 13 results filing",
+            "url": "https://www.sec.gov/Archives/edgar/data/200406/000020040626000189/jnj-20261013.htm"
+          },
+          {
+            "label": "June quarterly filing",
+            "url": "https://www.sec.gov/Archives/edgar/data/200406/000020040626000153/jnj-20260628.htm"
+          },
+          {
+            "label": "Conditional July talc proposal",
+            "url": "https://www.sec.gov/Archives/edgar/data/200406/000020040626000155/exhibit991.htm"
+          }
+        ],
+        "note": "Companyfacts and recent filing metadata captured. Targeted October results, June quarterly and annual sections, and July Firefly/Sail and proposed-talc disclosures were read. The July EPS reset and conditional remaining-claims threshold are corroborated. October prepared-remarks cash/debt/FY cash-flow amounts remain uncorroborated and excluded; no retry. Complete issuer coverage and the forward EPS driver bridge remain unfinished. No price data.",
+        "source_kind": "sec_submissions",
+        "response_sha256": "f0e519276f2ef9e9e820e3187f1f9136192b45d381f4302f943c8ec51390ff30",
+        "last_check": {
+          "observed_at": "2026-10-17T16:35:40.755Z",
+          "url": "https://data.sec.gov/submissions/CIK0000200406.json",
+          "source_kind": "sec_submissions",
+          "outcome": "unchanged",
+          "sha256": "f0e519276f2ef9e9e820e3187f1f9136192b45d381f4302f943c8ec51390ff30"
+        }
+      },
+      {
+        "id": "sec_jnj_companyfacts",
+        "name": "SEC financial facts · JNJ",
+        "source_kind": "sec_companyfacts",
+        "status": "Captured once · context review incomplete",
+        "observed_at": "2026-10-17T01:21:46.830Z",
+        "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000200406.json",
+        "response_sha256": "7141c0c988fa1d30f779687b4c78ab561e19aa5990a58ad86a66467d0a783980",
+        "note": "Raw API fact candidates require original filing-context and restatement checks. Complete company coverage remains unfinished. The later filing-inventory request did not refresh this endpoint. No price data."
+      },
+      {
+        "id": "sec_nflx",
+        "name": "SEC filing inventory · NFLX",
+        "status": "Inventory rechecked · no new filings",
+        "observed_at": "2026-10-17T01:25:30.321Z",
+        "url": "https://data.sec.gov/submissions/CIK0001065280.json",
+        "related_sources": [
+          {
+            "label": "Dated financing source",
+            "url": "https://www.sec.gov/Archives/edgar/data/1065280/000119312526312575/d171951d8k.htm"
+          }
+        ],
+        "note": "Latest 10-Q filed 2026-07-17; latest 8-K filed 2026-07-30. Companyfacts and recent filing metadata captured. Targeted Q1/Q2 letters and annual/quarterly statements were read for operating forecasts, share basis, content obligations and nonrecurring cash-flow effects. July financing and governance filings were read; subsequent repayment/current debt remain unverified. Complete issuer coverage remains unfinished. No price data.",
+        "source_kind": "sec_submissions",
+        "response_sha256": "8eaef3227f6a13b687027cc684cf1f1dfae7dcba0ed8c091af2bcb2e9f50823d",
+        "last_check": {
+          "observed_at": "2026-10-17T16:35:41.904Z",
+          "url": "https://data.sec.gov/submissions/CIK0001065280.json",
+          "source_kind": "sec_submissions",
+          "outcome": "unchanged",
+          "sha256": "8eaef3227f6a13b687027cc684cf1f1dfae7dcba0ed8c091af2bcb2e9f50823d"
+        }
+      },
+      {
+        "id": "sec_nflx_companyfacts",
+        "name": "SEC financial facts · NFLX",
+        "source_kind": "sec_companyfacts",
+        "status": "Captured once · context review incomplete",
+        "observed_at": "2026-10-17T01:16:50.718Z",
+        "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0001065280.json",
+        "response_sha256": "00f3449073d90dfa3aec4e384de24b70d92d897f90c67d6bca61f23e33d38634",
+        "note": "Raw API fact candidates require original filing-context and restatement checks. Complete company coverage remains unfinished. The later filing-inventory request did not refresh this endpoint. No price data."
+      },
+      {
+        "id": "sec_pg",
+        "name": "SEC filing inventory · PG",
+        "status": "Inventory rechecked · acceptance metadata changed",
+        "observed_at": "2026-10-17T02:09:19.936Z",
+        "url": "https://data.sec.gov/submissions/CIK0000080424.json",
+        "related_sources": [
+          {
+            "label": "Annual filing",
+            "url": "https://www.sec.gov/Archives/edgar/data/80424/000008042426000103/pg-20260630.htm"
+          },
+          {
+            "label": "FY2027 company outlook",
+            "url": "https://www.sec.gov/Archives/edgar/data/80424/000008042426000093/fy2526q4amj8-kexhibit991.htm"
+          },
+          {
+            "label": "July guidance presentation",
+            "url": "https://www.sec.gov/Archives/edgar/data/80424/000008042426000097/q4fy2026earningsslides.htm"
+          }
+        ],
+        "note": "Latest inventory retains the same filings. The October 16 vote-results accession has a changed API acceptance timestamp; exact public dissemination remains unverified. Companyfacts and recent filing metadata captured. Targeted periodic sections, July earnings/outlook, both additional July mains and presentation text were read; slide24 was inspected visually. July FY2027 guidance includes directional Q1 Core EPS wording and a dated annual cost assumption, not current costs or a return forecast. Selected later voting/dividend filings were read. Complete all-form, Thorne transaction/funding and October facility-renewal review remain unfinished. No price data.",
+        "source_kind": "sec_submissions",
+        "response_sha256": "7d445288a523695c5005d8588e8cfce5d34093d840d1ebf308331303d117f904",
+        "last_check": {
+          "observed_at": "2026-10-17T16:35:43.106Z",
+          "url": "https://data.sec.gov/submissions/CIK0000080424.json",
+          "source_kind": "sec_submissions",
+          "outcome": "metadata_changed",
+          "sha256": "5d70210737631bf11d61d617f4b10578ba48c45fc678e43daa35323486281e73"
+        }
+      },
+      {
+        "id": "sec_pg_companyfacts",
+        "name": "SEC financial facts · PG",
+        "source_kind": "sec_companyfacts",
+        "status": "Captured once · context review incomplete",
+        "observed_at": "2026-10-17T02:09:28.478Z",
+        "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000080424.json",
+        "response_sha256": "8e7b5d62ec28d9901d6e8bc94e2ed73852985252eb7032542d4c8e24b2492ab5",
+        "note": "Raw API fact candidates require original filing-context and restatement checks. Complete company coverage remains unfinished. The later filing-inventory request did not refresh this endpoint. No price data."
+      },
+      {
+        "id": "sec_tsla",
+        "name": "SEC filing inventory · TSLA",
+        "status": "Inventory rechecked · no new filings",
+        "observed_at": "2026-10-17T02:09:34.862Z",
+        "url": "https://data.sec.gov/submissions/CIK0001318605.json",
+        "related_sources": [
+          {
+            "label": "Quarterly filing",
+            "url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026049270/tsla-20260630.htm"
+          },
+          {
+            "label": "October operations release",
+            "url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026064366/exhibit991111111.htm"
+          },
+          {
+            "label": "Annual Part III amendment",
+            "url": "https://www.sec.gov/Archives/edgar/data/1318605/000110465926053166/tm2611837d1_10ka.htm"
+          }
+        ],
+        "note": "Companyfacts and recent filing metadata captured. Targeted Q2/annual statements, July update, September financing summary and October unit release were read. Quarter actuals are analyst references, not Q3 guidance. Selected annual-amendment governance, compensation and ownership sections were subsequently read; its historical ownership-share basis remains unreconciled. Underlying financing agreements and complete all-form review remain unfinished. Undrawn capacity is neither cash nor drawn debt. No price data.",
+        "source_kind": "sec_submissions",
+        "response_sha256": "76ef728de78f5a7048154847052d1be4b76d32be9e790f57d8ce14a026be6c3a",
+        "last_check": {
+          "observed_at": "2026-10-17T16:35:44.259Z",
+          "url": "https://data.sec.gov/submissions/CIK0001318605.json",
+          "source_kind": "sec_submissions",
+          "outcome": "unchanged",
+          "sha256": "76ef728de78f5a7048154847052d1be4b76d32be9e790f57d8ce14a026be6c3a"
+        }
+      },
+      {
+        "id": "sec_tsla_companyfacts",
+        "name": "SEC financial facts · TSLA",
+        "source_kind": "sec_companyfacts",
+        "status": "Captured once · context review incomplete",
+        "observed_at": "2026-10-17T02:09:41.836Z",
+        "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0001318605.json",
+        "response_sha256": "d0c2b9288d027a6d735039a6fe874a348b65a7fdbc6c133130666c777c885204",
+        "note": "Raw API fact candidates require original filing-context and restatement checks. Complete company coverage remains unfinished. The later filing-inventory request did not refresh this endpoint. No price data."
+      },
+      {
+        "id": "sec_txn",
+        "name": "SEC filing inventory · TXN",
+        "status": "Inventory rechecked · no new filings",
+        "observed_at": "2026-10-17T01:25:52.695Z",
+        "url": "https://data.sec.gov/submissions/CIK0000097476.json",
+        "related_sources": [
+          {
+            "label": "Planned dividend exhibit",
+            "url": "https://www.sec.gov/Archives/edgar/data/97476/000095010326014118/dp253473_ex99.htm"
+          }
+        ],
+        "note": "Companyfacts and recent filing metadata captured. Latest 10-Q filed 2026-07-24; latest 8-K filed 2026-09-17. Filing materiality, original financial context and complete required coverage remain unreviewed. No price data. A later bounded read of the September 17 8-K and exhibit confirmed only a planned dividend increase, contingent on declaration; supplied record/payment dates are outside the holding window. It supplies no operating-guidance upgrade. Targeted latest 10-Q/10-K sections were also read, supporting the June balances and identifying pending acquisition financing and CHIPS cash-flow qualifications; not every later source or risk section was reviewed.",
+        "source_kind": "sec_submissions",
+        "response_sha256": "f41410833c3b1fe551ac1dd38a696782c430e8a71a4b8b780fd38e0f13b7beb3",
+        "last_check": {
+          "observed_at": "2026-10-17T16:35:45.467Z",
+          "url": "https://data.sec.gov/submissions/CIK0000097476.json",
+          "source_kind": "sec_submissions",
+          "outcome": "unchanged",
+          "sha256": "f41410833c3b1fe551ac1dd38a696782c430e8a71a4b8b780fd38e0f13b7beb3"
+        }
+      },
+      {
+        "id": "sec_txn_companyfacts",
+        "name": "SEC financial facts · TXN",
+        "source_kind": "sec_companyfacts",
+        "status": "Captured once · context review incomplete",
+        "observed_at": "2026-10-17T01:21:53.215Z",
+        "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000097476.json",
+        "response_sha256": "5ee95bf56949988a4beaf0598e3acb0a012867228760cd9462a1c9e72526446f",
+        "note": "Raw API fact candidates require original filing-context and restatement checks. Complete company coverage remains unfinished. The later filing-inventory request did not refresh this endpoint. No price data."
+      },
+      {
+        "id": "fed_h15",
+        "name": "Federal Reserve H.15",
+        "status": "Dated macro context · table read",
+        "observed_at": "2026-10-17T01:16:18Z",
+        "url": "https://www.federalreserve.gov/releases/h15/",
+        "note": "October 16 release, observations through October 15. Web-table extraction; raw response bytes and exact publication time were not captured.",
+        "source_kind": "fed_h15"
+      },
+      {
+        "id": "bls_cpi_api",
+        "name": "BLS CPI API · CUUR0000SA0",
+        "status": "Series rechecked · observations and footnotes unchanged",
+        "observed_at": "2026-10-17T01:28:32.346Z",
+        "url": "https://api.bls.gov/publicAPI/v1/timeseries/data/CUUR0000SA0",
+        "related_sources": [
+          {
+            "label": "Series metadata",
+            "url": "https://data.bls.gov/timeseries/CUUR0000SA0"
+          }
+        ],
+        "note": "Latest observation September 2026: CPI-U all items, U.S. city average, not seasonally adjusted, 1982–84=100. Missing values, annual averages and footnotes remain distinct. Exact first-release vintage was not established. BLS.gov cannot vouch for the data or analyses derived from these data after the data have been retrieved from BLS.gov.",
+        "source_kind": "bls_current_vintage",
+        "response_sha256": "5ca32acfa03d25378f3dd60fd0b7ce52162271570f89fefc5333c68602e3230e",
+        "last_check": {
+          "observed_at": "2026-10-17T16:35:46.976Z",
+          "url": "https://api.bls.gov/publicAPI/v1/timeseries/data/CUUR0000SA0",
+          "source_kind": "bls_current_vintage",
+          "outcome": "unchanged",
+          "sha256": "c62588709abf1390829ebd7fb423d08223e7af2cc8b7b03c354a0b78bf575988"
+        }
+      }
+    ],
+    "initial_checked_at_utc": "2026-10-17T00:23:39Z",
+    "review_history": [
+      {
+        "checked_at_utc": "2026-10-17T00:23:39Z",
+        "scope": "Initial four-case partial operating review"
+      },
+      {
+        "checked_at_utc": "2026-10-17T02:21:26.962Z",
+        "scope": "Six-case source-bound partial review; market data and ranking gates remain blocked"
+      },
+      {
+        "checked_at_utc": "2026-10-17T02:40:41.433Z",
+        "scope": "July PG directional/Core-EPS and annual-cost assumptions; targeted TSLA Part III review; no market-data or ranking approval"
+      }
+    ]
+  }
+}

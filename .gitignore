@@ -1,0 +1,10 @@
+evidence/sec-original/
+evidence/sec-capture-manifest.json
+preview/
+*.tar.gz
+node_modules/
+.DS_Store
+
+worker/generated-assets.js
+dist/server/
+.local/

@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "cribscore-price-series-v1",
+  "id": "synthetic-guide-example",
+  "symbol": "DEMO",
+  "originalSymbol": "DEMO",
+  "entityId": null,
+  "currency": "USD",
+  "exchange": "SYNTHETIC",
+  "sessionTimezone": "America/New_York",
+  "interval": "1d",
+  "priceBasis": "unadjusted",
+  "volumeBasis": "shares",
+  "source": {
+    "provider": "SYNTHETIC EXAMPLE — not market data",
+    "dataset": "Invented values and clocks for import-format practice only",
+    "url": null,
+    "capturedAt": "2020-01-08T22:00:00Z",
+    "publishedAt": null,
+    "responseSha256": null,
+    "channel": "manual_import",
+    "declaredDelayMinutes": null,
+    "paginationComplete": null,
+    "priceSession": "unknown",
+    "volumeSession": "unknown"
+  },
+  "bars": [
+    {
+      "session": "2020-01-06",
+      "open": "10.000001",
+      "high": "10.500002",
+      "low": "9.900001",
+      "close": "10.250003",
+      "volume": null
+    },
+    {
+      "session": "2020-01-07",
+      "open": "10.250003",
+      "high": "10.750004",
+      "low": "10.100002",
+      "close": "10.500005",
+      "volume": null
+    }
+  ],
+  "actions": {
+    "status": "unknown",
+    "fromSession": null,
+    "throughSession": null,
+    "source": {
+      "url": null,
+      "capturedAt": null,
+      "responseSha256": null
+    },
+    "items": []
+  }
+}

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src &#x27;none&#x27;; style-src &#x27;sha256-L+fdAFbvgUhyFAS7eMXv0KKRAlQ8EYG0iwOoF1FVuco=&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;">
+<title>Daily price import format · Cribscore help</title>
+<style>html{color-scheme:light dark}body{max-width:56rem;margin:2rem auto;padding:0 1rem;font:1rem/1.55 system-ui,sans-serif}h1,h2{line-height:1.2}h2{margin-top:2rem}a{text-underline-offset:.2em}code,pre{font-family:ui-monospace,monospace;font-size:.92em}pre{overflow:auto;border:1px solid #888;padding:1rem;border-radius:.4rem}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #888;padding:.6rem;text-align:left;vertical-align:top}caption{text-align:left;font-weight:700;margin:.4rem 0}section.notice{border:2px solid #888;border-radius:.4rem;padding:1rem}p:last-child{margin-bottom:0}.small{font-size:.9rem}a:focus-visible,summary:focus-visible,pre:focus-visible{outline:3px solid Highlight;outline-offset:3px}@media(max-width:36rem){table,tbody,tr,th,td{display:block}th,td{padding:.3rem 0}th{border:0}tr{padding:.5rem 0}pre{font-size:.8rem}}</style>
+</head>
+<body>
+<main>
+<h1>Daily price import format</h1>
+<p>Prepare a JSON file for <strong>Prices → Import daily price data → Import price data</strong>. A successful import immediately replaces the current imported batch. It stays in that tab until reload. A rejected file keeps the previous data. Keep your original file.</p>
+<section class="notice" aria-labelledby="synthetic-heading">
+<h2 id="synthetic-heading">Synthetic format example</h2>
+<p><strong>Every value, symbol and timestamp in this example is invented.</strong> It is format practice, not historical or current market data. It has no verified source, calendar, action coverage or hosted chart mapping.</p>
+<p class="small">The complete JSON is below. Copy it into a UTF-8 text file with a <code>.json</code> extension to practice the format. Reading this page does not import anything. Keep the app open in its original tab.</p>
+</section>
+<h2>Fields to prepare</h2>
+<table><caption>One daily series</caption><tbody>
+<tr><th scope="row">Format</th><td><code>schemaVersion: "cribscore-price-series-v1"</code>, a distinct <code>id</code>, uppercase <code>symbol</code>, and three-letter <code>currency</code>.</td></tr>
+<tr><th scope="row">Sessions</th><td><code>interval: "1d"</code>, an IANA <code>sessionTimezone</code> such as <code>America/New_York</code>, and each exchange-local <code>session</code> date as <code>YYYY-MM-DD</code>.</td></tr>
+<tr><th scope="row">Prices</th><td>Quoted ordinary decimal strings for <code>open</code>, <code>high</code>, <code>low</code>, <code>close</code>. Keep the source precision; do not convert to binary floating-point first. High and low must contain open and close.</td></tr>
+<tr><th scope="row">Volume</th><td>A number or <code>null</code> for unknown volume. Ordinary share volume must be a whole number; split-adjusted volume may be fractional. Declare <code>volumeBasis</code> as <code>shares</code>, <code>split_adjusted_shares</code> or <code>unknown</code>.</td></tr>
+<tr><th scope="row">Source</th><td>Nonempty <code>source.provider</code> and <code>source.dataset</code>, with <code>channel: "manual_import"</code>. Use <code>null</code> for an unknown <code>url</code>, <code>capturedAt</code>, <code>publishedAt</code>, <code>responseSha256</code> or <code>declaredDelayMinutes</code>. A known URL must be HTTPS and contain no credentials. A known digest is 64 lowercase hexadecimal characters.</td></tr>
+<tr><th scope="row">Adjustments</th><td><code>priceBasis</code> is <code>unadjusted</code>, <code>split_adjusted</code>, <code>total_return_adjusted</code> or <code>unknown</code>. Use what the source establishes. Use <code>actions.status: "unknown"</code> and <code>items: []</code> when action coverage has not been established. An empty list does not certify that no actions occurred.</td></tr>
+</tbody></table>
+<p>Optional <code>originalSymbol</code>, <code>entityId</code> and <code>exchange</code> retain source identity when known; they can be omitted or <code>null</code>. The table and price highlight preserve canonical decimal strings; insignificant trailing zeros may disappear. The plot and indexed comparisons are approximate. You need not create the generated <code>decimals</code> fields yourself. If re-importing a normalized file, keep its numeric and decimal fields consistent.</p>
+<h2>Keep the clocks separate</h2>
+<p><code>capturedAt</code> is the actual source retrieval time. <code>publishedAt</code> is a separately known publication time. Use exact UTC timestamps with seconds and <code>Z</code>, optionally 1–3 fractional digits. Publication must not follow capture. Keep unknown nullable metadata <code>null</code>; keep original clocks when importing later.</p>
+<p>If you supply a bar <code>availableAt</code>, it must be a valid UTC timestamp, no earlier than known publication and no later than known capture; an invalid value rejects the file. If it is omitted or <code>null</code>, the parser uses capture, then known publication, or leaves availability unknown. A session date alone is not a quote timestamp.</p>
+<h2>Coverage and trust remain explicit</h2>
+<p>Imports do not provide a verified exchange calendar. A continuous line does not establish holidays, early closes or missing-session coverage. A recent capture does not establish current prices; unknown delay is not zero. An empty action list does not establish that no splits or dividends occurred.</p>
+<p><strong>Imported data is chart context only.</strong> Import success does not verify source rights or account entitlement, create a paper trade, supply journal marks or change rankings. TradingView is a separate display. Raw provider responses, including Alpaca bars, need conversion to this format with their original source metadata. Importing them does not connect or authenticate a provider account.</p>
+<h2>Limits and multiple companies</h2>
+<p>The upload UI accepts JSON only: at most 2 MiB, 16 series, 5,000 bars per series and 40,000 bars total. Session dates must be unique per series; IDs and symbols must be unique per batch. Duplicate JSON keys are rejected. Positive prices support up to 12 decimal places and a maximum value of <code>1000000000000</code>. Ordinary decimal strings cannot contain commas, currency signs or exponents.</p>
+<p>To retain several companies together, put their complete objects in the <code>series</code> array of a wrapper with <code>schemaVersion: "cribscore-price-import-v1"</code>. Each successful upload replaces the previous batch. CSV is not accepted by this form.</p>
+<details id="synthetic-example"><summary>Inspect the complete synthetic JSON</summary><pre tabindex="0" aria-label="Synthetic import example JSON">{
+  &quot;schemaVersion&quot;: &quot;cribscore-price-series-v1&quot;,
+  &quot;id&quot;: &quot;synthetic-guide-example&quot;,
+  &quot;symbol&quot;: &quot;DEMO&quot;,
+  &quot;originalSymbol&quot;: &quot;DEMO&quot;,
+  &quot;entityId&quot;: null,
+  &quot;currency&quot;: &quot;USD&quot;,
+  &quot;exchange&quot;: &quot;SYNTHETIC&quot;,
+  &quot;sessionTimezone&quot;: &quot;America/New_York&quot;,
+  &quot;interval&quot;: &quot;1d&quot;,
+  &quot;priceBasis&quot;: &quot;unadjusted&quot;,
+  &quot;volumeBasis&quot;: &quot;shares&quot;,
+  &quot;source&quot;: {
+    &quot;provider&quot;: &quot;SYNTHETIC EXAMPLE — not market data&quot;,
+    &quot;dataset&quot;: &quot;Invented values and clocks for import-format practice only&quot;,
+    &quot;url&quot;: null,
+    &quot;capturedAt&quot;: &quot;2020-01-08T22:00:00Z&quot;,
+    &quot;publishedAt&quot;: null,
+    &quot;responseSha256&quot;: null,
+    &quot;channel&quot;: &quot;manual_import&quot;,
+    &quot;declaredDelayMinutes&quot;: null,
+    &quot;paginationComplete&quot;: null,
+    &quot;priceSession&quot;: &quot;unknown&quot;,
+    &quot;volumeSession&quot;: &quot;unknown&quot;
+  },
+  &quot;bars&quot;: [
+    {
+      &quot;session&quot;: &quot;2020-01-06&quot;,
+      &quot;open&quot;: &quot;10.000001&quot;,
+      &quot;high&quot;: &quot;10.500002&quot;,
+      &quot;low&quot;: &quot;9.900001&quot;,
+      &quot;close&quot;: &quot;10.250003&quot;,
+      &quot;volume&quot;: null
+    },
+    {
+      &quot;session&quot;: &quot;2020-01-07&quot;,
+      &quot;open&quot;: &quot;10.250003&quot;,
+      &quot;high&quot;: &quot;10.750004&quot;,
+      &quot;low&quot;: &quot;10.100002&quot;,
+      &quot;close&quot;: &quot;10.500005&quot;,
+      &quot;volume&quot;: null
+    }
+  ],
+  &quot;actions&quot;: {
+    &quot;status&quot;: &quot;unknown&quot;,
+    &quot;fromSession&quot;: null,
+    &quot;throughSession&quot;: null,
+    &quot;source&quot;: {
+      &quot;url&quot;: null,
+      &quot;capturedAt&quot;: null,
+      &quot;responseSha256&quot;: null
+    },
+    &quot;items&quot;: []
+  }
+}
+</pre></details>
+</main>
+</body>
+</html>

@@ -1,0 +1,498 @@
+{
+  "methodology_version": "1.1.0-proposed",
+  "prepared_on": "2026-10-16",
+  "implementation_state": "specification_only",
+  "predictive_performance": "not_established",
+  "purpose": "Horizon-aware, evidence-led equity research",
+  "current_recommendations": [],
+  "historical_private_portfolio_data_included": false,
+  "ui_copy": {
+    "title": "From the economy to each share",
+    "intro": "Start with the environment. Follow the evidence to the industry, the company, the next event and the value of each share.",
+    "decision_question": "What could change expectations within this holding period?",
+    "uncertainty": "An attractive business, a good entry and a profitable trade are different questions.",
+    "no_qualifiers": "No research candidates meet the evidence requirements for this horizon.",
+    "capital_preservation": "Equities and thematic or digital-asset funds can lose principal. A return objective does not make that risk disappear."
+  },
+  "horizon_contract": {
+    "required": [
+      "objective",
+      "instrument_type",
+      "start_at",
+      "end_at",
+      "timezone",
+      "source_cutoff_at",
+      "review_at",
+      "event_risk_policy"
+    ],
+    "views": [
+      {
+        "id": "weekly",
+        "label": "Next week",
+        "status": "planned",
+        "kind": "event_and_risk_watch",
+        "bounds": "Explicit session-to-session timestamps; no silent rollover"
+      },
+      {
+        "id": "one_to_four_weeks",
+        "label": "1–4 weeks",
+        "status": "planned",
+        "kind": "event_and_risk_watch",
+        "bounds": "Five to twenty trading sessions, with actual dates shown"
+      },
+      {
+        "id": "one_month",
+        "label": "About one month",
+        "status": "planned",
+        "kind": "event_and_risk_watch",
+        "bounds": "Explicit calendar end date; not assumed equivalent to twenty sessions"
+      },
+      {
+        "id": "fundamental",
+        "label": "6–24 months",
+        "status": "planned",
+        "kind": "fundamentals_and_conditional_valuation",
+        "bounds": "Separate assumptions for each supported selected horizon"
+      }
+    ],
+    "publication_cadence_is_not_holding_horizon": true,
+    "changing_horizon_requires_new_analysis": true,
+    "objectives": [
+      "research",
+      "speculative_return",
+      "principal_preservation"
+    ],
+    "principal_preservation_rule": "Do not describe an equity or risky fund position as capital-protected. Explain the mismatch and abstain from a preservation claim.",
+    "event_risk_policy_values": [
+      "avoid_event",
+      "exit_before_event",
+      "hold_through_event",
+      "not_applicable",
+      "unknown"
+    ],
+    "unknown_material_event_policy": "No current short-horizon view",
+    "earnings_rule_change": "Require a new version, new evidence or explicit strategy-policy change, and a visible explanation before reversing exit-before versus hold-through policy.",
+    "v1_short_horizon_directional_targets": "not_supported_without_separate_validation"
+  },
+  "concentric_layers": [
+    {
+      "id": "macro",
+      "label": "Macro conditions",
+      "question": "Which growth, inflation, energy and financing changes matter to this business?",
+      "required_evidence": [
+        "dated_release_or_observation",
+        "economic_period",
+        "company_exposure_mechanism"
+      ],
+      "result": "Describe the plausible tailwind/headwind and competing explanation; do not assume a mechanical stock-price response."
+    },
+    {
+      "id": "fed_response",
+      "label": "Fed and market response",
+      "question": "What changed relative to expectations, and how did yields and equities respond?",
+      "required_evidence": [
+        "official_decision_or_calendar",
+        "evidenced_expectations_if_claimed",
+        "matched_market_timestamps"
+      ],
+      "result": "Separate the policy fact from expectations, observed market reaction and the proposed causal interpretation."
+    },
+    {
+      "id": "industry",
+      "label": "Industry leadership",
+      "question": "Is this industry leading over comparable windows, and does this company share the relevant economics?",
+      "required_evidence": [
+        "comparable_total_return_windows",
+        "sector_or_industry_benchmark",
+        "specific_exposure"
+      ],
+      "result": "Avoid treating ticker count or a shared theme as measured diversification."
+    },
+    {
+      "id": "forward_earnings",
+      "label": "Forward operating expectations",
+      "question": "What new evidence changes future revenue, earnings or cash flow?",
+      "required_evidence": [
+        "issuer_release_or_filing",
+        "reported_vs_adjusted_reconciliation",
+        "guidance_fiscal_period",
+        "consensus_vintage_if_used"
+      ],
+      "result": "Distinguish company guidance, consensus revisions, reported results, one-offs, backlog and actual cash conversion."
+    },
+    {
+      "id": "catalyst",
+      "label": "Information inside the holding window",
+      "question": "What information could change expectations before this view expires?",
+      "required_evidence": [
+        "event_start_at",
+        "event_status",
+        "official_event_source",
+        "announcement_at",
+        "expectation_change_mechanism"
+      ],
+      "result": "A conference, index event or old earnings release is not automatically a fresh positive catalyst. Identify two-sided outcomes and already-known information."
+    },
+    {
+      "id": "execution",
+      "label": "Price, liquidity and entry context",
+      "question": "Does current price behavior support the thesis, and what could prevent a realistic execution?",
+      "required_evidence": [
+        "quote_timestamp_and_session",
+        "corporate_action_basis",
+        "bar_interval",
+        "liquidity_coverage",
+        "broker_capabilities_if_applicable"
+      ],
+      "result": "Separate screen price, proposed condition, executable quote and actual fill. A falling price reaching an old entry level is insufficient."
+    },
+    {
+      "id": "per_share",
+      "label": "Value attributable to each share",
+      "question": "What remains for one share after expenses, debt, preferred claims and potential issuance?",
+      "required_evidence": [
+        "instrument_type",
+        "effective_dated_share_basis",
+        "capital_structure_bridge",
+        "financing_proceeds_use"
+      ],
+      "result": "Use corporate dilution analysis for operating companies and a separate NAV/fee/creation-redemption template for funds."
+    }
+  ],
+  "gate_contract": {
+    "outcomes": [
+      "pass",
+      "warning",
+      "block",
+      "unknown"
+    ],
+    "evidence_completeness_is_not_profit_probability": true,
+    "critical_unknown_blocks_dependent_view": true,
+    "no_weighted_average_can_override_critical_failure": true,
+    "market_headwinds": "Evaluate the mechanism and thesis compatibility; do not require every macro indicator to be positive.",
+    "claim_types": [
+      "reported_fact",
+      "deterministic_calculation",
+      "analyst_assumption",
+      "interpretation"
+    ],
+    "duplicate_sources": "Count syndicated or duplicated reports as the same underlying evidence, not independent confirmation."
+  },
+  "research_card": {
+    "collapsed_fields": [
+      "company_and_ticker",
+      "research_status",
+      "selected_horizon_and_expiry",
+      "what_changed",
+      "why_this_window",
+      "main_risk",
+      "next_confirmed_event",
+      "read_evidence_link"
+    ],
+    "detail_sections": [
+      "thesis_and_counterthesis",
+      "concentric_layer_evidence",
+      "forward_operating_bridge",
+      "per_share_economics",
+      "event_timeline",
+      "what_would_change_the_view",
+      "source_and_revision_history"
+    ],
+    "status_values": [
+      "research_candidate",
+      "watch",
+      "risk_elevated",
+      "needs_review",
+      "no_current_view",
+      "unsupported_instrument"
+    ],
+    "rank_explanation": "Show why a candidate ranks ahead of the closest reasonable alternative, including an explicit weakness.",
+    "no_forced_pick_count": true,
+    "no_composite_profit_score": true,
+    "no_live_style_for_archived_calls": true
+  },
+  "catalyst_contract": {
+    "fields": [
+      "event_id",
+      "event_kind",
+      "event_start_at",
+      "timezone",
+      "confirmed_or_estimated",
+      "source_url",
+      "source_published_at",
+      "last_checked_at",
+      "already_announced_at",
+      "in_holding_window",
+      "expected_information",
+      "positive_outcome",
+      "negative_outcome",
+      "review_after_event"
+    ],
+    "event_kinds": [
+      "earnings",
+      "guidance",
+      "investor_day",
+      "product_or_clinical_update",
+      "macro_release",
+      "policy_decision",
+      "index_or_corporate_action",
+      "industry_data"
+    ],
+    "stale_event_rule": "Past events may support the thesis but cannot be relabelled as upcoming catalysts.",
+    "date_conflict_rule": "A material unresolved event-date conflict blocks the dependent short-horizon view.",
+    "calendar_window_rule": "An event outside the chosen window cannot earn an in-window catalyst designation."
+  },
+  "earnings_and_valuation_contract": {
+    "guidance_is_not_consensus": true,
+    "fiscal_period_alignment_required": true,
+    "reported_adjusted_and_one_offs_separate": true,
+    "backlog_is_not_revenue_or_cash": true,
+    "consensus_required_fields": [
+      "provider",
+      "fiscal_period",
+      "estimate_type",
+      "as_of_at",
+      "comparison_as_of_at",
+      "analyst_count_if_verified",
+      "currency",
+      "accounting_basis"
+    ],
+    "consensus_missing_policy": "Show unavailable. Do not substitute price targets or company guidance and call it a verified analyst-revision signal.",
+    "valuation_scenarios": "Long-horizon conditional assumptions with an explicit revenue/earnings or cash-flow bridge, financing claims, diluted shares and downside; no assigned probability without separate calibration.",
+    "past_high_rule": "An old share-price peak is not a valuation target. Reconcile splits, share issuance, business changes and fund premiums first."
+  },
+  "per_share_templates": {
+    "operating_company": {
+      "required": [
+        "period_end_common_shares",
+        "weighted_average_basic_shares",
+        "weighted_average_diluted_shares",
+        "share_class_mapping",
+        "stock_compensation",
+        "options_and_warrants",
+        "convertibles",
+        "authorized_vs_issued_distinction",
+        "net_debt_and_preferred_claims",
+        "issuance_and_buyback_cash_flows",
+        "proceeds_use",
+        "corporate_actions"
+      ],
+      "rules": [
+        "Do not compare period-end shares with weighted-average shares as if they were identical.",
+        "A buyback authorization is not an executed buyback or a net share-count reduction.",
+        "A split changes units, not ownership percentages.",
+        "Potential conversion shares are not already-issued shares.",
+        "Issuance can finance valuable assets or remove senior claims; judge value per diluted share.",
+        "Pre-funded warrants require an explicit economic-share treatment.",
+        "An IPO comparison must reconcile preferred conversions and share-class changes."
+      ]
+    },
+    "fund_or_digital_asset_product": {
+      "initial_release_state": "unsupported_until_dedicated_template_and_source_rights_pass",
+      "required": [
+        "legal_structure",
+        "mandate",
+        "holdings_as_of",
+        "top_holdings_and_theme_exposure",
+        "nav_as_of",
+        "market_price_as_of",
+        "premium_discount",
+        "spread_and_liquidity",
+        "creation_redemption_terms",
+        "expense_ratio_and_fee_basis",
+        "derivatives_and_counterparties",
+        "leverage_policy",
+        "distribution_or_staking_terms",
+        "underlying_and_exchange_trading_hours"
+      ],
+      "rules": [
+        "Asset-backed fund creations are not automatically operating-company dilution.",
+        "Do not treat staking fees on rewards as an annual fee on all assets or as a promised yield.",
+        "A fund with several holdings can retain concentrated industry or token risk.",
+        "A current issuer-data page with blank NAV/spread fields does not establish a discount.",
+        "Material conflicting issuer disclosures require prospectus reconciliation."
+      ]
+    },
+    "pre_revenue_or_special_situation": {
+      "initial_release_state": "unsupported",
+      "rule": "Dedicated clinical, financing, foreign-issuer or other sector analysis is required before a view is activated."
+    }
+  },
+  "portfolio_research_controls": {
+    "initial_release": "Company research and paper analysis only; no brokerage connection or trading action",
+    "candidate_list_is_not_portfolio": true,
+    "cash_is_valid_outcome": true,
+    "ticker_count_is_not_diversification": true,
+    "qualitative_exposure_groups": "Show their economic basis and label them qualitative; do not call them a measured correlation matrix.",
+    "weight_policy": "Do not import a private historical allocation. Any future model must define and version its objective, cash allocation, weight limits, event policy and risk assumptions.",
+    "rotation_policy": "A review date does not require liquidation and repurchase. Keep/remove reasoning must use new-window evidence and consider costs.",
+    "risk_math": "Planned position loss equals position value times entry-to-exit distance; actual losses can be larger. Combined planned-loss estimates do not account for all gaps or correlations.",
+    "execution_notes": "Confirm platform order support before presenting an implementable order plan. Price alerts and manual exits are not guaranteed protection."
+  },
+  "prospective_review_ledger": {
+    "separate_records": [
+      "published_candidate",
+      "proposed_model",
+      "actual_user_portfolio_if_separately_authorized",
+      "unchanged_paper_comparator",
+      "benchmark"
+    ],
+    "required": [
+      "immutable_version_id",
+      "published_at",
+      "source_cutoff_at",
+      "objective",
+      "start_at",
+      "end_at",
+      "initial_market_values",
+      "cash",
+      "flows",
+      "fees",
+      "distributions",
+      "actual_fills_if_claimed",
+      "corporate_actions",
+      "matching_benchmark_timestamps",
+      "method_version"
+    ],
+    "missing_starting_market_value": "No certified period return",
+    "cost_basis": "Not a substitute for a period-start market value",
+    "since_inception_and_period_returns": "Label separately; no weekly claim from a since-purchase screenshot",
+    "selection_vs_execution": "Decompose where evidence supports it; do not attribute every result to the stock screen",
+    "benchmarking": "Compare matched start/end timestamps and total-return conventions, with cash exposure and flows disclosed.",
+    "rule_changes": "Append new versions and keep earlier decisions visible; do not rewrite history or select winners retrospectively.",
+    "early_pilot": "An operational pilot cannot establish repeatable alpha or a guaranteed weekly outcome.",
+    "sample_independence": "Do not count correlated trades in one market move as independent evidence.",
+    "performance_state": "not_established"
+  },
+  "publication_and_privacy": {
+    "never_publish": [
+      "private_account_screenshots",
+      "account_identifiers",
+      "private_holdings_or_weights",
+      "private_cost_bases_or_balances",
+      "personal_spending",
+      "full_private_conversation",
+      "private_financial_memory_identifiers"
+    ],
+    "historical_calls": "Do not seed current cards, targets or allocations from a private historical conversation.",
+    "current_fact_rule": "A new current claim must pass primary-source, freshness, rights, fiscal-period and calculation checks independently.",
+    "source_page_provenance": "Maintained in a separate restricted provenance map, not shipped to the public site.",
+    "public_bundle_rule": "Allowlist public files; never publish a research-directory recursion."
+  },
+  "acceptance_tests": [
+    {
+      "id": "earnings_policy_flip",
+      "given": "An existing exit-before-earnings view is changed to hold-through",
+      "expect": "New version and prominent policy-change rationale; no silent overwrite"
+    },
+    {
+      "id": "wrong_catalyst_week",
+      "given": "An event is after the selected end date",
+      "expect": "No in-window catalyst designation"
+    },
+    {
+      "id": "cost_basis_weekly_return",
+      "given": "Only average cost and a later screenshot are available",
+      "expect": "No certified weekly performance"
+    },
+    {
+      "id": "post_rebalance_baseline_missing",
+      "given": "The old basket value is available but the new model differs",
+      "expect": "Do not reuse the old basket baseline"
+    },
+    {
+      "id": "allocation_changes",
+      "given": "Tickers, cash or weights change",
+      "expect": "Versioned diff with evidence and explanation"
+    },
+    {
+      "id": "daily_monthly_bars",
+      "given": "One chart has daily bars and another monthly bars",
+      "expect": "Label intervals and avoid comparing the same moving-average label as the same duration"
+    },
+    {
+      "id": "duplicate_report",
+      "given": "A pasted report occurs twice",
+      "expect": "One underlying evidence item"
+    },
+    {
+      "id": "old_high",
+      "given": "A security trades far below an old peak",
+      "expect": "No undervaluation inference without share/structure-adjusted valuation"
+    },
+    {
+      "id": "fund_creation",
+      "given": "A fund issues asset-backed creation units",
+      "expect": "Use fund template; do not label it loss-financing corporate dilution"
+    },
+    {
+      "id": "unverified_revision_count",
+      "given": "A report claims many analyst upgrades without a retrievable panel",
+      "expect": "Label unverified and exclude the count from a verified signal"
+    },
+    {
+      "id": "principal_preservation",
+      "given": "The selected objective is preserving principal and the instrument can lose principal",
+      "expect": "Explain mismatch; no protected-capital or dependable-gain claim"
+    },
+    {
+      "id": "private_source_leak",
+      "given": "A public build includes the private archive or extracted image",
+      "expect": "Fail build"
+    },
+    {
+      "id": "unconfigured_monitor",
+      "given": "A methodology describes future daily or weekly checks",
+      "expect": "Show planned; never imply monitoring is running"
+    },
+    {
+      "id": "unknown_fund_data",
+      "given": "Issuer NAV or leverage policy cannot be reconciled",
+      "expect": "No current fund view"
+    }
+  ],
+  "primary_reference_catalog": [
+    {
+      "id": "sec_orders",
+      "title": "SEC Investor Bulletin: Stop, Stop-Limit, and Trailing Stop Orders",
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-15",
+      "checked_on": "2026-10-16",
+      "use": "Order mechanics and execution-risk disclosure"
+    },
+    {
+      "id": "sec_etfs",
+      "title": "SEC Updated Investor Bulletin: Exchange-Traded Funds",
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-24",
+      "checked_on": "2026-10-16",
+      "use": "NAV, market price, creation/redemption and premium/discount distinctions"
+    },
+    {
+      "id": "fidelity_baskets",
+      "title": "Fidelity Basket Portfolios FAQs",
+      "url": "https://www.fidelity.com/direct-indexing/customized-investing/faq",
+      "checked_on": "2026-10-16",
+      "use": "Provider-specific order support; not a generic assumption for every broker"
+    },
+    {
+      "id": "fed_calendar",
+      "title": "Federal Reserve FOMC calendars",
+      "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+      "checked_on": "2026-10-16",
+      "use": "Official monetary-policy event dates"
+    },
+    {
+      "id": "bls_cpi_archive",
+      "title": "BLS CPI archived releases",
+      "url": "https://www.bls.gov/bls/news-release/cpi.htm",
+      "checked_on": "2026-10-16",
+      "use": "Dated economic releases instead of mutable latest-release URLs"
+    },
+    {
+      "id": "sec_api",
+      "title": "SEC EDGAR application programming interfaces",
+      "url": "https://www.sec.gov/search-filings/edgar-application-programming-interfaces",
+      "checked_on": "2026-10-16",
+      "use": "Filings discovery; full filing reconciliation still required"
+    }
+  ]
+}

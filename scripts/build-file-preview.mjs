@@ -1,0 +1,12 @@
+import { readFile, mkdir, writeFile } from 'node:fs/promises';
+const root = new URL('../', import.meta.url);
+const paths=['dist/index.html','dist/style.css','dist/app.js','dist/data/research.js','dist/lib/evidence.js','dist/data/sec-evidence.json','dist/data/nobel-corpus.js','dist/lib/candidates.js','dist/lib/stock-view.js','dist/data/stock-evidence.json'];
+const [html,css,app,research,evidence,sec,corpus,candidates,view,stocks]=await Promise.all(paths.map(path=>readFile(new URL(path,root),'utf8')));
+const jsString=value=>JSON.stringify(value).replace(/</g,'\\u003c');
+let runtime='';
+for(const [name,body] of Object.entries({research,evidence,corpus,candidates,view}))runtime+=`const ${name}Module=URL.createObjectURL(new Blob([${jsString(body)}],{type:'text/javascript'}));\n`;
+runtime+=app.replace("import { buildStockSnapshot } from './lib/candidates.js';",'const {buildStockSnapshot}=await import(candidatesModule);').replace("import { renderStockView } from './lib/stock-view.js';",'const {renderStockView}=await import(viewModule);').replace("import('./data/research.js')",'import(researchModule)').replace("import('./data/nobel-corpus.js')",'import(corpusModule)').replace("import('./lib/evidence.js')",'import(evidenceModule)').replace("fetch('./data/sec-evidence.json', {cache:'no-store'})",`Promise.resolve(new Response(${jsString(sec)},{status:200,headers:{'Content-Type':'application/json'}}))`).replace("fetch('./data/stock-evidence.json',{cache:'no-store'})",`Promise.resolve(new Response(${jsString(stocks)},{status:200,headers:{'Content-Type':'application/json'}}))`);
+const result=html.replace('<link rel="stylesheet" href="./style.css">',`<style>${css}</style>`).replace('<script type="module" src="./app.js"></script>',`<script type="module">${runtime.replace(/<\/script/gi,'<\\/script')}</script>`);
+await mkdir(new URL('preview/',root),{recursive:true});
+await writeFile(new URL('preview/cribscore.html',root),result);
+console.log('Created self-contained local preview: preview/cribscore.html');
