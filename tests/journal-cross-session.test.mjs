@@ -99,6 +99,7 @@ async function controllers(t, { initial = base() } = {}) {
     const c = { app, calls, action, submit,
       settings: value => submit('settings', { paperNotional: value, commissionPerFill: '0', slippageBps: '5', benchmarkSymbol: 'SPY' }),
       exported: async () => { await action('export'); return JSON.parse(await blobs.at(-1).text()); },
+      exportedText: async () => { await action('export'); return blobs.at(-1).text(); },
       import: journal => { const text = JSON.stringify(journal); return submit('import', { file: { size: text.length, text: async () => text } }); },
       loseNextSave: () => { dropNextPost = true; }, overrideNextGet: journal => { getOverride = journal; },
     }; clients.push(c); return c;
@@ -164,4 +165,56 @@ test('reviewed initial restore does not project after another client starts; con
   await restoring.action('confirm-import'); assert.equal(restoring.app.status().storage.state, 'conflict'); assert.deepEqual(await restoring.exported(), localBefore); assert.deepEqual(await read(h.db), winner);
   assert.equal(restoring.app.html('journal').includes('restored-setting'), false);
   await restoring.action('sync'); assert.equal(restoring.app.status().storage.state, 'synced'); assert.deepEqual(await restoring.exported(), winner);
+});
+
+async function syntheticBackup() {
+  let journal = base('synthetic-roundtrip-backup');
+  for (const horizonId of ['next_day', 'next_week']) {
+    const result = await domain.recordAbstention(journal, { id: `synthetic-backup-${horizonId}`, at, date: at.slice(0, 10), horizonId,
+      reason: 'Synthetic unconfigured-publisher backup fixture.', unrankedCount: 6,
+      snapshot: { reviewedAt: '2026-10-17T02:40:00Z', sourceCutoffAt: null } });
+    assert.equal(result.ok, true); journal = result.journal;
+  }
+  return setting(journal, 'synthetic-backup-settings', '180');
+}
+
+test('controller backup export restores through real SQLite, survives reload, and same-journal reimport writes no duplicates', { timeout: 10000 }, async t => {
+  const h = await controllers(t, { initial: null }), restoring = h.client('roundtrip');
+  await restoring.app.start(); const before = await restoring.exported();
+  const backup = await syntheticBackup(), exported = await domain.exportJournal(backup); assert.equal(exported.ok, true);
+  await restoring.import(JSON.parse(exported.text));
+  assert.match(restoring.app.html('journal'), /3 new event\(s\), 0 unchanged duplicate\(s\), 0 conflicts/);
+  assert.equal(h.db.batchCount, 0); assert.deepEqual(await restoring.exported(), before, 'Review alone cannot promote the backup');
+  await restoring.action('confirm-import');
+  assert.equal(restoring.app.status().storage.state, 'synced');
+  assert.deepEqual(await read(h.db), backup); assert.equal(await restoring.exportedText(), exported.text);
+  assert.equal(h.db.sqlite.prepare('SELECT count(*) n FROM journal_heads').get().n, 1);
+  assert.equal(h.db.sqlite.prepare('SELECT count(*) n FROM journal_events').get().n, 3);
+  const reloaded = h.client('roundtrip-reload'); await reloaded.app.start();
+  assert.equal(await reloaded.exportedText(), exported.text);
+  assert.equal((await reloaded.exported()).events[0].data.snapshot.reviewedAt, '2026-10-17T02:40:00Z');
+  const writes = h.db.batchCount; await reloaded.import(backup);
+  assert.match(reloaded.app.html('journal'), /0 new event\(s\), 3 unchanged duplicate\(s\), 0 conflicts/);
+  await reloaded.action('confirm-import');
+  assert.equal(reloaded.app.status().storage.state, 'synced'); assert.equal(h.db.batchCount, writes);
+  assert.equal(await reloaded.exportedText(), exported.text); assert.deepEqual(await read(h.db), backup);
+});
+
+test('controller rejects malformed, owner-bearing, foreign-identity and rewritten backups before any persistence', { timeout: 10000 }, async t => {
+  const backup = await syntheticBackup(), h = await controllers(t, { initial: backup }), client = h.client('invalid-backup');
+  await client.app.start(); const exported = await domain.exportJournal(backup), writes = h.db.batchCount;
+  const rewritten = structuredClone(backup); rewritten.events[0].data.reason = 'Synthetic rewritten original';
+  const candidates = [
+    '{broken', exported.text.replace('"revision":3', '"revision":3,"revision":3'),
+    JSON.stringify({ ...backup, schemaVersion: 'unknown-backup-version' }), JSON.stringify({ ...backup, revision: 4 }),
+    JSON.stringify({ ...backup, ownerId: 'synthetic-other-owner' }),
+    JSON.stringify({ ...backup, journalId: 'synthetic-foreign-identity' }), JSON.stringify(rewritten),
+  ];
+  for (const text of candidates) {
+    await client.submit('import', { file: { size: text.length, text: async () => text } });
+    assert.match(client.app.html('journal'), /Backup cannot be applied/);
+    assert.doesNotMatch(client.app.html('journal'), /Apply reviewed backup/);
+    assert.equal(h.db.batchCount, writes); assert.equal(await client.exportedText(), exported.text);
+    assert.deepEqual(await read(h.db), backup);
+  }
 });

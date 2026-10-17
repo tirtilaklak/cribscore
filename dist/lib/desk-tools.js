@@ -8,6 +8,7 @@ const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 const companies=[['IBM','International Business Machines'],['JNJ','Johnson & Johnson'],['NFLX','Netflix'],['PG','Procter & Gamble'],['TSLA','Tesla'],['TXN','Texas Instruments']];
 const asText=value=>typeof value==='string'?value.trim():'';
 const errors=result=>(result?.errors||[result?.error||'operation_unavailable']).join(', ').replaceAll('_',' ');
+const canonical=value=>JSON.stringify(value,(_,item)=>item&&typeof item==='object'&&!Array.isArray(item)?Object.fromEntries(Object.keys(item).sort().map(key=>[key,item[key]])):item);
 export function actualFillTime(value) {
   if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/.test(value))throw new Error('Enter an exact UTC date and time.');
   const normalized=value.length===16?`${value}:00Z`:`${value}Z`,date=new Date(normalized);
@@ -18,7 +19,7 @@ export function actualFillTime(value) {
 /** Host adapter. The authoritative publication reader and reviewed price feed
  * remain absent. Imported JSON never enters automatic paper enrollment. */
 export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,document:doc=globalThis.document,now=()=>new Date().toISOString(),uuid=()=>globalThis.crypto.randomUUID()}={}) {
-  let saved=null,draft=null,unsyncedDraft=null,revision=0,busy=false,loadState='loading',pendingImport=null,feedback=null;
+  let saved=null,draft=null,unsyncedDraft=null,revision=0,busy=false,loadState='loading',pendingImport=null,feedback=null,uncertainRestore=null,pendingForm=null;
   const localPreview=doc.querySelector?.('meta[name="cribscore-local-preview"]')?.getAttribute('content')==='true';
   const savedState=localPreview?'local_only':'synced';
   const savedMessage=revision=>localPreview?`Saved in temporary local preview memory · revision ${revision}. It resets when the preview server stops.`:`Saved to this private Site · revision ${revision}. Available on your other signed-in devices.`;
@@ -42,13 +43,25 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     if(!draft||storage.state!==savedState){feedback='Reconnect or sync the saved journal before changing its records. You can export any unsynced draft.';changed();return false;}
     return true;
   }
+  function retireConfirmedForm(journal){
+    if(!pendingForm||journal.journalId!==pendingForm.journalId||journal.createdAt!==pendingForm.createdAt)return;
+    if(!pendingForm.events.every(event=>journal.events.some(savedEvent=>canonical(savedEvent)===canonical(event))))return;
+    pendingForm.accepted();pendingForm=null;
+  }
   async function commit(next,{mode='append',imported=false}={}) {
-    const previous=draft;
+    const previous=draft,base=saved;
+    uncertainRestore=null;
     if(!imported){draft=next;unsyncedDraft=next;}
     const result=await store.commit(next,{expectedRevision:revision,mode});
-    if(result.ok){saved=result.journal;draft=result.journal;unsyncedDraft=null;revision=result.revision;storage={state:savedState,message:savedMessage(revision)};}
+    if(result.ok){saved=result.journal;draft=result.journal;unsyncedDraft=null;revision=result.revision;storage={state:savedState,message:savedMessage(revision)};retireConfirmedForm(saved);}
     else{
       if(imported)draft=previous;
+      // A conflict containing this restore can follow its commit and another append.
+      // Its body is only a recovery hint; a fresh GET must confirm the exact prefix.
+      // This never projects an unconfirmed backup or permits an arbitrary identity.
+      const conflictJournal=imported&&mode==='restore'&&result.error==='revision_conflict'?await journalDomain.validateJournal(result.journal):null;
+      const conflictContainsRestore=conflictJournal?.ok&&journalDomain.checkAppendOnly(next,conflictJournal.journal).ok;
+      if(imported&&mode==='restore'&&(['server_commit_uncertain','server_commit_unconfirmed','invalid_server_response','invalid_server_journal','journal_commit_uncertain'].includes(result.error)||conflictContainsRestore))uncertainRestore={base,candidate:next};
       storage={state:result.state==='conflict'?'conflict':'unsaved',message:result.state==='conflict'?'Another session changed the journal. Your draft is still in this tab; export it before reconciling.':'The save was not confirmed. Your draft is still in this tab; export it before closing or reloading.'};
       feedback=`Journal save unavailable: ${errors(result)}. No synced result is assumed.`;
     }
@@ -56,7 +69,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
   }
   async function assess() {
     if(busy||pendingImport||needsSetup||!draft||storage.state!==savedState)return;
-    busy=true;
+    busy=true;changed();
     try{
       const response=await boundedRequest('/api/journal/observe',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedRevision:revision,requestId:id('observe')})});
       const result=await response.json();
@@ -65,7 +78,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
         automation={publisherState:'unavailable',checkedAt:null,pendingReasons:['journal_revision_conflict']};
         feedback='The automatic update encountered a newer saved revision. No local history was replaced.';return;
       }
-      if(!response.ok||!result?.ok)throw Error(errors(result));
+      if(!response.ok||result?.ok!==true)throw Error(errors(result));
       const checked=await journalDomain.validateJournal(result.journal),status=result.automation;
       if(!checked.ok||result.revision!==checked.journal.revision||!journalDomain.checkAppendOnly(draft,checked.journal).ok
         ||!status||!['unconfigured','unavailable','empty','ready'].includes(status.publisherState)
@@ -86,12 +99,16 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
       const result=await store.load();
       if(!result.ok){loadState='unavailable';storage={state:'unavailable',message:`Private journal unavailable: ${errors(result)}.`};return;}
       const remote=result.journal;
-      if(saved&&(!remote||!journalDomain.checkAppendOnly(saved,remote).ok)){
+      const restoreBaseMatches=uncertainRestore&&(uncertainRestore.base===null?saved===null:saved&&canonical(saved)===canonical(uncertainRestore.base));
+      const recoveredRestore=reconcile&&restoreBaseMatches&&remote&&journalDomain.checkAppendOnly(uncertainRestore.candidate,remote).ok;
+      const restoreConflict=restoreBaseMatches&&!recoveredRestore&&canonical(remote)!==canonical(uncertainRestore.base);
+      if(restoreConflict||(saved&&(!remote||!journalDomain.checkAppendOnly(saved,remote).ok)&&!recoveredRestore)){
         loadState='ready';
         storage={state:'conflict',message:'The server history does not extend the last confirmed journal. Your local history is still available to export; check sync again before making changes.'};
         automation={publisherState:'unavailable',checkedAt:null,pendingReasons:['journal_history_conflict']};
         feedback='Saved history changed unexpectedly. No local history was replaced.';return;
       }
+      if(recoveredRestore){uncertainRestore=null;unsyncedDraft=null;}
       if(!unsyncedDraft)needsSetup=remote===null;
       if(reconcile&&unsyncedDraft){
         // Preserve an uncertain local append and require a preview before merging.
@@ -113,7 +130,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     const controls=`<div class="desk-actions"><button type="button" class="desk-button desk-button-secondary" data-journal-action="sync"${busy?' disabled':''}>${busy?'Working…':'Check journal sync'}</button></div>`;
     if(!draft)return `<section class="card desk-panel desk-empty"><h2>${loadState==='loading'?'Loading the journal':'Journal unavailable'}</h2><p>${escape(storage.message)}</p>${controls}</section>`;
     const setup=needsSetup?'<section class="card desk-panel"><h2>Start your private journal</h2><p>Record assessments automatically while this app is open. Paper trading will remain unavailable until reviewed publication and price inputs are connected. If you have a backup, review it in Backup &amp; restore first. This choice is needed only for an empty cloud journal.</p><button type="button" class="desk-button" data-journal-action="start">Start automatic journal</button></section>':'';
-    return `${setup}${controls}${renderJournalView(viewModel(),{feedback,automation,importPreview:pendingImport?{message:pendingImport.message}:null})}`;
+    return `${setup}${controls}${renderJournalView(viewModel(),{feedback,automation,importPreview:pendingImport&&!busy?{message:pendingImport.message}:null})}`;
   }
   // Stock-card navigation uses the same company roster as the Prices selector.
   // It selects local view state only; loading the vendor chart remains explicit.
@@ -147,7 +164,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
   async function action(name,target){
     if(name==='sync'){await load({reconcile:true});return;}
     if(name==='export'){await exportBackup();return;}
-    if(name==='cancel-import'){if(pendingImport?.kind==='reconcile'&&unsyncedDraft){draft=unsyncedDraft;storage={state:'conflict',message:'Your unsynced draft remains in this tab. Export it or retry reconciliation before closing.'};}pendingImport=null;feedback='Backup review cancelled.';changed();return;}
+    if(name==='cancel-import'){if(busy){feedback='A journal operation is still in progress.';changed();return;}if(!pendingImport)return;if(pendingImport.kind==='reconcile'&&unsyncedDraft){draft=unsyncedDraft;storage={state:'conflict',message:'Your unsynced draft remains in this tab. Export it or retry reconciliation before closing.'};}pendingImport=null;feedback='Backup review cancelled.';changed();return;}
     if(name==='show-all'){changed();return;}
     if(!safeAction(name==='confirm-import'))return;busy=true;
     try{
@@ -156,6 +173,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
         if((await commit(draft)).ok){needsSetup=false;feedback='Automatic journaling is enabled. Assessments update while the app is open.';}
       }else if(name==='confirm-import'){
         if(!pendingImport){feedback='Review a backup before applying it.';return;}
+        changed();
         const result=await journalDomain.applyImport(draft,pendingImport.preview);pendingImport=null;
         if(!result.ok){feedback=errors(result);return;}
         const savedResult=await commit(result.journal,{mode:result.mode,imported:true});if(savedResult.ok){needsSetup=false;feedback='Reviewed backup saved. Existing records and original decision context remain intact.';}
@@ -168,20 +186,23 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     if(!needsSetup&&!pendingImport)await assess();
   }
   async function submit(form){
-    const data=new FormData(form),kind=form.dataset.journalForm||form.dataset.priceForm;
+    const data=new FormData(form),kind=form.dataset.journalForm||form.dataset.priceForm,editVersion=form.dataset.deskEditVersion;
+    // Keep rejected or pending input, and never discard newer edits on success.
+    form.dataset.deskDirty='true';
+    const accepted=()=>{if(form.dataset.deskEditVersion===editVersion)form.dataset.deskDirty='false';};
     if(form.dataset.priceForm){
       const run=++priceImportRun;
       try{
         if(kind==='selection'){
           const next=asText(data.get('symbol'));if(!companies.some(([ticker])=>ticker===next)&&!series.some(item=>item.symbol===next))throw Error('Choose an available company.');
           const range=data.get('rangeSessions');if(!['20','60','120','all'].includes(range))throw Error('Choose an available history range.');
-          if(next!==symbol){chartFrame=null;requestedChart=null;}symbol=next;rangeSessions=range==='all'?'all':Number(range);priceFeedback=null;
+          if(next!==symbol){chartFrame=null;requestedChart=null;}symbol=next;rangeSessions=range==='all'?'all':Number(range);priceFeedback=null;accepted();
         }else if(kind==='import'){
           const file=data.get('file');if(!file||file.size>2_097_152||typeof file.text!=='function')throw Error('Choose a JSON price file under 2 MiB.');
           const raw=await file.text();if(run!==priceImportRun)return;
           const result=parsePriceImport(raw,{at:now(),format:'json'});
           if(!['ready','partial'].includes(result.status)||!result.series?.length)throw Error((result.issues||['Invalid price import.']).join(', ').replaceAll('_',' '));
-          series=result.series;symbol=series[0].symbol;chartFrame=null;requestedChart=null;priceFeedback=`Imported ${series.length} daily series for chart context. These values are unreviewed and cannot supply paper marks.`;
+          series=result.series;symbol=series[0].symbol;chartFrame=null;requestedChart=null;priceFeedback=`Imported ${series.length} daily series for chart context. These values are unreviewed and cannot supply paper marks.`;accepted();
         }
       }catch(error){if(run!==priceImportRun)return;priceFeedback=error.message||'Price input could not be read. Previous data is retained.';}changed();return;
     }
@@ -194,7 +215,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
         const raw=await file.text();let result=await journalDomain.previewImport(draft,raw);
         if(!result.ok&&draft.revision===0)result=await journalDomain.previewImport(draft,raw,{mode:'restore'});
         if(!result.ok||!result.preview.canApply){feedback=`Backup cannot be applied: ${errors(result.ok?{errors:result.preview.conflicts}:result)}.`;return;}
-        pendingImport={kind:'backup',preview:result.preview,message:`${result.preview.additions.length} new event(s), ${result.preview.duplicates.length} unchanged duplicate(s), ${result.preview.conflicts.length} conflicts.${result.preview.adoptsJournalIdentity?' This restores the backup’s journal identity into the empty journal.':''} Original publication records need server authority before they can be accepted.`};feedback=null;return;
+        pendingImport={kind:'backup',preview:result.preview,message:`${result.preview.additions.length} new event(s), ${result.preview.duplicates.length} unchanged duplicate(s), ${result.preview.conflicts.length} conflicts.${result.preview.adoptsJournalIdentity?' This restores the backup’s journal identity into the empty journal.':''} Original publication records need server authority before they can be accepted.`};feedback=null;accepted();return;
       }
       let result;
       if(kind==='settings'){
@@ -206,6 +227,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
         result=kind==='save-fill'?await journalDomain.recordActualFill(draft,{id:id('actual-fill'),at:now(),intentId:form.dataset.journalId,...fill}):await journalDomain.reviseActualFill(draft,{id:id('fill-revision'),at:now(),fillId:form.dataset.journalFillId,replacement:fill,reason:asText(data.get('reason'))});
       }else throw Error('This form is unavailable.');
       if(!result.ok){feedback=`Nothing saved: ${errors(result)}.`;return;}
+      pendingForm={journalId:result.journal.journalId,createdAt:result.journal.createdAt,events:result.journal.events.slice(draft.events.length),accepted};
       if((await commit(result.journal)).ok){pendingImport=null;feedback=kind==='settings'?'Paper assumptions saved for future intents. Existing decisions retain their original settings.':'Reported fill saved as an append-only record. Valuation still requires verified action coverage and prices.';}
     }catch(error){feedback=error.message||'The form could not be saved.';}finally{busy=false;changed();}
   }

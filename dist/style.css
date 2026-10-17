@@ -350,3 +350,10 @@ h1{font-size:50px;line-height:1.08;letter-spacing:-1.8px;margin:8px 0 10px;color
   .stock-desk:not(.approved-research-slate) > .window-card .window-times{gap:10px}
   .stock-desk:not(.approved-research-slate) > .stock-shortlist > .stock-empty{padding:10px 12px 2px}
 }
+
+/* Dialog prose shares the established readable foreground on both surfaces. */
+dialog .detail-copy{color:#526267}
+
+/* Scope focus foregrounds to the light desk and dark navigation surfaces. */
+main :is(button,a,input,select,summary,[tabindex]):focus-visible,dialog :is(button,a,input,select,summary,[tabindex]):focus-visible,.utility-desk :is(select,[tabindex]):focus-visible{outline-color:#315d49}
+.sidebar :is(button,a,input,select,summary,[tabindex]):focus-visible{outline-color:#a8d9b2}

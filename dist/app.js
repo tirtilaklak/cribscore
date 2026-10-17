@@ -45,7 +45,8 @@ function updateLoadStatus() {
   const kinds=loadKindsForView(), pending=kinds.filter(kind=>loadStatus(kind)==='loading');
   $('#view-content').setAttribute('aria-busy',String(pending.length>0));
   const failed=kinds.filter(kind=>loadStatus(kind)==='unavailable');
-  announce(pending.length ? pending.map(kind=>`${loadConfig[kind].label} ${loadRuns.get(kind)?.delayed?'is taking longer than expected':'loading'}.`).join(' ') : failed.length ? failed.map(kind=>`${loadConfig[kind].label} unavailable. Retry is available.`).join(' ') : `${$('#breadcrumb-current').textContent} ready${state.query?` for “${state.query}”`:''}.`);
+  const deskFeedback=['journal','prices'].includes(state.view)&&$('#view-content').querySelector('.desk-feedback[role="status"]');
+  announce(pending.length ? pending.map(kind=>`${loadConfig[kind].label} ${loadRuns.get(kind)?.delayed?'is taking longer than expected':'loading'}.`).join(' ') : failed.length ? failed.map(kind=>`${loadConfig[kind].label} unavailable. Retry is available.`).join(' ') : deskFeedback ? '' : `${$('#breadcrumb-current').textContent} ready${state.query?` for “${state.query}”`:''}.`);
 }
 async function startLoad(kind, retry=false) {
   const config=loadConfig[kind];if(!config)return;
@@ -81,20 +82,33 @@ function focusKey(element) {
   if(detail && element.tagName==='SUMMARY')return `${scope}|SUMMARY`;
   return `${scope}|${element.tagName}|${element.getAttribute?.('href')||''}|${element.textContent?.trim()||''}`;
 }
+// Only the latest dirty form nodes for the two desk views survive navigation.
+// Keep them detached from discarded view trees; no draft is written to storage.
+const deskFormDrafts=new Map();
 function renderContent(html) {
   const content=$('#view-content'), sameView=renderedView===state.view;
+  for(const [view,forms] of deskFormDrafts){
+    for(const [key,form] of forms)if(form.dataset.deskDirty!=='true')forms.delete(key);
+    if(!forms.size)deskFormDrafts.delete(view);
+  }
   // Compare the last template, not live DOM enriched by mounted widgets or forms.
   // Replacing identical output would destroy an iframe’s browsing context.
   if(sameView && renderedContentHTML===html)return;
   const oldDetails=content.querySelectorAll?[...content.querySelectorAll('details')]:[];
   if(renderedView)for(const detail of oldDetails)disclosureState.set(`${renderedView}:${disclosureKey(detail)}`,detail.open);
   const oldFocus=document.activeElement, hadFocus=content.contains?.(oldFocus), key=hadFocus?focusKey(oldFocus):null;
-  const formKey=form=>[form.dataset.journalForm||form.dataset.priceForm,form.dataset.journalId||'',form.dataset.journalFillId||''].join(':');
-  const dirtyForms=sameView&&content.querySelectorAll?new Map([...content.querySelectorAll('[data-journal-form],[data-price-form]')].filter(form=>form.dataset.deskDirty==='true').map(form=>[formKey(form),form])):new Map();
+  const formKey=form=>JSON.stringify([form.dataset.journalForm||form.dataset.priceForm,form.dataset.journalId||'',form.dataset.journalFillId||'']);
   const openerKey=content.contains?.(lastFocus)?focusKey(lastFocus):null;
+  if(['journal','prices'].includes(renderedView)&&content.querySelectorAll){
+    const forms=new Map([...content.querySelectorAll('[data-journal-form],[data-price-form]')].filter(form=>form.dataset.deskDirty==='true').map(form=>[formKey(form),form]));
+    for(const form of forms.values())form.remove();
+    deskFormDrafts.set(renderedView,forms);
+  }
+  const dirtyForms=deskFormDrafts.get(state.view)||new Map();
+  deskFormDrafts.delete(state.view);
   content.innerHTML=html;
   if(content.querySelectorAll){
-    for(const form of content.querySelectorAll('[data-journal-form],[data-price-form]')){const previous=dirtyForms.get(formKey(form));if(previous&&typeof form.replaceWith==='function')form.replaceWith(previous);}
+    for(const form of content.querySelectorAll('[data-journal-form],[data-price-form]')){const previous=dirtyForms.get(formKey(form));if(previous?.dataset.deskDirty==='true'&&typeof form.replaceWith==='function')form.replaceWith(previous);}
     for(const detail of content.querySelectorAll('details'))detail.open=disclosureState.get(`${state.view}:${disclosureKey(detail)}`)||false;
     const controls=[...content.querySelectorAll('button,a,summary,input,select,textarea,[tabindex]')];
     if(sameView && openerKey)lastFocus=controls.find(element=>focusKey(element)===openerKey)||lastFocus;
@@ -309,12 +323,14 @@ async function startDeskTools(){
 }
 function navigate(view,{historyMode='push'}={}) {
   if(!Object.hasOwn(titles,view))return;
+  if(state.view===view&&historyMode==='push')historyMode='replace';
   if(state.view!==view)state.topic='All';
   state.view=view;
   if(historyMode!=='none'){
     const url=new URL(location.href);url.hash=view;
     if(historyMode==='push' && typeof history.pushState==='function')history.pushState(null,'',url);else history.replaceState(null,'',url);
   }
+  lastFocus=null;
   if($('#detail-dialog').open)$('#detail-dialog').close();
   render();$('#main').focus({preventScroll:true});globalThis.scrollTo?.({top:0,left:0,behavior:'instant'});
 }
@@ -339,7 +355,7 @@ document.addEventListener('click',event=>{
   const skip=event.target.closest('a.skip-link[href="#main"]');
   if(skip&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey&&!event.altKey){event.preventDefault();$('#main').focus({preventScroll:true});globalThis.scrollTo?.({top:0,left:0,behavior:'instant'});return;}
   const price=event.target.closest('[data-price-symbol]');
-  if(price){if(state.view==='research'&&deskTools?.selectPriceSymbol?.(price.dataset.priceSymbol))navigate('prices');return;}
+  if(price){if(state.view==='research'&&deskTools?.selectPriceSymbol?.(price.dataset.priceSymbol)){deskFormDrafts.get('prices')?.delete(JSON.stringify(['selection','','']));navigate('prices');}return;}
   const nav=event.target.closest('[data-view],[data-go]');if(nav){navigate(nav.dataset.view||nav.dataset.go);return;}
   const h=event.target.closest('[data-horizon]');if(h && ['next_day','next_week'].includes(h.dataset.horizon)){state.horizon=h.dataset.horizon;const url=new URL(location.href);url.searchParams.set('horizon',state.horizon);history.replaceState(null,'',url);render();return;}
   const topic=event.target.closest('[data-topic]');if(topic){state.topic=topic.dataset.topic;render();$$('[data-topic]').find(button=>button.dataset.topic===state.topic)?.focus();return;}
@@ -388,8 +404,7 @@ function finishInitialLoad(views) {
     scheduleSlateExpiry();
   }
 }
-for(const type of ['input','change'])document.addEventListener(type,event=>{const form=event.target.closest?.('[data-journal-form],[data-price-form]');if(form)form.dataset.deskDirty='true';});
-document.addEventListener('submit',event=>{const form=event.target.closest?.('[data-journal-form],[data-price-form]');if(form)form.dataset.deskDirty='false';});
+for(const type of ['input','change'])document.addEventListener(type,event=>{const form=event.target.closest?.('[data-journal-form],[data-price-form]');if(form){form.dataset.deskDirty='true';form.dataset.deskEditVersion=String(Number(form.dataset.deskEditVersion||0)+1);}});
 $('#workspace-date').textContent='Private working preview';
 render();
 

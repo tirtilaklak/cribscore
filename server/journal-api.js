@@ -255,12 +255,10 @@ export async function handleJournalRequest(request, env, { authority, observer, 
       await authorizeAdded(added, journal, previous, authority, receivedAt);
     }
     if (previous && canonical(previous) === canonical(journal)) {
-      if (observing) {
-        // Trusted reads may outlast another tab's commit even when our proposal
-        // adds nothing. Confirm the observed version before reporting success.
-        const latest = await readJournal(db, owner);
-        if (canonical(latest) !== canonical(previous)) return fail(409, 'revision_conflict', { revision: latest?.revision || 0, journal: latest });
-      }
+      // Body receipt, validation or trusted reads may outlast another tab's
+      // commit even for a no-op. Confirm its saved version before success.
+      const latest = await readJournal(db, owner);
+      if (canonical(latest) !== canonical(previous)) return fail(409, 'revision_conflict', { revision: latest?.revision || 0, journal: latest });
       return json(200, { ok: true, revision: journal.revision, journal: previous, ...(automation ? { automation } : {}) });
     }
     const chunks = eventChunks(added, previous?.revision || 0);
@@ -287,8 +285,11 @@ export async function handleJournalRequest(request, env, { authority, observer, 
     }
     return json(200, { ok: true, revision: latest.revision, journal: latest, ...(automation ? { automation } : {}) });
   } catch (error) {
+    // Once the batch begins, even a typed readback failure cannot prove rollback.
+    // Require reconciliation before callers decide whether to retry the write.
+    if (commitStarted) return fail(503, 'journal_commit_uncertain');
     if (error instanceof ApiError) return fail(error.status, error.message);
     // SQL diagnostics can contain user data. Never return or log raw DB exceptions.
-    return fail(503, commitStarted ? 'journal_commit_uncertain' : 'journal_storage_unavailable');
+    return fail(503, 'journal_storage_unavailable');
   }
 }

@@ -297,7 +297,8 @@ function displayPoints(series,{at,calendar,rangeSessions}) {
   const cal=inspectCalendar(calendar,{at,timeZone:series.sessionTimezone});
   const dates=new Map(cal.sessions.map(s=>[s.date,s]));
   const today=localDate(at,series.sessionTimezone);
-  const eligible=series.bars.filter(b=>b.session<=today&&(!b.availableAt||instant(b.availableAt)<=instant(at))&&(!cal.valid||dates.has(b.session)&&instant(dates.get(b.session).closeAt)<=instant(at)));
+  // Bar availability cannot make a not-yet-captured dataset available for display.
+  const eligible=instant(series.source.capturedAt)>instant(at)?[]:series.bars.filter(b=>b.session<=today&&(!b.availableAt||instant(b.availableAt)<=instant(at))&&(!cal.valid||dates.has(b.session)&&instant(dates.get(b.session).closeAt)<=instant(at)));
   const bars=rangeSessions==='all'?eligible:eligible.slice(-rangeSessions);
   const points=bars.map((b,index)=>{
     const missing=index&&cal.valid?cal.sessions.filter(s=>s.date>bars[index-1].session&&s.date<b.session).map(s=>s.date):[];
@@ -315,6 +316,7 @@ function indexedComparison(target,benchmark,options,targetPoints) {
   const parsed=normalizePriceSeries(benchmark,{at:options.at});
   if(!parsed.series)return empty('benchmark_invalid');
   const b=parsed.series;
+  if(instant(b.source.capturedAt)>instant(options.at))return empty('benchmark_capture_in_future');
   if(b.currency!==target.currency||b.sessionTimezone!==target.sessionTimezone||b.priceBasis!==target.priceBasis)return empty('benchmark_basis_mismatch');
   if(target.priceBasis==='unknown')return empty('adjustment_basis_unknown');
   const bp=displayPoints(b,options).points;
@@ -322,6 +324,7 @@ function indexedComparison(target,benchmark,options,targetPoints) {
   if([...targetPoints,...bp].some(p=>p.missingSessionsBefore.length))return empty('benchmark_session_gaps');
   if(target.priceBasis==='unadjusted'){
     const start=targetPoints[0].session,end=targetPoints.at(-1).session;
+    if([target,b].some(s=>instant(s.actions.source.capturedAt)>instant(options.at)))return empty('unadjusted_action_capture_in_future');
     for(const s of [target,b])if(s.actions.status!=='complete'||s.actions.fromSession>start||s.actions.throughSession<end||s.actions.items.some(a=>a.effectiveSession>start&&a.effectiveSession<=end))return empty('unadjusted_action_comparison_withheld');
   }
   const points=targetPoints.map((p,i)=>({session:p.session,targetIndex:p.close/targetPoints[0].close*100,benchmarkIndex:bp[i].close/bp[0].close*100}));
