@@ -240,6 +240,8 @@ h1{font-size:50px;line-height:1.08;letter-spacing:-1.8px;margin:8px 0 10px;color
 .desk-selection{display:grid;grid-template-columns:minmax(0,1fr) minmax(140px,.6fr) auto;align-items:end;gap:12px}
 .desk-form{display:grid;gap:14px;margin-top:14px}
 .desk-form>.desk-button{justify-self:start}
+.utility-desk input[aria-invalid="true"]{border-color:#a04335}
+.journal-field-error{font-size:12px;font-weight:600;color:#a04335}
 .desk-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px 16px}
 .utility-desk label{display:grid;gap:6px;font-size:12px;line-height:1.6;font-weight:600;color:var(--ink);min-width:0}
 .utility-desk :is(input,select){font-family:inherit;font-size:14px;font-weight:400;line-height:1.5;background:#fff;border:1px solid #9eae9b;border-radius:5px;padding:10px 11px;min-height:44px;min-width:0;width:100%;max-width:100%;color:var(--ink)}

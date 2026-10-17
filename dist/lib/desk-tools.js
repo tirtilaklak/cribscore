@@ -2,6 +2,7 @@ import * as journalDomain from './journal.js';
 import { buildPriceView, parsePriceImport } from './prices.js';
 import { renderJournalView } from './journal-view.js';
 import { renderPriceView } from './price-view.js';
+import { createPriceSetupClient } from './price-setup.js';
 import { createHostedChartFrame, hostedChartURL } from './hosted-chart.js';
 
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -23,7 +24,9 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
   const localPreview=doc.querySelector?.('meta[name="cribscore-local-preview"]')?.getAttribute('content')==='true';
   const savedState=localPreview?'local_only':'synced';
   const savedMessage=revision=>localPreview?`Saved in temporary local preview memory · revision ${revision}. It resets when the preview server stops.`:`Saved to this private Site · revision ${revision}. Available on your other signed-in devices.`;
-  let needsSetup=false,priceImportRun=0;
+  let needsSetup=false,priceImportRun=0,capacityRevision=null;
+  const capacityMessage='This update would exceed the 20,000-event journal limit. Updates are paused; saved history remains available to read and export. Exporting does not free space.';
+  function pauseForCapacity(){capacityRevision=revision;storage={state:'capacity',message:capacityMessage};automation={publisherState:'unavailable',checkedAt:null,pendingReasons:['journal_capacity_exceeded']};feedback=capacityMessage;}
   let storage={state:'unavailable',message:'Connecting to the private journal…'};
   let automation={publisherState:'unavailable',checkedAt:null,pendingReasons:['observation_not_checked']};
   let symbol='IBM',rangeSessions=20,series=[],priceFeedback=null,requestedChart=null,chartFrame=null,lastPriceStatus=null;
@@ -36,10 +39,12 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
   };
   const store=journalDomain.createHttpJournalStore({fetch:boundedRequest});
   const changed=()=>onChange();
+  const priceSetup=createPriceSetupClient({fetch:request,onChange:changed});
   function viewModel(){return draft?journalDomain.projectJournal(draft,{storage}):null;}
   function safeAction(reviewAction=false){
     if(pendingImport&&!reviewAction){feedback='Apply or cancel the reviewed backup before making another journal change.';changed();return false;}
     if(busy){feedback='A journal operation is still in progress.';changed();return false;}
+    if(storage.state==='capacity'){feedback=capacityMessage;changed();return false;}
     if(!draft||storage.state!==savedState){feedback='Reconnect or sync the saved journal before changing its records. You can export any unsynced draft.';changed();return false;}
     return true;
   }
@@ -53,7 +58,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     uncertainRestore=null;
     if(!imported){draft=next;unsyncedDraft=next;}
     const result=await store.commit(next,{expectedRevision:revision,mode});
-    if(result.ok){saved=result.journal;draft=result.journal;unsyncedDraft=null;revision=result.revision;storage={state:savedState,message:savedMessage(revision)};retireConfirmedForm(saved);}
+    if(result.ok){saved=result.journal;draft=result.journal;unsyncedDraft=null;revision=result.revision;storage={state:savedState,message:savedMessage(revision)};retireConfirmedForm(saved);if(revision===journalDomain.JOURNAL_LIMITS.events)pauseForCapacity();}
     else{
       if(imported)draft=previous;
       // A conflict containing this restore can follow its commit and another append.
@@ -73,6 +78,10 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     try{
       const response=await boundedRequest('/api/journal/observe',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedRevision:revision,requestId:id('observe')})});
       const result=await response.json();
+      if(response.status===409&&result?.ok===false&&result.error==='journal_capacity_exceeded'){
+        if(result.revision!==revision||result.capacity?.limit!==journalDomain.JOURNAL_LIMITS.events||result.capacity.remaining!==journalDomain.JOURNAL_LIMITS.events-revision)throw Error('Invalid capacity response.');
+        pauseForCapacity();return;
+      }
       if(response.status===409){
         storage={state:'conflict',message:'Another session updated the saved journal. Check journal sync to load its history before continuing.'};
         automation={publisherState:'unavailable',checkedAt:null,pendingReasons:['journal_revision_conflict']};
@@ -87,6 +96,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
       saved=checked.journal;draft=checked.journal;unsyncedDraft=null;revision=result.revision;
       automation={publisherState:status.publisherState,checkedAt:status.checkedAt,pendingReasons:[...status.pendingReasons]};
       storage={state:savedState,message:savedMessage(revision)};
+      if(revision===journalDomain.JOURNAL_LIMITS.events)pauseForCapacity();
     }catch{
       automation={publisherState:'unavailable',checkedAt:null,pendingReasons:['observation_not_confirmed']};
       storage={state:'unavailable',message:'The automatic update was not confirmed. The last confirmed history is shown; check journal sync before making changes.'};
@@ -122,6 +132,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
       }else{saved=remote;draft=remote||journalDomain.createJournal({journalId:id('journal'),at:now()});revision=result.revision;}
       if(!pendingImport)feedback=null;
       storage={state:savedState,message:remote?savedMessage(revision):'Connected. Choose automatic journaling or restore a backup before the first record is created.'};loadState='ready';
+      if(!pendingImport&&!unsyncedDraft&&(revision===journalDomain.JOURNAL_LIMITS.events||capacityRevision===revision))pauseForCapacity();
     }catch{loadState='unavailable';storage={state:'unavailable',message:'The saved journal could not be read. No records are assumed.'};}
     finally{busy=false;changed();}
     if(!pendingImport)await assess();
@@ -146,7 +157,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     const model=priceModel();lastPriceStatus=priceStatus(model);
     const options=companies.map(([symbol,label])=>({symbol,label:`${symbol} · ${label}`}));
     for(const item of series)if(!options.some(option=>option.symbol===item.symbol))options.push({symbol:item.symbol,label:`${item.symbol} · imported`});
-    return renderPriceView(model,{symbol,rangeSessions,symbolOptions:options,hosted:{status:requestedChart===symbol?'requested':'idle',url:hostedChartURL(symbol),symbol},feedback:priceFeedback})+'<p class="desk-muted">Imported price data stays in this tab. The hosted chart is display-only; it does not supply prices to paper accounting.</p>';
+    return renderPriceView(model,{symbol,rangeSessions,symbolOptions:options,hosted:{status:requestedChart===symbol?'requested':'idle',url:hostedChartURL(symbol),symbol},feedback:priceFeedback,priceSetup:priceSetup.state()})+'<p class="desk-muted">Imported price data stays in this tab. The hosted chart is display-only; it does not supply prices to paper accounting.</p>';
   }
   function mount(view){
     if(view!=='prices'||requestedChart!==symbol)return;
@@ -185,6 +196,43 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     }catch{feedback='The action could not be completed. Existing records remain intact.';}finally{busy=false;changed();}
     if(!needsSetup&&!pendingImport)await assess();
   }
+  function formSettings(form){
+    const data=new FormData(form),slippage=asText(data.get('slippageBps'));
+    // Field edits only need the latest assumptions, not a full history/P&L projection.
+    let current=journalDomain.DEFAULT_PAPER_SETTINGS;
+    for(let index=draft.events.length-1;index>=0;index--)if(draft.events[index].kind==='settings'){current=draft.events[index].data.settings;break;}
+    const settings={...current,paperNotional:asText(data.get('paperNotional')),commissionPerFill:asText(data.get('commissionPerFill')),slippageBps:slippage===''?NaN:Number(slippage),benchmarkSymbol:asText(data.get('benchmarkSymbol')).toUpperCase(),currency:'USD'};
+    if(settings.benchmarkSymbol!==current.benchmarkSymbol)settings.benchmarkEntityId=null;
+    return settings;
+  }
+  function showFieldErrors(form,names,fieldErrors,{focus=false}={}){
+    let first=null;
+    for(const name of names){
+      const field=form.querySelector?.(`[name="${name}"]`);if(!field)continue;
+      const errorId=`${field.id}-error`,message=form.querySelector(`[id="${errorId}"]`);if(!message)continue;
+      const problem=fieldErrors[name],descriptions=(field.getAttribute('aria-describedby')||'').split(/\s+/).filter(value=>value&&value!==errorId);
+      message.textContent=problem||'';
+      if(problem){field.setAttribute('aria-invalid','true');descriptions.push(errorId);message.removeAttribute('hidden');first=first||field;}
+      else{field.removeAttribute('aria-invalid');message.setAttribute('hidden','');}
+      if(descriptions.length)field.setAttribute('aria-describedby',descriptions.join(' '));else field.removeAttribute('aria-describedby');
+    }
+    if(focus&&first){const disclosure=form.closest('details');if(disclosure)disclosure.open=true;first.focus();}
+  }
+  const showSettingsErrors=(form,errors,options)=>showFieldErrors(form,['paperNotional','commissionPerFill','slippageBps','benchmarkSymbol'],errors,options);
+  const showFillErrors=(form,errors,options)=>showFieldErrors(form,['side','occurredAt','quantity','price','fee','reason'],errors,options);
+  function formFill(form){
+    const data=new FormData(form);let occurredAt=null;
+    try{occurredAt=actualFillTime(asText(data.get('occurredAt')));}catch{}
+    const fill={side:asText(data.get('side')),occurredAt,quantity:asText(data.get('quantity')),price:asText(data.get('price')),fee:asText(data.get('fee')),currency:asText(data.get('currency'))};
+    const reason=asText(data.get('reason'));
+    return {fill,reason,validation:journalDomain.validateActualFillFields(fill,{requiresReason:form.dataset.journalForm==='revise-fill',reason})};
+  }
+  const settingsInput=event=>{
+    const form=event.target.closest?.('[data-journal-form="settings"]');
+    if(form?.dataset.settingsValidated==='true')showSettingsErrors(form,journalDomain.validatePaperSettings(formSettings(form)).fieldErrors);
+    const fillForm=event.target.closest?.('[data-journal-form="save-fill"],[data-journal-form="revise-fill"]');
+    if(fillForm?.dataset.fillValidated==='true')showFillErrors(fillForm,formFill(fillForm).validation.fieldErrors);
+  };
   async function submit(form){
     const data=new FormData(form),kind=form.dataset.journalForm||form.dataset.priceForm,editVersion=form.dataset.deskEditVersion;
     // Keep rejected or pending input, and never discard newer edits on success.
@@ -219,12 +267,21 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
       }
       let result;
       if(kind==='settings'){
-        const settings={...viewModel().settings,paperNotional:asText(data.get('paperNotional')),commissionPerFill:asText(data.get('commissionPerFill')),slippageBps:Number(data.get('slippageBps')),benchmarkSymbol:asText(data.get('benchmarkSymbol')).toUpperCase(),currency:'USD'};
-        if(settings.benchmarkSymbol!==viewModel().settings.benchmarkSymbol)settings.benchmarkEntityId=null;
+        const settings=formSettings(form),validation=journalDomain.validatePaperSettings(settings);
+        form.dataset.settingsValidated='true';showSettingsErrors(form,validation.fieldErrors,{focus:!validation.ok});
+        if(!validation.ok){feedback=`Nothing saved: ${errors(validation)}. Check the highlighted paper assumptions.`;return;}
         result=await journalDomain.appendSettings(draft,{id:id('settings'),at:now(),settings});
       }else if(kind==='save-fill'||kind==='revise-fill'){
-        const fill={side:asText(data.get('side')),occurredAt:actualFillTime(asText(data.get('occurredAt'))),quantity:asText(data.get('quantity')),price:asText(data.get('price')),fee:asText(data.get('fee')),currency:asText(data.get('currency'))};
-        result=kind==='save-fill'?await journalDomain.recordActualFill(draft,{id:id('actual-fill'),at:now(),intentId:form.dataset.journalId,...fill}):await journalDomain.reviseActualFill(draft,{id:id('fill-revision'),at:now(),fillId:form.dataset.journalFillId,replacement:fill,reason:asText(data.get('reason'))});
+        const {fill,reason,validation}=formFill(form);
+        form.dataset.fillValidated='true';showFillErrors(form,validation.fieldErrors,{focus:!validation.ok});
+        if(!validation.ok){feedback=`Nothing saved: ${errors(validation)}. Check the highlighted fill details.`;return;}
+        result=kind==='save-fill'?await journalDomain.recordActualFill(draft,{id:id('actual-fill'),at:now(),intentId:form.dataset.journalId,...fill}):await journalDomain.reviseActualFill(draft,{id:id('fill-revision'),at:now(),fillId:form.dataset.journalFillId,replacement:fill,reason});
+        if(!result.ok){
+          const contextualErrors={};
+          if(result.errors?.includes('future_or_prepublication_actual_fill'))contextualErrors.occurredAt='Use a fill time at or after publication and no later than this record.';
+          if(result.errors?.includes('oversell'))contextualErrors.quantity='The sell quantity exceeds the recorded shares available at that time.';
+          showFillErrors(form,contextualErrors,{focus:true});
+        }
       }else throw Error('This form is unavailable.');
       if(!result.ok){feedback=`Nothing saved: ${errors(result)}.`;return;}
       pendingForm={journalId:result.journal.journalId,createdAt:result.journal.createdAt,events:result.journal.events.slice(draft.events.length),accepted};
@@ -232,10 +289,12 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     }catch(error){feedback=error.message||'The form could not be saved.';}finally{busy=false;changed();}
   }
   const click=event=>{
+    const setupTarget=event.target.closest?.('[data-price-action="check-setup"]');
+    if(setupTarget?.dataset.priceAction==='check-setup'){priceFeedback='';void priceSetup.refresh();return;}
     const target=event.target.closest?.('[data-journal-action]');if(target){void action(target.dataset.journalAction,target);return;}
     if(event.target.closest?.('[data-price-action="load-hosted"]')){if(!hostedChartURL(symbol)){priceFeedback='A hosted chart is not configured for this imported symbol.';}else{requestedChart=symbol;chartFrame=null;priceFeedback='Chart requested. If it stays blank, open the chart at TradingView using the link below. Displayed prices come from TradingView.';}changed();}
   };
   const submitEvent=event=>{const form=event.target.closest?.('[data-journal-form],[data-price-form]');if(form){event.preventDefault();void submit(form);}};
-  doc.addEventListener('click',click);doc.addEventListener('submit',submitEvent);
-  return {html:view=>view==='journal'?journalHTML():pricesHTML(),priceSymbols:()=>companies.map(([ticker])=>ticker),selectPriceSymbol,mount,observe,start:load,status:()=>({loadState,busy,storage:{...storage},automation:{...automation,pendingReasons:[...automation.pendingReasons]}}),destroy(){doc.removeEventListener?.('click',click);doc.removeEventListener?.('submit',submitEvent);chartFrame=null;}};
+  doc.addEventListener('click',click);doc.addEventListener('submit',submitEvent);doc.addEventListener('input',settingsInput);doc.addEventListener('change',settingsInput);
+  return {html:view=>view==='journal'?journalHTML():pricesHTML(),priceSymbols:()=>companies.map(([ticker])=>ticker),selectPriceSymbol,mount,observe,start:load,status:()=>({loadState,busy,storage:{...storage},automation:{...automation,pendingReasons:[...automation.pendingReasons]}}),destroy(){priceSetup.dispose();doc.removeEventListener?.('click',click);doc.removeEventListener?.('submit',submitEvent);doc.removeEventListener?.('input',settingsInput);doc.removeEventListener?.('change',settingsInput);chartFrame=null;}};
 }

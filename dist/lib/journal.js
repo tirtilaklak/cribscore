@@ -2,7 +2,8 @@
 // explicitly injected. Hash/shape checks establish integrity, not publisher authority.
 export const JOURNAL_SCHEMA='cribscore_journal_v1';
 export const DEFAULT_PAPER_SETTINGS=Object.freeze({paperNotional:'100.000000',commissionPerFill:'0.000000',slippageBps:5,currency:'USD',benchmarkSymbol:'SPY',benchmarkEntityId:null});
-const CASH=1000000n,QTY=100000000n,MAX_EVENTS=20000,MAX_BYTES=8000000;
+export const JOURNAL_LIMITS=Object.freeze({events:20000,bytes:8000000});
+const CASH=1000000n,QTY=100000000n,MAX_EVENTS=JOURNAL_LIMITS.events,MAX_BYTES=JOURNAL_LIMITS.bytes;
 const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const keys=(v,list)=>object(v)&&Object.keys(v).length===list.length&&list.every(k=>Object.hasOwn(v,k));
 const clean=(v,max=160)=>typeof v==='string'&&v.length>0&&v.length<=max&&!/[\u0000-\u001f\u007f]/.test(v);
@@ -17,9 +18,10 @@ const same=(a,b)=>canonical(a)===canonical(b);
 const immutable=v=>{if(v&&typeof v==='object'){for(const x of Object.values(v))immutable(x);Object.freeze(v);}return v;};
 const failure=code=>({ok:false,errors:[code]});
 function requireThat(value,code){if(!value)throw new Error(code);}
+const decimalRules={6:{pattern:/^(?:0|[1-9]\d{0,14})(?:\.\d{1,6})?$/,scale:CASH},8:{pattern:/^(?:0|[1-9]\d{0,14})(?:\.\d{1,8})?$/,scale:QTY}};
 function decimal(value,places=6,{positive=false}={}){
-  requireThat(typeof value==='string'&&new RegExp(`^(?:0|[1-9]\\d{0,14})(?:\\.\\d{1,${places}})?$`).test(value),'invalid_decimal');
-  const [whole,part='']=value.split('.'),n=BigInt(whole)*10n**BigInt(places)+BigInt(part.padEnd(places,'0'));
+  requireThat(typeof value==='string'&&decimalRules[places].pattern.test(value),'invalid_decimal');
+  const [whole,part='']=value.split('.'),n=BigInt(whole)*decimalRules[places].scale+BigInt(part.padEnd(places,'0'));
   requireThat(!positive||n>0n,'nonpositive_decimal');return n;
 }
 function format(n,places=6){const sign=n<0n?'-':'';n=n<0n?-n:n;const scale=10n**BigInt(places);return `${sign}${n/scale}.${String(n%scale).padStart(places,'0')}`;}
@@ -29,9 +31,35 @@ function validateSettings(v){
   requireThat(decimal(v.paperNotional,6,{positive:true})>decimal(v.commissionPerFill),'notional_does_not_cover_fee');
   requireThat(Number.isInteger(v.slippageBps)&&v.slippageBps>=0&&v.slippageBps<=1000&&v.currency==='USD'&&symbol(v.benchmarkSymbol),'invalid_settings');
 }
+// Field diagnostics share the domain decimal/settings rules; journal validation
+// still reports its original first error and checks every accepted prefix.
+export function validatePaperSettings(settings){
+  try{validateSettings(settings);return {ok:true,fieldErrors:{}};}catch(error){
+    const fieldErrors={},v=object(settings)?settings:{};let notional,commission;
+    try{notional=decimal(v.paperNotional,6,{positive:true});}catch{fieldErrors.paperNotional='Enter a positive amount with up to 6 decimal places.';}
+    try{commission=decimal(v.commissionPerFill);}catch{fieldErrors.commissionPerFill='Enter zero or a positive amount with up to 6 decimal places.';}
+    if(notional!==undefined&&commission!==undefined&&notional<=commission){fieldErrors.paperNotional='Paper notional must be greater than commission per fill.';fieldErrors.commissionPerFill='Commission per fill must be less than paper notional.';}
+    if(!Number.isInteger(v.slippageBps)||v.slippageBps<0||v.slippageBps>1000)fieldErrors.slippageBps='Enter a whole number from 0 to 1000.';
+    if(!symbol(v.benchmarkSymbol))fieldErrors.benchmarkSymbol='Enter a symbol starting with a letter, using up to 15 letters, numbers, dots or hyphens.';
+    return {ok:false,errors:[error.message||'invalid_settings'],fieldErrors};
+  }
+}
 function validateFill(v){
   requireThat(keys(v,['side','occurredAt','quantity','price','fee','currency'])&&['buy','sell'].includes(v.side)&&instant(v.occurredAt)&&v.currency==='USD','invalid_fill');
-  decimal(v.quantity,8,{positive:true});decimal(v.price,6,{positive:true});decimal(v.fee);
+  return {quantity:decimal(v.quantity,8,{positive:true}),price:decimal(v.price,6,{positive:true}),fee:decimal(v.fee)};
+}
+// Input diagnostics do not authorize or append a fill. The complete journal
+// graph still checks confirmation, publication time, corrections and holdings.
+export function validateActualFillFields(fill,{requiresReason=false,reason}={}){
+  const v=object(fill)?fill:{},fieldErrors={};let error;
+  try{validateFill(fill);}catch(caught){error=caught.message||'invalid_fill';}
+  if(!['buy','sell'].includes(v.side))fieldErrors.side='Choose Buy or Sell.';
+  if(!instant(v.occurredAt))fieldErrors.occurredAt='Enter a valid UTC date and time.';
+  for(const [name,places,positive,message] of [['quantity',8,true,'Enter a positive quantity with up to 8 decimal places.'],['price',6,true,'Enter a positive price with up to 6 decimal places.'],['fee',6,false,'Enter zero or a positive fee with up to 6 decimal places.']]){
+    try{decimal(v[name],places,{positive});}catch{fieldErrors[name]=message;}
+  }
+  if(requiresReason&&!clean(reason,500)){fieldErrors.reason='Enter a reason for correction using 1 to 500 characters, without control characters.';error=error||'invalid_fill_revision';}
+  return error?{ok:false,errors:[error],fieldErrors}:{ok:true,fieldErrors};
 }
 function safeJSON(v,depth=0){
   if(v===null||typeof v==='boolean')return true;
@@ -65,7 +93,7 @@ const find=(j,eventId)=>j.events.find(e=>e.id===eventId);
 const latest=(j,kind,predicate=()=>true)=>j.events.filter(e=>e.kind===kind&&predicate(e)).at(-1);
 function scheduleFor(j,intent){return intent.data.window||latest(j,'paper_schedule',e=>e.data.intentId===intent.id)?.data.window||null;}
 function effectiveFills(j,intentId){const replacements=new Map();for(const e of j.events)if(e.kind==='fill_revision')replacements.set(e.data.fillId,e.data.replacement);return j.events.filter(e=>e.kind==='actual_fill'&&e.data.intentId===intentId).map(e=>({id:e.id,...(replacements.get(e.id)||e.data.fill)}));}
-function actualReview(j,intentId,fills){if(!fills.length)return null;const times=fills.map(f=>Date.parse(f.occurredAt));return j.events.filter(e=>e.kind==='actual_action_review'&&e.data.intentId===intentId&&Date.parse(e.data.fromAt)<=Math.min(...times)&&Date.parse(e.data.throughAt)>=Math.max(...times)).at(-1)?.data||null;}
+function actualReview(j,intentId,fills){if(!fills.length)return null;const times=fills.map(f=>Date.parse(f.occurredAt)),first=Math.min(...times),last=Math.max(...times);return j.events.filter(e=>e.kind==='actual_action_review'&&e.data.intentId===intentId&&Date.parse(e.data.fromAt)<=first&&Date.parse(e.data.throughAt)>=last).at(-1)?.data||null;}
 // A review may retain later scheduled actions; every actual path uses its cutoff.
 function actualActions(review){return review?review.coverage.items.filter(action=>Date.parse(action.effectiveAt)<=Date.parse(review.throughAt)):[];}
 function contextFor(j,intent){return find(j,intent.data.publicationEventId);}
@@ -84,7 +112,77 @@ function validateEvaluation(d,event,j,{restatement=false}={}){
   if(d.benchmark){requireThat(![d.benchmark.entryMark,d.benchmark.exitMark,d.benchmark.mark].some(Boolean)||clean(intent.data.settings.benchmarkEntityId,160),'benchmark_identity_missing');requireThat(keys(d.benchmark,['entryMark','exitMark','mark','actions']),'invalid_benchmark');for(const [k,t] of [['entryMark',w.entryAt],['exitMark',w.exitAt],['mark',null]])if(d.benchmark[k]){validateMark(d.benchmark[k],{symbol:intent.data.settings.benchmarkSymbol,entityId:intent.data.settings.benchmarkEntityId,at:event.at,eventAt:t,kind:k==='entryMark'?'open':'close',session:k==='entryMark'?w.entrySession:k==='exitMark'?w.exitSession:undefined});if(k==='mark')validateInterimMark(d.benchmark[k],w);validateDailyAvailability(d.benchmark[k],w);}if(d.benchmark.actions)validateCoverage(d.benchmark.actions,w,(d.benchmark.exitMark||d.benchmark.mark||d.benchmark.entryMark)?.session||w.entrySession);requireThat(!d.benchmark.exitMark||d.benchmark.entryMark,'benchmark_exit_without_entry');}
   const prior=latestEvaluation(j,d.intentId);if(!restatement&&prior?.data.entryMark)requireThat(same(prior.data.entryMark,d.entryMark),'paper_entry_rewrite');if(!restatement&&prior?.data.exitMark)requireThat(['entryMark','exitMark','mark','actions'].every(key=>same(prior.data[key],d[key])),'closed_evaluation_rewrite');
 }
-async function validateEvent(e,j,eventIds){
+// Validation-only proof state. It is created for one validateJournal call and
+// contains only accepted-prefix information; projections always replay full P&L.
+function createActualValidation() {
+  const states=new Map(),effective=new Map();
+  let pending=null,disabled=false;
+  return {
+    validate(j,event,intentId,amounts,fillId=null) {
+      const fill=fillId?event.data.replacement:event.data.fill,state=disabled?null:states.get(intentId);
+      const previous=fillId?effective.get(fillId):null,time=Date.parse(fill.occurredAt);
+      // Prices/fees do not affect oversell, split precision or dividend-basis
+      // validity. Exact quantity/time/side equality keeps the same timeline.
+      const monetaryOnly=previous?.intentId===intentId&&['side','occurredAt','quantity','currency'].every(key=>previous.fill[key]===fill[key]);
+      const chronological=!fillId&&state&&time>=state.lastTimelineAt&&(!state.review||time<=Date.parse(state.review.throughAt));
+      let next;
+      if(state&&(fillId?monetaryOnly:chronological)) {
+        let quantity=state.quantity;
+        if(!fillId){requireThat(fill.side!=='sell'||amounts.quantity<=quantity,'oversell');quantity+=fill.side==='buy'?amounts.quantity:-amounts.quantity;}
+        next={...state,quantity,lastTimelineAt:fillId?state.lastTimelineAt:time};
+      } else {
+        const prior=effectiveFills(j,intentId);
+        const fills=fillId?prior.map(item=>item.id===fillId?{id:item.id,...fill}:item):[...prior,{id:event.id,...fill}];
+        const review=actualReview(j,intentId,fills),actions=actualActions(review);
+        const result=calculateLongPosition({fills,actions});
+        requireThat(result.ok,result.errors?.[0]||'invalid_actual_accounting');
+        // Aggregated quantity may have more digits than an individual input;
+        // use the calculator's exact fixed-point output without a new input cap.
+        next={quantity:BigInt(result.quantity.replace('.','')),review,lastTimelineAt:Math.max(...fills.map(item=>Date.parse(item.occurredAt)),...actions.map(item=>Date.parse(item.effectiveAt)))};
+      }
+      pending={event:clone(event),intentId,state:next};
+    },
+    accept(event) {
+      // Any new action review invalidates proof state, even for other intents.
+      // A later fill/correction must first select coverage and replay it in full.
+      if(event.kind==='actual_action_review')states.clear();
+      if(pending) {
+        if(!same(event,pending.event)){disabled=true;states.clear();effective.clear();}
+        else if(!disabled) {
+          states.set(pending.intentId,pending.state);
+          const fillId=event.kind==='actual_fill'?event.id:event.data.fillId;
+          effective.set(fillId,{intentId:pending.intentId,fill:event.kind==='actual_fill'?event.data.fill:event.data.replacement});
+        }
+        pending=null;
+      } else if(['actual_fill','fill_revision'].includes(event.kind)) {
+        // A caller mutation during an async validation boundary must never turn
+        // an unexamined accepted clone into reusable accounting proof.
+        disabled=true;states.clear();effective.clear();
+      }
+    }
+  };
+}
+
+// Lookup indexes contain only this call's accepted event clones. Preserve the
+// first ID match and append order used by the original find/filter operations.
+function createEventLookup() {
+  const byId=new Map(),byKind=new Map();
+  return {
+    find:(_journal,eventId)=>byId.get(eventId),
+    latest(_journal,kind,predicate=()=>true) {
+      const events=byKind.get(kind)||[];
+      for(let i=events.length-1;i>=0;i--)if(predicate(events[i]))return events[i];
+    },
+    accept(event) {
+      if(!byId.has(event.id))byId.set(event.id,event);
+      if(!byKind.has(event.kind))byKind.set(event.kind,[]);
+      byKind.get(event.kind).push(event);
+    }
+  };
+}
+
+async function validateEvent(e,j,eventIds,actualValidation,lookup){
+  const {find,latest}=lookup;
   requireThat(keys(e,['id','kind','at','data'])&&id(e.id)&&instant(e.at)&&Date.parse(e.at)>=Date.parse(j.createdAt)&&object(e.data),'invalid_event');
   requireThat(!eventIds.has(e.id),'duplicate_event_id');const d=e.data;
   if(e.kind==='settings'){requireThat(keys(d,['settings']),'invalid_settings_event');validateSettings(d.settings);}
@@ -110,20 +208,28 @@ async function validateEvent(e,j,eventIds){
   else if(e.kind==='actual_action_review'){
     requireThat(keys(d,['intentId','fromAt','throughAt','coverage','reviewMark'])&&find(j,d.intentId)?.kind==='paper_intent'&&instant(d.fromAt)&&instant(d.throughAt)&&Date.parse(d.fromAt)<=Date.parse(d.throughAt),'invalid_actual_action_review');const intent=find(j,d.intentId),pub=contextFor(j,intent);validateMark(d.reviewMark,{symbol:intent.data.symbol,entityId:pub.data.entities.find(x=>x.symbol===intent.data.symbol).entityId,at:e.at,kind:'close'});requireThat(Date.parse(d.reviewMark.eventAt)>=Date.parse(d.throughAt),'actual_action_review_cutoff');validateCoverage(d.coverage,{entrySession:d.fromAt.slice(0,10),exitSession:d.throughAt.slice(0,10)});
   } else if(e.kind==='actual_fill'){
-    requireThat(keys(d,['intentId','fill'])&&latest(j,'actual_confirmation',x=>x.data.intentId===d.intentId),'actual_confirmation_missing');validateFill(d.fill);requireThat(Date.parse(d.fill.occurredAt)<=Date.parse(e.at)&&Date.parse(d.fill.occurredAt)>=Date.parse(contextFor(j,find(j,d.intentId)).data.publishedAt)&&Date.parse(e.at)>=Date.parse(latest(j,'actual_confirmation',x=>x.data.intentId===d.intentId).at),'future_or_prepublication_actual_fill');
-    const fills=[...effectiveFills(j,d.intentId),{id:e.id,...d.fill}],review=actualReview(j,d.intentId,fills);const accounting=calculateLongPosition({fills,actions:actualActions(review)});requireThat(accounting.ok,accounting.errors?.[0]||'invalid_actual_accounting');
+    requireThat(keys(d,['intentId','fill'])&&latest(j,'actual_confirmation',x=>x.data.intentId===d.intentId),'actual_confirmation_missing');const amounts=validateFill(d.fill);requireThat(Date.parse(d.fill.occurredAt)<=Date.parse(e.at)&&Date.parse(d.fill.occurredAt)>=Date.parse(contextFor(j,find(j,d.intentId)).data.publishedAt)&&Date.parse(e.at)>=Date.parse(latest(j,'actual_confirmation',x=>x.data.intentId===d.intentId).at),'future_or_prepublication_actual_fill');
+    actualValidation.validate(j,e,d.intentId,amounts);
   } else if(e.kind==='fill_revision'){
-    requireThat(keys(d,['fillId','replacement','reason'])&&find(j,d.fillId)?.kind==='actual_fill'&&clean(d.reason,500),'invalid_fill_revision');validateFill(d.replacement);requireThat(Date.parse(d.replacement.occurredAt)<=Date.parse(e.at)&&Date.parse(e.at)>=Date.parse(find(j,d.fillId).at)&&Date.parse(d.replacement.occurredAt)>=Date.parse(contextFor(j,find(j,find(j,d.fillId).data.intentId)).data.publishedAt),'future_or_prepublication_actual_fill');
-    const original=find(j,d.fillId),fills=effectiveFills(j,original.data.intentId).map(f=>f.id===d.fillId?{id:f.id,...d.replacement}:f),review=actualReview(j,original.data.intentId,fills);const accounting=calculateLongPosition({fills,actions:actualActions(review)});requireThat(accounting.ok,accounting.errors?.[0]||'invalid_actual_accounting');
+    requireThat(keys(d,['fillId','replacement','reason'])&&find(j,d.fillId)?.kind==='actual_fill'&&clean(d.reason,500),'invalid_fill_revision');const amounts=validateFill(d.replacement);requireThat(Date.parse(d.replacement.occurredAt)<=Date.parse(e.at)&&Date.parse(e.at)>=Date.parse(find(j,d.fillId).at)&&Date.parse(d.replacement.occurredAt)>=Date.parse(contextFor(j,find(j,find(j,d.fillId).data.intentId)).data.publishedAt),'future_or_prepublication_actual_fill');
+    actualValidation.validate(j,e,find(j,d.fillId).data.intentId,amounts,d.fillId);
   } else throw new Error('unknown_event_kind');
 }
 function validateIntentWindow(intent,pub,w){const p=publicationPayload(pub.data);requireThat(Date.parse(intent.at)<Date.parse(w.entryAt)&&w.horizonSessions===(pub.data.horizonId==='next_week'?5:1)&&Date.parse(w.publishedAt)===Date.parse(pub.data.publishedAt)&&Date.parse(w.entryAt)===Date.parse(p.horizon.entry_at)&&Date.parse(w.exitAt)===Date.parse(p.horizon.exit_at),'intent_window_mismatch');}
 export function createJournal({journalId,at}){requireThat(id(journalId)&&instant(at),'invalid_journal_identity');return immutable({schemaVersion:JOURNAL_SCHEMA,journalId,createdAt:at,revision:0,events:[]});}
+// Capture the complete caller-owned input before the first asynchronous boundary.
+// Validate and accept only that snapshot; later caller edits belong to a new call.
 export async function validateJournal(value){
-  try {requireThat(keys(value,['schemaVersion','journalId','createdAt','revision','events'])&&value.schemaVersion===JOURNAL_SCHEMA&&id(value.journalId)&&instant(value.createdAt)&&Array.isArray(value.events)&&value.events.length<=MAX_EVENTS&&value.revision===value.events.length,'invalid_journal');requireThat(safeJSON(value)&&JSON.stringify(value).length<=MAX_BYTES,'journal_limits');const journal={...clone(value),events:[]},eventIds=new Set();for(const e of value.events){await validateEvent(e,journal,eventIds);const validated=clone(e);journal.events.push(validated);eventIds.add(validated.id);}return {ok:true,journal:immutable(journal)};}catch(error){return failure(error.message||'invalid_journal');}
+  try {requireThat(keys(value,['schemaVersion','journalId','createdAt','revision','events'])&&value.schemaVersion===JOURNAL_SCHEMA&&id(value.journalId)&&instant(value.createdAt)&&Array.isArray(value.events)&&value.revision===value.events.length,'invalid_journal');requireThat(value.events.length<=MAX_EVENTS,'journal_capacity_exceeded');requireThat(safeJSON(value)&&JSON.stringify(value).length<=MAX_BYTES,'journal_limits');const snapshot=clone(value),journal={...snapshot,events:[]},eventIds=new Set(),actualValidation=createActualValidation(),lookup=createEventLookup();for(const e of snapshot.events){await validateEvent(e,journal,eventIds,actualValidation,lookup);const validated=e;journal.events.push(validated);eventIds.add(validated.id);lookup.accept(validated);actualValidation.accept(validated);}return {ok:true,journal:immutable(journal)};}catch(error){return failure(error.message||'invalid_journal');}
 }
 export function checkAppendOnly(previous,next,{allowEmptyRestore=false}={}){try{requireThat(next?.schemaVersion===JOURNAL_SCHEMA,'invalid_journal');if(previous&&!(allowEmptyRestore&&previous.revision===0&&previous.events.length===0)){requireThat(previous.journalId===next.journalId&&previous.createdAt===next.createdAt&&next.revision>=previous.revision&&previous.events.every((e,i)=>same(e,next.events[i])),'append_only_conflict');}return {ok:true,errors:[]};}catch(error){return failure(error.message);}}
-async function append(journal,events){const checked=await validateJournal(journal);if(!checked.ok)return checked;const next={...clone(journal),events:[...clone(journal.events),...clone(events)]};next.revision=next.events.length;return validateJournal(next);}
+async function append(journal,events){
+  const validation=validateJournal(journal);let additions,snapshotError;
+  // Capture additions in the same call as the base, but retain base-error precedence.
+  try{additions=clone(events);}catch(error){snapshotError=error;}
+  const checked=await validation;if(!checked.ok)return checked;if(snapshotError)throw snapshotError;
+  const next={...checked.journal,events:[...checked.journal.events,...additions]};next.revision=next.events.length;return validateJournal(next);
+}
 const event=(id,kind,at,data)=>({id,kind,at,data});
 export const appendSettings=(j,{id,at,settings})=>append(j,[event(id,'settings',at,{settings})]);
 export async function recordAbstention(j,{id,at,date,horizonId,unrankedCount=0,snapshot={},reason='No eligible published algorithm suggestions.'}){const existing=latest(j,'abstain',e=>e.data.date===date&&e.data.horizonId===horizonId);if(existing)return {ok:true,journal:j,duplicate:true};return append(j,[event(id,'abstain',at,{date,horizonId,unrankedCount,reason,snapshot})]);}
@@ -136,13 +242,15 @@ export const reviseActualFill=(j,{id,at,fillId,replacement,reason})=>append(j,[e
 export function calculateLongPosition({fills=[],mark=null,actions=[],currency='USD'}={}){
   try {
     requireThat(Array.isArray(fills)&&Array.isArray(actions)&&currency==='USD','invalid_accounting_input');
-    const fillIds=new Set();for(const f of fills){requireThat(id(f.id)&&!fillIds.has(f.id),'duplicate_fill');fillIds.add(f.id);validateFill(Object.fromEntries(['side','occurredAt','quantity','price','fee','currency'].map(k=>[k,f[k]])));}
+    // Parsed amounts live only within this accounting call. Every fill retains
+    // its original validation position; corrections and new prefixes are rechecked.
+    const fillIds=new Set(),amounts=new Map();for(const f of fills){requireThat(id(f.id)&&!fillIds.has(f.id),'duplicate_fill');fillIds.add(f.id);amounts.set(f.id,validateFill(Object.fromEntries(['side','occurredAt','quantity','price','fee','currency'].map(k=>[k,f[k]]))));}
     const actionIds=new Set();for(const a of actions){validateAction(a);requireThat(!actionIds.has(a.id),'duplicate_action');actionIds.add(a.id);}
     const timeline=[...fills.map(f=>({type:'fill',at:f.occurredAt,value:f})),...actions.map(a=>({type:a.type,at:a.effectiveAt,value:a}))].sort((a,b)=>Date.parse(a.at)-Date.parse(b.at)||({split:0,cash_dividend:1,fill:2}[a.type]-{split:0,cash_dividend:1,fill:2}[b.type]));
     let qty=0n,basis=0n,realized=0n,dividends=0n,fees=0n,invested=0n,proceeds=0n;let lastFill=null,lastAction=null;
     for(const item of timeline){const f=item.value;if(item.type==='split'){if(qty>0n)lastAction=f.effectiveAt;const numerator=BigInt(f.splitRatio.numerator),denominator=BigInt(f.splitRatio.denominator);requireThat(qty*numerator%denominator===0n,'split_quantity_precision_unsupported');qty=qty*numerator/denominator;continue;}
       if(item.type==='cash_dividend'){if(qty>0n)lastAction=f.effectiveAt;const sameSessionSplit=actions.some(a=>a.type==='split'&&a.effectiveSession===f.effectiveSession);requireThat(qty===0n||!sameSessionSplit||f.perShareBasis==='post_split','dividend_share_basis_ambiguous');dividends+=round(qty*decimal(f.cashPerShare),QTY);continue;}
-      const quantity=decimal(f.quantity,8,{positive:true}),price=decimal(f.price,6,{positive:true}),fee=decimal(f.fee),gross=round(quantity*price,QTY);fees+=fee;lastFill=f.occurredAt;
+      const {quantity,price,fee}=amounts.get(f.id),gross=round(quantity*price,QTY);fees+=fee;lastFill=f.occurredAt;
       if(f.side==='buy'){qty+=quantity;basis+=gross+fee;invested+=gross+fee;}
       else {requireThat(quantity<=qty,'oversell');const disposed=quantity===qty?basis:round(basis*quantity,qty);qty-=quantity;basis-=disposed;proceeds+=gross-fee;realized+=gross-fee-disposed;}
     }
@@ -238,10 +346,10 @@ export function createLocalJournalStore({storage,key='cribscore.journal.v1'}={})
   let observedRaw;
   return {
     async load(){try{const raw=storage.getItem(key);observedRaw=raw;if(raw===null)return {ok:true,journal:null,revision:0,state:'local_only'};const checked=await validateJournal(JSON.parse(raw));return checked.ok?{...checked,revision:checked.journal.revision,state:'local_only'}:{...checked,state:'unavailable',error:'corrupt_local_journal'};}catch(error){return {ok:false,error:'local_read_failed',detail:error.message,state:'unavailable'};}},
-    async commit(journal,{expectedRevision,mode='append'}={}){const checked=await validateJournal(journal);if(!checked.ok)return checked;try{const currentRaw=storage.getItem(key);if(observedRaw===undefined)return {ok:false,error:'load_required',state:'unsaved'};if(currentRaw!==observedRaw)return {ok:false,error:'revision_conflict',state:'conflict'};const previous=currentRaw===null?null:JSON.parse(currentRaw);if((previous?.revision||0)!==expectedRevision)return {ok:false,error:'revision_conflict',state:'conflict'};const appendCheck=checkAppendOnly(previous,journal,{allowEmptyRestore:mode==='restore'&&expectedRevision===0});if(!appendCheck.ok)return {...appendCheck,state:'unsaved'};const bytes=canonical(journal);storage.setItem(key,bytes);const verified=storage.getItem(key);if(verified!==bytes)return {ok:false,error:'local_write_unconfirmed',state:'unsaved'};observedRaw=verified;return {ok:true,journal:checked.journal,revision:journal.revision,state:'local_only'};}catch(error){return {ok:false,error:'local_write_failed',detail:error.message,state:'unsaved'};}}
+    async commit(journal,{expectedRevision,mode='append'}={}){const checked=await validateJournal(journal);if(!checked.ok)return checked;journal=checked.journal;try{const currentRaw=storage.getItem(key);if(observedRaw===undefined)return {ok:false,error:'load_required',state:'unsaved'};if(currentRaw!==observedRaw)return {ok:false,error:'revision_conflict',state:'conflict'};const previous=currentRaw===null?null:JSON.parse(currentRaw);if((previous?.revision||0)!==expectedRevision)return {ok:false,error:'revision_conflict',state:'conflict'};const appendCheck=checkAppendOnly(previous,journal,{allowEmptyRestore:mode==='restore'&&expectedRevision===0});if(!appendCheck.ok)return {...appendCheck,state:'unsaved'};const bytes=canonical(journal);storage.setItem(key,bytes);const verified=storage.getItem(key);if(verified!==bytes)return {ok:false,error:'local_write_unconfirmed',state:'unsaved'};observedRaw=verified;return {ok:true,journal:checked.journal,revision:journal.revision,state:'local_only'};}catch(error){return {ok:false,error:'local_write_failed',detail:error.message,state:'unsaved'};}}
   };
 }
 export function createHttpJournalStore({fetch:request=globalThis.fetch,url='/api/journal'}={}){
   const decode=async(response)=>{let body;try{body=await response.json();}catch{return {ok:false,error:'invalid_server_response',state:'unsaved'};}if(!response.ok)return {ok:false,error:body?.error||'server_unavailable',revision:body?.revision,journal:body?.journal,state:response.status===409?'conflict':'unsaved'};if(body?.ok!==true)return {ok:false,error:'invalid_server_response',state:'unsaved'};if(body.journal===null&&body.revision===0)return {ok:true,journal:null,revision:0,state:'synced'};const checked=await validateJournal(body.journal);if(!checked.ok||body.revision!==body.journal?.revision)return {ok:false,error:'invalid_server_journal',state:'unsaved'};return {...checked,revision:body.revision,state:'synced'};};
-  return {async load(){try{return await decode(await request(url,{method:'GET',credentials:'same-origin',cache:'no-store'}));}catch(error){return {ok:false,error:'server_unavailable',detail:error.message,state:'unavailable'};}},async commit(journal,{expectedRevision,mode='append'}={}){const checked=await validateJournal(journal);if(!checked.ok)return checked;try{const result=await decode(await request(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedRevision,journal,...(mode==='restore'?{mode}: {})})}));if(result.ok&&(!result.journal||!same(result.journal,journal)))return {ok:false,error:'server_commit_unconfirmed',state:'unsaved'};return result;}catch(error){return {ok:false,error:'server_commit_uncertain',detail:error.message,state:'unsaved'};}}};
+  return {async load(){try{return await decode(await request(url,{method:'GET',credentials:'same-origin',cache:'no-store'}));}catch(error){return {ok:false,error:'server_unavailable',detail:error.message,state:'unavailable'};}},async commit(journal,{expectedRevision,mode='append'}={}){const checked=await validateJournal(journal);if(!checked.ok)return checked;journal=checked.journal;try{const result=await decode(await request(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedRevision,journal,...(mode==='restore'?{mode}: {})})}));if(result.ok&&(!result.journal||!same(result.journal,journal)))return {ok:false,error:'server_commit_unconfirmed',state:'unsaved'};return result;}catch(error){return {ok:false,error:'server_commit_uncertain',detail:error.message,state:'unsaved'};}}};
 }

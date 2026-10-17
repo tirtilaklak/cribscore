@@ -1,6 +1,8 @@
 # Market-data integration readiness
 
-The adapter in this directory is prepared offline and disabled in the published static app. It has not called Tiingo. Its 27 transport/authorization tests use synthetic responses only; they do not establish real coverage, licensing, ranking quality, or a live connection.
+The adapters in this directory are server-only candidates and are disabled in the published app. Neither Tiingo nor Alpaca has been called for production prices. Tests use synthetic responses only; they do not establish real coverage, licensing, ranking quality or a live connection.
+
+The new [Alpaca daily-history adapter](ALPACA.md) supplies a status-only setup check, a bounded capture transport and per-page provenance. Missing credentials or reviewed rights produce `setup_required` with zero network requests. Complete configuration remains `configured_unverified`. There is no automatic price display, retention, ranking, paper-mark or scheduler grant.
 
 ## Conditional provider path
 
@@ -19,4 +21,4 @@ Before a real request, the integration owner must bind an explicit rights review
 Before ranking, reconcile permanent security identities, all expected completed exchange sessions, source coverage, corporate actions, consolidated liquidity and company/event evidence. Run the independent feed-ingestion validator and candidate hard gates. A recent retrieval cannot make an old observation fresh. Publish only permitted derivatives after review; never publish these raw inputs or a private transcript.
 
 
-The adapter now bounds the streamed response, verifies strict UTF-8 JSON, hashes the exact response bytes, and emits actual request/response clocks with unknown provider publication and null ingestion time. The separate host ledger assigns capture identity and reviewed ingestion completion. These private envelopes are never source-display payloads. Independent fragmented-UTF-8 and failed-read controls found no additional transport defect. Canonical pipeline verification is recorded in ../../docs/v8-app-verification.json.
+The adapter now bounds the streamed response, verifies strict UTF-8 JSON, hashes the exact response bytes, and emits actual request/response clocks with unknown provider publication and null ingestion time. The separate host ledger assigns capture identity and reviewed ingestion completion. These private envelopes are never source-display payloads. Independent fragmented-UTF-8 and failed-read controls found no additional transport defect. A prior private verification record covers the canonical pipeline; the source test suites provide reproducible checks without exposing that release record.

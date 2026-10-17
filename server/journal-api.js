@@ -1,8 +1,8 @@
-import { validateJournal, checkAppendOnly } from '../dist/lib/journal.js';
+import { validateJournal, checkAppendOnly, JOURNAL_LIMITS } from '../dist/lib/journal.js';
 
 // Platform authentication supplies the owner ID. Browser JSON never selects an owner.
 // Integrity checks do not authenticate a publisher, calendar, or market-data feed.
-export const JOURNAL_API_LIMITS = Object.freeze({ bodyBytes: 8_000_000, eventBytes: 600_000, chunkBytes: 900_000, events: 20_000, observationBodyBytes: 4096 });
+export const JOURNAL_API_LIMITS = Object.freeze({ bodyBytes: 8_000_000, bodyTimeoutMs: 10_000, bodyChunks: 16_384, eventBytes: 600_000, chunkBytes: 900_000, events: JOURNAL_LIMITS.events, observationBodyBytes: 4096 });
 const encoder = new TextEncoder();
 const canonical = value => JSON.stringify(value, (_, item) => item && typeof item === 'object' && !Array.isArray(item)
   ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
@@ -11,6 +11,7 @@ const json = (status, body) => new Response(JSON.stringify(body), { status, head
   'vary': 'oai-authenticated-user-id', 'x-content-type-options': 'nosniff',
 } });
 const fail = (status, error, extra = {}) => json(status, { ok: false, error, ...extra });
+const capacityFailure = (status, previous) => fail(status, 'journal_capacity_exceeded', { revision: previous?.revision || 0, capacity: { limit: JOURNAL_API_LIMITS.events, remaining: JOURNAL_API_LIMITS.events - (previous?.revision || 0) } });
 class ApiError extends Error { constructor(status, code) { super(code); this.status = status; } }
 
 // JSON.parse deliberately accepts duplicate keys. Journal requests must not use
@@ -50,22 +51,40 @@ function rejectDuplicateKeys(text) {
   value(0);
 }
 
-async function readBody(request, limit = JOURNAL_API_LIMITS.bodyBytes) {
+async function readBody(request, limit = JOURNAL_API_LIMITS.bodyBytes, timeoutMs = JOURNAL_API_LIMITS.bodyTimeoutMs) {
   const declared = request.headers.get('content-length');
   if (declared !== null && (!/^\d+$/.test(declared) || Number(declared) > limit)) throw new ApiError(413, 'journal_request_too_large');
   if (!request.body) throw new ApiError(400, 'invalid_json');
   const reader = request.body.getReader();
   const chunks = [];
-  let length = 0;
+  let length = 0, chunksRead = 0, timer, rejectAbort;
+  const startedAt = performance.now();
+  const cancel = () => { try { Promise.resolve(reader.cancel()).catch(() => {}); } catch {} };
+  const interrupted = new Promise((_, reject) => {
+    rejectAbort = () => reject(new ApiError(408, 'journal_request_cancelled'));
+    timer = setTimeout(() => reject(new ApiError(408, 'journal_request_timed_out')), timeoutMs);
+  });
+  request.signal.addEventListener('abort', rejectAbort, { once: true });
   try {
+    if (request.signal.aborted) throw new ApiError(408, 'journal_request_cancelled');
     for (;;) {
-      const { done, value } = await reader.read();
+      const { done, value } = await Promise.race([reader.read(), interrupted]);
+      // A completed read can win the race in the same turn as cancellation.
+      // Immediate reads can also starve timers; enforce elapsed time and an
+      // independent fragment bound even when the runtime clock does not advance.
+      if (request.signal.aborted) throw new ApiError(408, 'journal_request_cancelled');
+      if (performance.now() - startedAt >= timeoutMs) throw new ApiError(408, 'journal_request_timed_out');
       if (done) break;
+      if (++chunksRead > JOURNAL_API_LIMITS.bodyChunks) throw new ApiError(413, 'journal_request_too_fragmented');
       length += value.byteLength;
-      if (length > limit) { await reader.cancel(); throw new ApiError(413, 'journal_request_too_large'); }
+      if (length > limit) throw new ApiError(413, 'journal_request_too_large');
       chunks.push(value);
     }
-  } finally { reader.releaseLock(); }
+  } catch (error) { cancel(); throw error; }
+  finally {
+    clearTimeout(timer); request.signal.removeEventListener('abort', rejectAbort);
+    try { reader.releaseLock(); } catch {}
+  }
   const bytes = new Uint8Array(length);
   let offset = 0;
   for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
@@ -186,7 +205,7 @@ function assertObservationDeadline(events, journal, receivedAt) {
   }
 }
 
-export async function handleJournalRequest(request, env, { authority, observer, now = () => new Date().toISOString() } = {}) {
+export async function handleJournalRequest(request, env, { authority, observer, now = () => new Date().toISOString(), bodyTimeoutMs = JOURNAL_API_LIMITS.bodyTimeoutMs } = {}) {
   let commitStarted = false;
   try {
     const url = new URL(request.url);
@@ -206,7 +225,8 @@ export async function handleJournalRequest(request, env, { authority, observer, 
     const db = typeof env.DB.withSession === 'function' ? env.DB.withSession('first-primary') : env.DB;
     const previous = await readJournal(db, owner);
     if (request.method === 'GET') return json(200, { ok: true, journal: previous, revision: previous?.revision || 0 });
-    const body = await readBody(request, observing ? JOURNAL_API_LIMITS.observationBodyBytes : JOURNAL_API_LIMITS.bodyBytes);
+    if (!Number.isSafeInteger(bodyTimeoutMs) || bodyTimeoutMs < 1 || bodyTimeoutMs > 30_000) throw new ApiError(503, 'journal_storage_unavailable');
+    const body = await readBody(request, observing ? JOURNAL_API_LIMITS.observationBodyBytes : JOURNAL_API_LIMITS.bodyBytes, bodyTimeoutMs);
     // Headers arriving before the entry deadline are not an enrolled immutable
     // suggestion. A streamed body must be completely received before that open.
     const completedAt = now();
@@ -224,7 +244,12 @@ export async function handleJournalRequest(request, env, { authority, observer, 
       let proposal;
       try { proposal = await observer.observe({ journal: previous, requestId: body.requestId, receivedAt, ownerScope: owner }); }
       catch { return fail(503, 'observation_unavailable'); }
-      if (proposal?.ok !== true) return fail(503, 'observation_unavailable');
+      if (proposal?.ok !== true) {
+        // Only the explicit domain capacity result is safe to disclose. No reader
+        // detail or provisional observer journal is returned or committed.
+        if (proposal?.ok === false && Array.isArray(proposal.errors) && proposal.errors.length === 1 && proposal.errors[0] === 'journal_capacity_exceeded') return capacityFailure(409, previous);
+        return fail(503, 'observation_unavailable');
+      }
       if (proposal.baseRevision !== previous.revision || typeof proposal.changed !== 'boolean') return fail(503, 'observer_invalid_proposal');
       const checked = await validateJournal(proposal.journal);
       if (!checked.ok || !checkAppendOnly(previous, checked.journal).ok) return fail(503, 'observer_invalid_proposal');
@@ -246,7 +271,7 @@ export async function handleJournalRequest(request, env, { authority, observer, 
         || (body.mode !== undefined && !['append', 'restore'].includes(body.mode))) return fail(400, 'invalid_journal_request');
       if (body.expectedRevision !== (previous?.revision || 0)) return json(409, { ok: false, error: 'revision_conflict', revision: previous?.revision || 0, journal: previous });
       const checked = await validateJournal(body.journal);
-      if (!checked.ok) return fail(422, 'invalid_journal', { errors: checked.errors });
+      if (!checked.ok) return checked.errors?.[0] === 'journal_capacity_exceeded' ? capacityFailure(422, previous) : fail(422, 'invalid_journal', { errors: checked.errors });
       journal = checked.journal;
       if (Date.parse(journal.createdAt) > Date.parse(receivedAt)) return fail(422, 'journal_created_in_future');
       const appendCheck = checkAppendOnly(previous, journal, { allowEmptyRestore: body.mode === 'restore' && body.expectedRevision === 0 });

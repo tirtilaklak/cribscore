@@ -45,8 +45,12 @@ function updateLoadStatus() {
   const kinds=loadKindsForView(), pending=kinds.filter(kind=>loadStatus(kind)==='loading');
   $('#view-content').setAttribute('aria-busy',String(pending.length>0));
   const failed=kinds.filter(kind=>loadStatus(kind)==='unavailable');
-  const deskFeedback=['journal','prices'].includes(state.view)&&$('#view-content').querySelector('.desk-feedback[role="status"]');
-  announce(pending.length ? pending.map(kind=>`${loadConfig[kind].label} ${loadRuns.get(kind)?.delayed?'is taking longer than expected':'loading'}.`).join(' ') : failed.length ? failed.map(kind=>`${loadConfig[kind].label} unavailable. Retry is available.`).join(' ') : deskFeedback ? '' : `${$('#breadcrumb-current').textContent} ready${state.query?` for “${state.query}”`:''}.`);
+  const deskFeedback=['journal','prices'].includes(state.view)&&$('#view-content').querySelector('.desk-feedback');
+  const setupStatus=state.view==='prices'&&$('#view-content').querySelector('[data-price-setup-status]');
+  const activeSetup=setupStatus&&setupStatus.getAttribute('data-price-setup-status')!=='unchecked';
+  // One persistent live region carries feedback. The inline copy remains plain
+  // text so a rerender cannot create a competing or missed live announcement.
+  announce(pending.length ? pending.map(kind=>`${loadConfig[kind].label} ${loadRuns.get(kind)?.delayed?'is taking longer than expected':'loading'}.`).join(' ') : failed.length ? failed.map(kind=>`${loadConfig[kind].label} unavailable. Retry is available.`).join(' ') : deskFeedback ? deskFeedback.textContent : activeSetup ? setupStatus.textContent : `${$('#breadcrumb-current').textContent} ready${state.query?` for “${state.query}”`:''}.`);
 }
 async function startLoad(kind, retry=false) {
   const config=loadConfig[kind];if(!config)return;
