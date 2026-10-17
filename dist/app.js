@@ -388,8 +388,9 @@ function finishInitialLoad(views) {
     scheduleSlateExpiry();
   }
 }
+// A typed form stays a dirty draft until its controller accepts the submit; a
+// rejected or failed submit must not let the next render replace the typed values.
 for(const type of ['input','change'])document.addEventListener(type,event=>{const form=event.target.closest?.('[data-journal-form],[data-price-form]');if(form)form.dataset.deskDirty='true';});
-document.addEventListener('submit',event=>{const form=event.target.closest?.('[data-journal-form],[data-price-form]');if(form)form.dataset.deskDirty='false';});
 $('#workspace-date').textContent='Private working preview';
 render();
 

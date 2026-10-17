@@ -29,6 +29,7 @@ export class Element {
   get innerHTML(){return this._html;}
   set innerHTML(html){this.replaceChildren();this._html=html;this.writes++;parse(html,this,this.ownerDocument);}
   append(node){node.parentElement=this;this.children.push(node);}
+  replaceWith(node){const parent=this.parentElement;if(!parent)return;const index=parent.children.indexOf(this);if(node.parentElement)node.parentElement.children.splice(node.parentElement.children.indexOf(node),1);node.parentElement=parent;parent.children[index]=node;this.parentElement=null;}
   replaceChildren(){if(this.contains(this.ownerDocument?.activeElement))this.ownerDocument.activeElement=this.ownerDocument.body;for(const n of this.children)n.parentElement=null;this.children=[];}
   contains(node){return node===this||this.children.some(child=>child.contains(node));}
   querySelectorAll(selector){const out=[];for(const child of this.children){if(selector.split(',').some(s=>matches(child,s)))out.push(child);out.push(...child.querySelectorAll(selector));}return out;}

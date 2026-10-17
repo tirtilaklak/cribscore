@@ -169,21 +169,24 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
   }
   async function submit(form){
     const data=new FormData(form),kind=form.dataset.journalForm||form.dataset.priceForm;
+    // Only an accepted submit clears the host's dirty-draft marker; a rejected one keeps the typed values through the next render.
+    let accepted=false;
     if(form.dataset.priceForm){
       const run=++priceImportRun;
       try{
         if(kind==='selection'){
           const next=asText(data.get('symbol'));if(!companies.some(([ticker])=>ticker===next)&&!series.some(item=>item.symbol===next))throw Error('Choose an available company.');
           const range=data.get('rangeSessions');if(!['20','60','120','all'].includes(range))throw Error('Choose an available history range.');
-          if(next!==symbol){chartFrame=null;requestedChart=null;}symbol=next;rangeSessions=range==='all'?'all':Number(range);priceFeedback=null;
+          if(next!==symbol){chartFrame=null;requestedChart=null;}symbol=next;rangeSessions=range==='all'?'all':Number(range);priceFeedback=null;accepted=true;
         }else if(kind==='import'){
           const file=data.get('file');if(!file||file.size>2_097_152||typeof file.text!=='function')throw Error('Choose a JSON price file under 2 MiB.');
           const raw=await file.text();if(run!==priceImportRun)return;
           const result=parsePriceImport(raw,{at:now(),format:'json'});
           if(!['ready','partial'].includes(result.status)||!result.series?.length)throw Error((result.issues||['Invalid price import.']).join(', ').replaceAll('_',' '));
-          series=result.series;symbol=series[0].symbol;chartFrame=null;requestedChart=null;priceFeedback=`Imported ${series.length} daily series for chart context. These values are unreviewed and cannot supply paper marks.`;
+          series=result.series;symbol=series[0].symbol;chartFrame=null;requestedChart=null;priceFeedback=`Imported ${series.length} daily series for chart context. These values are unreviewed and cannot supply paper marks.`;accepted=true;
         }
-      }catch(error){if(run!==priceImportRun)return;priceFeedback=error.message||'Price input could not be read. Previous data is retained.';}changed();return;
+      }catch(error){if(run!==priceImportRun)return;priceFeedback=error.message||'Price input could not be read. Previous data is retained.';}
+      if(accepted)form.dataset.deskDirty='false';changed();return;
     }
     if(!safeAction())return;
     if(needsSetup&&kind!=='import'){feedback='Start automatic journaling or restore a backup before changing assumptions.';changed();return;}
@@ -194,7 +197,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
         const raw=await file.text();let result=await journalDomain.previewImport(draft,raw);
         if(!result.ok&&draft.revision===0)result=await journalDomain.previewImport(draft,raw,{mode:'restore'});
         if(!result.ok||!result.preview.canApply){feedback=`Backup cannot be applied: ${errors(result.ok?{errors:result.preview.conflicts}:result)}.`;return;}
-        pendingImport={kind:'backup',preview:result.preview,message:`${result.preview.additions.length} new event(s), ${result.preview.duplicates.length} unchanged duplicate(s), ${result.preview.conflicts.length} conflicts.${result.preview.adoptsJournalIdentity?' This restores the backup’s journal identity into the empty journal.':''} Original publication records need server authority before they can be accepted.`};feedback=null;return;
+        pendingImport={kind:'backup',preview:result.preview,message:`${result.preview.additions.length} new event(s), ${result.preview.duplicates.length} unchanged duplicate(s), ${result.preview.conflicts.length} conflicts.${result.preview.adoptsJournalIdentity?' This restores the backup’s journal identity into the empty journal.':''} Original publication records need server authority before they can be accepted.`};feedback=null;accepted=true;return;
       }
       let result;
       if(kind==='settings'){
@@ -206,8 +209,9 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
         result=kind==='save-fill'?await journalDomain.recordActualFill(draft,{id:id('actual-fill'),at:now(),intentId:form.dataset.journalId,...fill}):await journalDomain.reviseActualFill(draft,{id:id('fill-revision'),at:now(),fillId:form.dataset.journalFillId,replacement:fill,reason:asText(data.get('reason'))});
       }else throw Error('This form is unavailable.');
       if(!result.ok){feedback=`Nothing saved: ${errors(result)}.`;return;}
+      accepted=true;// the draft now carries these values even if the save is unconfirmed
       if((await commit(result.journal)).ok){pendingImport=null;feedback=kind==='settings'?'Paper assumptions saved for future intents. Existing decisions retain their original settings.':'Reported fill saved as an append-only record. Valuation still requires verified action coverage and prices.';}
-    }catch(error){feedback=error.message||'The form could not be saved.';}finally{busy=false;changed();}
+    }catch(error){feedback=error.message||'The form could not be saved.';}finally{busy=false;if(accepted)form.dataset.deskDirty='false';changed();}
   }
   const click=event=>{
     const target=event.target.closest?.('[data-journal-action]');if(target){void action(target.dataset.journalAction,target);return;}

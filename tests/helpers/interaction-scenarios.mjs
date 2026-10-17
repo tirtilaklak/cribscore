@@ -3,6 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {SourceTextModule,createContext} from 'node:vm';
 import {createDocument,Element} from './interaction-dom.mjs';
+import * as journalDomain from '../../dist/lib/journal.js';
 const project=process.env.CRIBSCORE_PROJECT_ROOT||fileURLToPath(new URL('../../',import.meta.url));
 const appPath=process.env.APP_SOURCE||`${project}/dist/app.js`;
 const sourceHelper=process.env.SOURCE_FRESHNESS_MODULE||`${project}/dist/lib/source-freshness.js`;
@@ -22,7 +23,8 @@ async function boot({at='2026-10-17T04:00:00Z',requests={},failImport,stockPaylo
   const setLocation=value=>{const url=new URL(value,location.href);Object.assign(location,{href:url.href,hash:url.hash,search:url.search,pathname:url.pathname});};
   class Clock extends Date{constructor(...args){super(...(args.length?args:[now]));}static now(){return now;}}
   const add=(fn,delay,repeat=0)=>{const id=++nextID;timers.set(id,{fn,due:mono+Number(delay),repeat});return id;};
-  const context=createContext({document,location,history:{replaceState:(_,__,url)=>setLocation(url),pushState:(_,__,url)=>setLocation(url)},window:{addEventListener:(name,fn)=>windowListeners.set(name,fn)},URL,URLSearchParams,Intl,Date:Clock,AbortController,console,
+  const context=createContext({document,location,history:{replaceState:(_,__,url)=>setLocation(url),pushState:(_,__,url)=>setLocation(url)},window:{addEventListener:(name,fn)=>windowListeners.set(name,fn)},URL,URLSearchParams,Intl,Date:Clock,AbortController,console,crypto:globalThis.crypto,
+    FormData:class{constructor(form){this.fields=new Map(form.querySelectorAll('[name]').map(field=>[field.getAttribute('name'),field.value]));}get(name){return this.fields.get(name)??null;}},
     setTimeout:(fn,ms)=>add(fn,ms),clearTimeout:id=>timers.delete(id),setInterval:(fn,ms)=>add(fn,ms,ms),clearInterval:id=>timers.delete(id),
     fetch:async(url,options)=>{const kind=url.includes('/api/journal')?'journal':url.includes('stock-evidence')?'stocks':'evidence';const attempt=requestsSeen.filter(x=>x.kind===kind).length+1;requestsSeen.push({kind,attempt,options});const reply=requests[kind]?.[attempt-1];if(reply)return typeof reply==='function'?reply():await reply;if(kind==='journal')return {ok:false,status:503,json:async()=>({ok:false,error:'offline_journal_unconfigured'})};return {ok:true,json:async()=>structuredClone(kind==='stocks'?stockPayload:evidencePayload)};}});
   const load=async(url)=>{
@@ -64,6 +66,21 @@ const scenarios={
     const app=await boot(),view=await app.namespace('./lib/stock-view.js'),candidates=await app.namespace('./lib/candidates.js'),original=await app.namespace('../tests/fixtures/stock-view-before-slate.mjs');
     for(const horizon of ['next_day','next_week'])for(const query of ['','PG','no-results']){const snapshot=candidates.buildStockSnapshot(stock,horizon,'2026-10-17T04:00:00Z');assert.equal(view.renderStockView(snapshot,query),original.renderStockView(snapshot,query));assert.equal(view.renderStockView(snapshot,query,{sourceFreshness:{total:8,staleCount:'<img src=x onerror=alert(1)>',invalidCount:0,missingCount:0,maxCaptureAgeHours:12}}),original.renderStockView(snapshot,query));}
     const snapshot=candidates.buildStockSnapshot(stock,'next_day','2026-10-17T04:00:00Z');const html=view.renderStockView(snapshot,'',{sourceFreshness:{total:8,staleCount:8,invalidCount:0,missingCount:0,maxCaptureAgeHours:12,latestObservedAt:'2026-10-17T02:00:00Z'}});const dom=createDocument(html),note=dom.querySelector('.source-age-feedback');assert.equal(note.closest('details').className,'window-details');assert.match(dom.querySelector('.window-details').querySelector('summary').textContent,/check due/);assert.equal(dom.querySelectorAll('.stock-card').length,6);assert.doesNotMatch(html,/eligibleForRanking/);
+  },
+  async 'rejected-journal-submit-keeps-typed-draft'(){
+    // A synthetic saved journal with one abstention; every journal request succeeds, so only domain validation rejects the submit.
+    const saved=(await journalDomain.recordAbstention(journalDomain.createJournal({journalId:'synthetic-draft-journal',at:'2026-10-17T03:00:00Z'}),{id:'synthetic-abstention',at:'2026-10-17T03:30:00Z',date:'2026-10-17',horizonId:'next_day',unrankedCount:6})).journal;
+    const reply=()=>({ok:true,status:200,json:async()=>({ok:true,journal:structuredClone(saved),revision:saved.revision,automation:{publisherState:'unconfigured',checkedAt:'2026-10-17T04:00:00Z',pendingReasons:['publisher_unconfigured']}})});
+    const app=await boot({requests:{journal:Array.from({length:12},()=>reply)}});
+    app.click(app.query('[data-view="journal"]'));for(let i=0;i<4;i++)await app.flush();
+    const form=app.query('[data-journal-form="settings"]');assert.ok(form,'settings form renders for a saved journal');
+    const type=(selector,value)=>{const field=app.query(selector);field.value=value;field.dispatch({type:'input',target:field});};
+    type('#paper-notional','abc');type('#paper-benchmark','QQQ');assert.equal(form.dataset.deskDirty,'true');
+    form.dispatch({type:'submit',target:form,preventDefault(){}});for(let i=0;i<4;i++)await app.flush();
+    assert.match(app.text(),/Nothing saved: invalid decimal/);
+    assert.equal(app.query('#paper-notional').value,'abc','a rejected submit keeps the typed notional');
+    assert.equal(app.query('#paper-benchmark').value,'QQQ','a rejected submit keeps the typed benchmark');
+    assert.equal(app.query('[data-journal-form="settings"]').dataset.deskDirty,'true','the rejected form stays a dirty draft');
   },
   async 'off-view-boundary-keeps-dialog-and-source-focus'(){const app=await boot({at:'2026-10-19T13:29:59Z'});app.click(app.query('[data-view="library"]'));app.click(app.query('[data-detail]'));assert.equal(app.query('#detail-dialog').open,true);const writes=app.query('#view-content').writes;await app.advance(1000);assert.equal(app.query('#detail-dialog').open,true);assert.equal(app.query('#view-content').writes,writes);app.click(app.query('#close-detail'));assert.equal(app.document.activeElement.tagName,'BUTTON');}
 };
