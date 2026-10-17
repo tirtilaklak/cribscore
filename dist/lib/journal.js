@@ -129,7 +129,7 @@ function createActualValidation() {
       if(state&&(fillId?monetaryOnly:chronological)) {
         let quantity=state.quantity;
         if(!fillId){requireThat(fill.side!=='sell'||amounts.quantity<=quantity,'oversell');quantity+=fill.side==='buy'?amounts.quantity:-amounts.quantity;}
-        next={...state,quantity,lastTimelineAt:fillId?state.lastTimelineAt:time};
+        next={...state,quantity,lastTimelineAt:fillId?state.lastTimelineAt:time,lastFillAt:fillId?state.lastFillAt:time};
       } else {
         const prior=effectiveFills(j,intentId);
         const fills=fillId?prior.map(item=>item.id===fillId?{id:item.id,...fill}:item):[...prior,{id:event.id,...fill}];
@@ -138,14 +138,24 @@ function createActualValidation() {
         requireThat(result.ok,result.errors?.[0]||'invalid_actual_accounting');
         // Aggregated quantity may have more digits than an individual input;
         // use the calculator's exact fixed-point output without a new input cap.
-        next={quantity:BigInt(result.quantity.replace('.','')),review,lastTimelineAt:Math.max(...fills.map(item=>Date.parse(item.occurredAt)),...actions.map(item=>Date.parse(item.effectiveAt)))};
+        const fillTimes=fills.map(item=>Date.parse(item.occurredAt));
+        next={quantity:BigInt(result.quantity.replace('.','')),review,actions,firstFillAt:Math.min(...fillTimes),lastFillAt:Math.max(...fillTimes),lastTimelineAt:Math.max(...fillTimes,...actions.map(item=>Date.parse(item.effectiveAt)))};
       }
       pending={event:clone(event),intentId,state:next};
     },
     accept(event) {
-      // Any new action review invalidates proof state, even for other intents.
-      // A later fill/correction must first select coverage and replay it in full.
-      if(event.kind==='actual_action_review')states.clear();
+      // A review selects only its own intent. A review outside the complete
+      // current fill interval cannot become eligible by a chronological append.
+      // For eligible coverage, retain proof only when its cutoff-filtered action
+      // sequence is unchanged. New/reordered/changed actions still require replay.
+      if(event.kind==='actual_action_review') {
+        const review=event.data,state=states.get(review.intentId);
+        if(state&&Date.parse(review.fromAt)<=state.firstFillAt&&Date.parse(review.throughAt)>=state.lastFillAt) {
+          const actions=actualActions(review);
+          if(same(state.actions,actions))states.set(review.intentId,{...state,review,actions});
+          else states.delete(review.intentId);
+        }
+      }
       if(pending) {
         if(!same(event,pending.event)){disabled=true;states.clear();effective.clear();}
         else if(!disabled) {
@@ -262,15 +272,21 @@ export function calculateLongPosition({fills=[],mark=null,actions=[],currency='U
 
 export async function enrollPublication(j,{id:requestId,at,publication,windowResolution,settings}){
   try {
-    const checked=await validateJournal(j);if(!checked.ok)return checked;settings=settings||latest(j,'settings')?.data.settings||DEFAULT_PAPER_SETTINGS;validateSettings(settings);
+    const validation=validateJournal(j);let captured,captureError,window=null,invalidWindow=false;
+    // Capture caller-owned enrollment data with the base, preserving base errors.
+    try{settings=settings||latest(j,'settings')?.data.settings||DEFAULT_PAPER_SETTINGS;validateSettings(settings);const existing=latest(j,'publication',e=>e.data.publicationId===publication?.publicationId);if(existing)requireThat(same(existing.data,publication),'publication_id_conflict');captured=clone({publication,settings});}catch(error){captureError=error;}
+    if(windowResolution?.status==='resolved'&&windowResolution.window){try{validateWindow(windowResolution.window);window=clone(windowResolution.window);}catch{invalidWindow=true;}}
+    const checked=await validation;if(!checked.ok)return checked;if(captureError)throw captureError;
+    j=checked.journal;({publication,settings}=captured);settings=settings||latest(j,'settings')?.data.settings||DEFAULT_PAPER_SETTINGS;validateSettings(settings);
     const existing=latest(j,'publication',e=>e.data.publicationId===publication?.publicationId);
     if(existing){requireThat(same(existing.data,publication),'publication_id_conflict');const duplicateId=`${existing.id}:duplicate`;if(find(j,duplicateId))return {ok:true,journal:j,duplicate:true};return append(j,[event(duplicateId,'duplicate',at,{targetEventId:existing.id,date:at.slice(0,10),reason:'Repeated publication retained; no additional paper position.'})]);}
     const publicationEvent=event(`${requestId}:publication`,'publication',at,publication);let result=await append(j,[publicationEvent]);if(!result.ok)return result;
     const p=publicationPayload(publication);const events=[];
-    for(const row of p.rows){let reason=null,window=windowResolution?.status==='resolved'?windowResolution.window:null;
+    for(const row of p.rows){let reason=null;
       if(Date.parse(at)>=Date.parse(p.horizon.entry_at))reason='first_observed_after_entry';
       else if(Date.parse(publication.publishedAt)>=Date.parse(p.horizon.entry_at))reason='publication_not_before_entry';
-      else if(window){try{validateWindow(window);validateIntentWindow({at},publicationEvent,window);}catch{reason='published_window_calendar_mismatch';}}
+      else if(invalidWindow)reason='published_window_calendar_mismatch';
+      else if(window){try{validateIntentWindow({at},publicationEvent,window);}catch{reason='published_window_calendar_mismatch';}}
       if(reason)events.push(event(`${requestId}:${row.ticker}:no-fill`,'no_fill',at,{publicationEventId:publicationEvent.id,intentId:null,symbol:row.ticker,date:at.slice(0,10),reason}));
       else events.push(event(`${requestId}:${row.ticker}:intent`,'paper_intent',at,{publicationEventId:publicationEvent.id,symbol:row.ticker,settings:clone(settings),window:window?clone(window):null,date:at.slice(0,10)}));
     }
@@ -289,7 +305,7 @@ function paperAccounting(intent,data,benchmark=false,evaluatedAt=null){
   }catch(error){return failure(error.message);}
 }
 export async function evaluatePaper(j,{at,eventIdPrefix,calendar,seriesBySymbol={},reviewsBySymbol={},resolvers={}}={}){
-  try {requireThat(instant(at)&&id(eventIdPrefix),'invalid_evaluation_request');let result=await validateJournal(j);if(!result.ok)return result;let next=result.journal;
+  try {requireThat(instant(at)&&id(eventIdPrefix),'invalid_evaluation_request');let result=await validateJournal(j);if(!result.ok)return result;j=result.journal;let next=j;
     for(const intent of j.events.filter(e=>e.kind==='paper_intent')){
       if(latest(next,'no_fill',e=>e.data.intentId===intent.id))continue;const pub=contextFor(next,intent);let w=scheduleFor(next,intent);const prior=latestEvaluation(next,intent.id);if(prior?.data.exitMark&&prior?.data.benchmark?.exitMark)continue;
       if(!w){requireThat(typeof resolvers.resolvePaperWindow==='function','calendar_resolver_unavailable');const resolved=await resolvers.resolvePaperWindow({publishedAt:pub.data.publishedAt,horizonSessions:pub.data.horizonId==='next_week'?5:1,calendar,at});if(resolved?.status!=='resolved')continue;w=resolved.window;try{validateWindow(w);validateIntentWindow(intent,pub,w);}catch{result=await append(next,[event(`${eventIdPrefix}:${intent.id}:no-fill`,'no_fill',at,{publicationEventId:pub.id,intentId:intent.id,symbol:intent.data.symbol,date:intent.data.date,reason:'published_window_calendar_mismatch'})]);if(!result.ok)return result;next=result.journal;continue;}result=await append(next,[event(`${eventIdPrefix}:${intent.id}:schedule`,'paper_schedule',at,{intentId:intent.id,window:w})]);if(!result.ok)return result;next=result.journal;}
@@ -333,10 +349,10 @@ export function projectJournal(j,{storage={state:'unsaved',message:'Not saved.'}
 }
 function signedCash(v){return v.startsWith('-')?-decimal(v.slice(1)):decimal(v);}
 
-export async function exportJournal(j){const checked=await validateJournal(j);return checked.ok?{ok:true,text:canonical(checked.journal),filename:`cribscore-journal-${j.journalId}-r${j.revision}.json`}:checked;}
+export async function exportJournal(j){const checked=await validateJournal(j);return checked.ok?{ok:true,text:canonical(checked.journal),filename:`cribscore-journal-${checked.journal.journalId}-r${checked.journal.revision}.json`}:checked;}
 const previews=new WeakMap();
 export async function previewImport(current,text,{mode='merge'}={}){
-  try {requireThat(typeof text==='string'&&text.length<=MAX_BYTES,'import_too_large');const parsed=JSON.parse(text);requireThat(JSON.stringify(parsed)===text.trim()||JSON.stringify(parsed,null,2)===text.trim(),'import_noncanonical_or_duplicate_keys');const base=await validateJournal(current),incoming=await validateJournal(parsed);if(!base.ok)return base;if(!incoming.ok)return incoming;requireThat(['merge','restore'].includes(mode),'invalid_import_mode');if(mode==='restore')requireThat(current.revision===0&&current.events.length===0,'restore_requires_empty_journal');else requireThat(current.journalId===parsed.journalId&&current.createdAt===parsed.createdAt,'different_journal_identity');const conflicts=[],additions=[],duplicates=[];for(const e of parsed.events){const old=find(current,e.id);if(old){(same(old,e)?duplicates:conflicts).push(e.id);}else additions.push(e);}
+  try {requireThat(typeof text==='string'&&text.length<=MAX_BYTES,'import_too_large');const parsed=JSON.parse(text);requireThat(JSON.stringify(parsed)===text.trim()||JSON.stringify(parsed,null,2)===text.trim(),'import_noncanonical_or_duplicate_keys');const base=await validateJournal(current),incoming=await validateJournal(parsed);if(!base.ok)return base;if(!incoming.ok)return incoming;current=base.journal;requireThat(['merge','restore'].includes(mode),'invalid_import_mode');if(mode==='restore')requireThat(current.revision===0&&current.events.length===0,'restore_requires_empty_journal');else requireThat(current.journalId===parsed.journalId&&current.createdAt===parsed.createdAt,'different_journal_identity');const conflicts=[],additions=[],duplicates=[];for(const e of parsed.events){const old=find(current,e.id);if(old){(same(old,e)?duplicates:conflicts).push(e.id);}else additions.push(e);}
     const proposed=mode==='restore'?clone(parsed):{...clone(current),events:[...clone(current.events),...clone(additions)],revision:current.revision+additions.length};const merged=await validateJournal(proposed);if(!merged.ok)conflicts.push(...merged.errors);const preview=immutable({mode,adoptsJournalIdentity:mode==='restore',baseRevision:current.revision,importRevision:parsed.revision,additions:additions.map(e=>e.id),duplicates,conflicts,canApply:conflicts.length===0});previews.set(preview,{base:canonical(current),journal:merged.ok?merged.journal:null});return {ok:true,preview};
   }catch(error){return failure(error.message||'invalid_import');}
 }

@@ -84,18 +84,30 @@ export function validateAlpacaDailyRequest(request, security, captureId, started
   return null;
 }
 
-export async function fetchAlpacaDailyBars({request,security,captureId,credentials,authorization,at,fetchImpl=fetch,clock=()=>new Date().toISOString()}={}) {
+export async function fetchAlpacaDailyBars(options={}) {
+  return captureDailyPage(options,MAX_BYTES);
+}
+
+// The history collector may only tighten this private response bound. A caller
+// cannot override the 2 MB single-page limit through request/options fields.
+async function captureDailyPage({request,security,captureId,credentials,authorization,at,fetchImpl=fetch,clock=()=>new Date().toISOString()}={},responseByteLimit) {
   let startedAt;
   try { startedAt=clock(); } catch { return unavailable('operation_clock_invalid'); }
   if (!utc(startedAt) || !utc(at) || Date.parse(startedAt)<Date.parse(at)) return unavailable('operation_clock_invalid');
-  const setup=inspectAlpacaSetup({credentials,authorization,at:startedAt});
+  // Snapshot server-owned records before inspecting or crossing an async
+  // boundary. Clone/accessor failures can contain private input text; report
+  // only a bounded reason and never start IO with an uninspectable context.
+  let scopedRequest,scopedSecurity,review,scopedCredentials;
+  try {
+    scopedRequest=structuredClone(request); scopedSecurity=structuredClone(security);
+    review=structuredClone(authorization); scopedCredentials=structuredClone(credentials);
+  } catch { return unavailable('capture_context_invalid'); }
+  const setup=inspectAlpacaSetup({credentials:scopedCredentials,authorization:review,at:startedAt});
   if (!setup.ok) return {...setup,series:null,capture:null};
-  const invalid=validateAlpacaDailyRequest(request,security,captureId,startedAt);
+  const invalid=validateAlpacaDailyRequest(scopedRequest,scopedSecurity,captureId,startedAt);
   if (invalid) return unavailable(invalid);
-  if (request.pageToken?.includes(credentials.keyId) || request.pageToken?.includes(credentials.secretKey)) return unavailable('pagination_token_invalid');
-  // Capture immutable input copies before the first asynchronous boundary.
-  const scopedRequest=structuredClone(request), scopedSecurity=structuredClone(security), review=structuredClone(authorization);
-  const keyId=credentials.keyId, secretKey=credentials.secretKey;
+  const keyId=scopedCredentials.keyId, secretKey=scopedCredentials.secretKey;
+  if (scopedRequest.pageToken?.includes(keyId) || scopedRequest.pageToken?.includes(secretKey)) return unavailable('pagination_token_invalid');
   const url=new URL(ALPACA_BARS_ENDPOINT);
   for (const key of ['symbols','feed','timeframe','adjustment','asof','currency','start','end']) url.searchParams.set(key,key==='symbols'?scopedRequest.symbols.join(','):scopedRequest[key]);
   url.searchParams.set('limit','5000'); url.searchParams.set('sort','asc');
@@ -105,29 +117,32 @@ export async function fetchAlpacaDailyBars({request,security,captureId,credentia
   try {
     response=await withinDeadline(()=>fetchImpl(url.href,{method:'GET',redirect:'error',cache:'no-store',credentials:'omit',signal,headers:{'APCA-API-KEY-ID':keyId,'APCA-API-SECRET-KEY':secretKey,Accept:'application/json'}}),signal,deadline);
   } catch { return unavailable(expired(signal,deadline)?'transport_deadline_exceeded':'transport_failed_no_retry'); }
-  if (response.status===401) return unavailable('provider_authentication_failed','setup_required');
-  if (response.status===403) return unavailable('provider_permission_denied','setup_required');
-  if (response.status===429) return unavailable('rate_limited_no_retry');
-  if (response.status!==200 || response.ok!==true || response.redirected===true) return unavailable('http_failed_no_retry');
-  if (response.url && response.url!==url.href) return unavailable('response_url_mismatch');
-  if (!/^application\/json(?:;|$)/i.test(response.headers?.get('content-type')||'')) return unavailable('content_type_invalid');
+  const rejectResponse=(reason,status)=>{cancelReader(response.body);return unavailable(reason,status);};
+  if (response.status===401) return rejectResponse('provider_authentication_failed','setup_required');
+  if (response.status===403) return rejectResponse('provider_permission_denied','setup_required');
+  if (response.status===429) return rejectResponse('rate_limited_no_retry');
+  if (response.status!==200 || response.ok!==true || response.redirected===true) return rejectResponse('http_failed_no_retry');
+  if (response.url && response.url!==url.href) return rejectResponse('response_url_mismatch');
+  if (!/^application\/json(?:;|$)/i.test(response.headers?.get('content-type')||'')) return rejectResponse('content_type_invalid');
   const declared=response.headers.get('content-length');
-  if (declared!==null && (!/^\d+$/.test(declared) || Number(declared)>MAX_BYTES)) return unavailable('response_too_large_or_invalid_length');
+  if (declared!==null && (!/^\d+$/.test(declared) || Number(declared)>responseByteLimit)) {
+    return rejectResponse(/^\d+$/.test(declared)&&responseByteLimit<MAX_BYTES?'collection_byte_limit':'response_too_large_or_invalid_length');
+  }
   let bytes,reader;
   try {
     reader=response.body?.getReader();
     if (!reader) return unavailable('response_body_unavailable');
-    const buffer=new Uint8Array(MAX_BYTES); let total=0,emptyChunks=0;
+    const buffer=new Uint8Array(responseByteLimit); let total=0,emptyChunks=0;
     while (true) {
       const {done,value}=await withinDeadline(()=>reader.read(),signal,deadline); if (done) break;
       if (!(value instanceof Uint8Array)) throw new Error('invalid_chunk');
       emptyChunks=value.byteLength===0?emptyChunks+1:0;
       if (emptyChunks>MAX_EMPTY_CHUNKS) { cancelReader(reader); return unavailable('response_no_progress'); }
-      if (total+value.byteLength>MAX_BYTES) {
+      if (total+value.byteLength>responseByteLimit) {
         // The failure is already established. Cancellation is best effort and
         // must not hold this result hostage to a stalled/rejecting stream sink.
         cancelReader(reader);
-        return unavailable('response_too_large');
+        return unavailable(responseByteLimit<MAX_BYTES?'collection_byte_limit':'response_too_large');
       }
       // Copy before the next await; retain one bounded buffer, not an object
       // per fragment. Producers may reuse their Uint8Array/Node Buffer storage.
@@ -174,7 +189,9 @@ export async function fetchAlpacaDailyHistory(options={}) {
   const pages=[],seenTokens=new Set(),seenSessions=new Set();
   let token,bytes=0;
   for (let index=0;index<maxPages;index++) {
-    const result=await fetchAlpacaDailyBars({...context,at:pages.at(-1)?.capture.responseCompletedAt??context.at,request:{...context.request,...(token===undefined?{}:{pageToken:token})},captureId:index===0?context.captureId:`${context.captureId}:page-${index+1}`});
+    const remaining=maxResponseBytes-bytes;
+    if (remaining<=0) return fail('collection_byte_limit',undefined,pages.length);
+    const result=await captureDailyPage({...context,at:pages.at(-1)?.capture.responseCompletedAt??context.at,request:{...context.request,...(token===undefined?{}:{pageToken:token})},captureId:index===0?context.captureId:`${context.captureId}:page-${index+1}`},Math.min(MAX_BYTES,remaining));
     if (!result.ok) return {...result,pages:[],pagination:{complete:false,completedPages:pages.length}};
     bytes+=result.capture.responseByteLength;
     if (bytes>maxResponseBytes) return fail('collection_byte_limit',undefined,pages.length);

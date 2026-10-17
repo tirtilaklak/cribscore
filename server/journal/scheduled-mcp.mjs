@@ -55,14 +55,21 @@ function protocolError(request, body) {
 // result is discarded and cannot reach handleJournalRequest's write path.
 async function bounded(operation, milliseconds, signal) {
   if (signal?.aborted) throw new InputError(408, 'request_cancelled');
+  const startedAt = performance.now();
   let timer, cancel;
   const limit = new Promise((_, reject) => {
     timer = setTimeout(() => reject(new InputError(408, 'operation_timed_out')), milliseconds);
     cancel = () => reject(new InputError(408, 'request_cancelled'));
     signal?.addEventListener('abort', cancel, { once: true });
   });
-  try { return await Promise.race([Promise.resolve().then(operation), limit]); }
-  finally { clearTimeout(timer); signal?.removeEventListener('abort', cancel); }
+  try {
+    const result = await Promise.race([Promise.resolve().then(operation), limit]);
+    // Synchronous work or immediate microtasks can delay the timer callback.
+    // Recheck the actual deadline before a proposal may enter the commit path.
+    if (signal?.aborted) throw new InputError(408, 'request_cancelled');
+    if (performance.now() - startedAt >= milliseconds) throw new InputError(408, 'operation_timed_out');
+    return result;
+  } finally { clearTimeout(timer); signal?.removeEventListener('abort', cancel); }
 }
 
 function rejectDuplicateKeys(text) {

@@ -38,12 +38,13 @@ export function createJournalObserver({readPublications=null,readCalendar=null,r
   return Object.freeze({async observe(input){
     try{
       need(exact(input,['journal','receivedAt','requestId','ownerScope']) && instant(input.receivedAt) && identifier(input.requestId) && input.requestId.length<=96 && text(input.ownerScope),'invalid_observation_request');
-      const previous=good(await validateJournal(input.journal)),baseRevision=previous.revision;
-      let at=input.receivedAt;
+      const {journal,receivedAt,requestId,ownerScope}=input;
+      const previous=good(await validateJournal(journal)),baseRevision=previous.revision;
+      let at=receivedAt;
       const tick=()=>{let value;try{value=clock();}catch{throw new Error('server_clock_unavailable');}need(instant(value),'server_clock_unavailable');if(Date.parse(value)>Date.parse(at))at=value;return at;};
       tick();need([previous.createdAt,...previous.events.map(e=>e.at)].every(value=>Date.parse(value)<=Date.parse(at)),'server_clock_before_history');
       const pending=new Set(),known=previous.events.filter(e=>e.kind==='publication').map(e=>e.data),requestedAt=at;
-      const common=()=>freeze({ownerScope:input.ownerScope,at});
+      const common=()=>freeze({ownerScope,at});
       const read=async(fn,args,name)=>{if(!fn)return {status:'unconfigured'};let result;try{result=await fn(freeze(copy(args)));}catch{tick();pending.add(`${name}_reader_unavailable`);return {status:'unavailable'};}tick();return cleanReader(result,`invalid_${name}_reader_result`);};
       let archive=await read(readPublications,{...common(),fromAt:previous.createdAt,throughAt:requestedAt,horizonIds:HORIZONS,knownPublicationIds:known.map(p=>p.publicationId)},'publication');
       let publisherState=archive.status,publications=[];
@@ -118,7 +119,7 @@ export function createJournalObserver({readPublications=null,readCalendar=null,r
           const result=resolvePriceMark(selected.series,{...options,review:selected.review,calendar:selected.calendar});for(const reason of result.reasons||[])pending.add(reason);return result;
         }
       };
-      if(next.events.some(e=>e.kind==='paper_intent'))next=good(await evaluatePaper(next,{at:observedAt,eventIdPrefix:`obse-${(await digest(input.requestId)).slice(0,32)}`,reviewsBySymbol:Object.fromEntries([...symbols].map(s=>[s,s])),resolvers:resolutions}));
+      if(next.events.some(e=>e.kind==='paper_intent'))next=good(await evaluatePaper(next,{at:observedAt,eventIdPrefix:`obse-${(await digest(requestId)).slice(0,32)}`,reviewsBySymbol:Object.fromEntries([...symbols].map(s=>[s,s])),resolvers:resolutions}));
       if(publisherState!=='unavailable'){
         for(const context of observedContexts){
           // Existing published decisions on this observation date are not relabeled absent.
