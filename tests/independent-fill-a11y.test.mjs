@@ -1,22 +1,13 @@
-// Independent regression using the shipped form-recovery harness and synthetic records.
+// Independent regression using the shared form harness and synthetic records.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile,writeFile} from 'node:fs/promises';
+import {writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {createFormHarness,at} from './helpers/form-harness.mjs';
 const root=resolve(process.env.CRIBSCORE_PROJECT||new URL('..',import.meta.url).pathname);
-const load=p=>import(pathToFileURL(resolve(root,p)).href);
-const {createDeskTools}=await load('dist/lib/desk-tools.js');
-const J=await load('dist/lib/journal.js');
-const {createDocument,Element}=await load('tests/helpers/interaction-dom.mjs');
-const app=await readFile(resolve(root,'dist/app.js'),'utf8'),existing=await readFile(resolve(root,'tests/form-recovery.test.mjs'),'utf8');
-const renderSource=app.slice(app.indexOf('function disclosureKey('),app.indexOf('let rightsExpiryTimer;'));
-const priceClick=app.slice(app.indexOf("  const price=event.target.closest('[data-price-symbol]');"),app.indexOf("  const nav=event.target.closest('[data-view],[data-go]');"));
-const formEvents=app.slice(app.indexOf("for(const type of ['input','change'])"),app.indexOf("$('#workspace-date').textContent"));
-const harnessSource=existing.slice(existing.indexOf('async function harness('),existing.indexOf("test('validation rejection"));
-const at='2026-10-17T18:00:00Z',deferred=()=>{let resolve;const promise=new Promise(done=>resolve=done);return {promise,resolve};};
-const flush=async()=>{for(let i=0;i<15;i++)await new Promise(resolve=>setImmediate(resolve));};
-const harness=new Function('createDeskTools','createJournal','createDocument','Element','renderSource','priceClick','formEvents','at','deferred','flush',`${harnessSource};return harness;`)(createDeskTools,J.createJournal,createDocument,Element,renderSource,priceClick,formEvents,at,deferred,flush);
+const J=await import(pathToFileURL(resolve(root,'dist/lib/journal.js')).href);
+const harness=await createFormHarness({root});
 async function fixture(revise){
  const publishedAt='2026-10-17T16:00:00Z',payload={schema_version:'synthetic-review-v1',policy_version:'synthetic-review-policy',generated_at:publishedAt,horizon:{id:'next_day',entry_at:'2026-10-19T13:30:00Z',exit_at:'2026-10-19T20:00:00Z'},rows:[{ticker:'AAA',company:'Synthetic independent accessibility fixture only'}]};
  const payloadBytes=JSON.stringify(payload),digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(payloadBytes));

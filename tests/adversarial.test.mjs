@@ -256,7 +256,7 @@ test('served interface provides research status and the daily versus holding-hor
   assert.match(source, /weekly|monthly|holding horizon/i);
 });
 
-test('served SEC payload cannot label incomplete capture as numeric verified evidence', async () => {
+test('served SEC payload cannot label incomplete capture as numeric verified evidence', async t => {
   const payload = JSON.parse(await readFile(new URL('../dist/data/sec-evidence.json', import.meta.url), 'utf8'));
   assert.ok(Array.isArray(payload.records));
   if (payload.status === 'blocked') {
@@ -269,9 +269,27 @@ test('served SEC payload cannot label incomplete capture as numeric verified evi
   } else {
     assert.equal(payload.status, 'verified');
     assert.ok(payload.records.length > 0, 'verified capture requires a real record');
+    const display = (record, at) => inspectEvidence(record, { at, operation: 'display' });
     for (const record of payload.records) {
-      const result = inspectEvidence(record, { at: new Date().toISOString(), operation: 'display' });
-      assert.equal(result.eligible, true, JSON.stringify(result));
+      assert.ok(Array.isArray(record.rights) && record.rights.length > 0, 'a verified record must carry a rights review');
+      const review = record.rights.reduce((latest, right) => Date.parse(right.expiresAt) > Date.parse(latest.expiresAt) ? right : latest);
+      const expiry = Date.parse(review.expiresAt);
+      assert.ok(Number.isFinite(expiry), 'the rights review must carry a dated expiry');
+      // Clock-free contract: the shipped record is eligible inside its own review
+      // window and ineligible for exactly one reason just after the window ends.
+      const inside = display(record, new Date(expiry - 1).toISOString());
+      assert.equal(inside.eligible, true, JSON.stringify(inside));
+      const lapsed = display(record, new Date(expiry + 1).toISOString());
+      assert.equal(lapsed.eligible, false);
+      assert.ok(!lapsed.claim, 'an expired review must not expose a supported claim');
+      assert.deepEqual(lapsed.reasons, ['display_rights_expired'], JSON.stringify(lapsed));
+      // Real clock: a current review must display; a lapsed one is reported, not failed.
+      const live = display(record, new Date().toISOString());
+      if (Date.now() < expiry) assert.equal(live.eligible, true, JSON.stringify(live));
+      else {
+        assert.deepEqual(live.reasons, ['display_rights_expired'], JSON.stringify(live));
+        t.diagnostic(`SEC rights review ${review.reviewId} for ${record.source.accession} expired ${review.expiresAt}; renewing it is an owner action and the record stays hidden until then.`);
+      }
     }
   }
 });
