@@ -14,7 +14,7 @@ assert.deepEqual(publicPaths.sort(),manifest.publicAssets.map(asset=>asset.path)
 assert.equal(digest(await readFile(new URL(manifest.bundle.path,root))),manifest.bundle.sha256,'Worker bundle changed after build');
 const origin='https://cribscore-test.invalid';
 const fetch=(path,init)=>worker.fetch(new Request(origin+path,init),{});
-const security={'content-security-policy':/^default-src 'none'; script-src 'self'; style-src 'self'(?: 'sha256-[A-Za-z0-9+/]+=*')*; img-src 'self'; connect-src 'self'; frame-src https:\/\/www\.tradingview-widget\.com; base-uri 'none'; form-action 'self'; frame-ancestors 'none'$/,'strict-transport-security':/^max-age=31536000$/,'x-content-type-options':/^nosniff$/,'referrer-policy':/^no-referrer$/};
+const security={'content-security-policy':/^default-src 'none'; script-src 'self'; style-src 'self'(?: 'sha256-[A-Za-z0-9+/]+=*')*; img-src 'self'; connect-src 'self'; frame-src https:\/\/www\.tradingview-widget\.com; base-uri 'none'; form-action 'self'; frame-ancestors 'self' https:\/\/chatgpt\.com https:\/\/\*\.chatgpt\.com https:\/\/\*\.openai\.com$/,'strict-transport-security':/^max-age=31536000$/,'x-content-type-options':/^nosniff$/,'referrer-policy':/^no-referrer$/};
 const assertSecured=(response,label)=>{for(const [name,pattern] of Object.entries(security))assert.match(response.headers.get(name)||'',pattern,`${label}: ${name}`);};
 const policy=(await fetch('/')).headers.get('content-security-policy');
 for(const asset of manifest.publicAssets){

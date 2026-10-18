@@ -39,7 +39,7 @@ const securityHeaders={
   'Content-Security-Policy':[
     "default-src 'none'","script-src 'self'",["style-src 'self'",...styleHashes.map(hash=>`'${hash}'`)].join(' '),
     "img-src 'self'","connect-src 'self'","frame-src https://www.tradingview-widget.com",
-    "base-uri 'none'","form-action 'self'","frame-ancestors 'none'",
+    "base-uri 'none'","form-action 'self'","frame-ancestors 'self' https://chatgpt.com https://*.chatgpt.com https://*.openai.com",
   ].join('; '),
   'Strict-Transport-Security':'max-age=31536000',
   'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer',

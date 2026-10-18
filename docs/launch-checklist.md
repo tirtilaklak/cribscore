@@ -14,6 +14,8 @@ In ChatGPT Sites: Share → Who has access → Anyone on the internet. On a Busi
 
 Then open https://cribscore.co in a private browser window. The desk loads without sign-in. The Journal tab reads "Owner-only journal". Price setup reads owner-only.
 
+Also open the Site from inside ChatGPT, on the web and in the app. The page may only be framed by chatgpt.com and openai.com origins (`frame-ancestors` in `worker/index.js`). If it renders blank inside ChatGPT, the platform frames it from another origin: add that origin to the directive and redeploy.
+
 ## 3. Verify that a forged identity header is rejected
 
 ```sh

@@ -67,7 +67,7 @@ test('the content security policy is exactly what the served pages, scripts and 
   assert.deepEqual(policy['img-src'],["'self'"]);
   assert.deepEqual(policy['base-uri'],["'none'"]);
   assert.deepEqual(policy['form-action'],["'self'"]);
-  assert.deepEqual(policy['frame-ancestors'],["'none'"]);
+  assert.deepEqual(policy['frame-ancestors'],["'self'",'https://chatgpt.com','https://*.chatgpt.com','https://*.openai.com']);
   assert.deepEqual(policy['frame-src'],[new URL(hostedChartEmbedURL('SPY')).origin],'Only the hosted chart origin may be framed');
   assert.equal(policy['style-src'][0],"'self'");
   const admitted=policy['style-src'].slice(1),shipped=new Set();
