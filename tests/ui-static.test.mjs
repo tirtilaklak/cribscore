@@ -52,6 +52,25 @@ test('local entrypoint assets resolve within the served directory', async () => 
   }
 });
 
+test('document head names a same-origin icon and consistent sharing metadata without external images', async () => {
+  const html = await readFile(path.join(servedRoot, 'index.html'), 'utf8');
+  const head = html.match(/<head\b[^>]*>([\s\S]*?)<\/head>/i)?.[1];
+  assert.ok(head, 'A head element is required');
+  const meta = (selector) => head.match(new RegExp(`<meta\\b[^>]*\\b(?:name|property)\\s*=\\s*["']${selector}["'][^>]*\\bcontent\\s*=\\s*["']([^"']*)["']`, 'i'))?.[1];
+  const title = head.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)[1].trim();
+  const icon = head.match(/<link\b[^>]*\brel\s*=\s*["']icon["'][^>]*\bhref\s*=\s*["']([^"']+)["']/i)?.[1];
+  assert.equal(icon, './favicon.svg');
+  assert.ok((await stat(path.join(servedRoot, 'favicon.svg'))).isFile(), 'The icon must be served from the site');
+  assert.ok(meta('description'), 'A description is required');
+  assert.equal(meta('og:title'), title);
+  assert.equal(meta('og:description'), meta('description'));
+  assert.equal(meta('og:type'), 'website');
+  assert.equal(meta('og:url'), 'https://cribscore.co/');
+  assert.equal(meta('twitter:card'), 'summary');
+  assert.equal(meta('og:image'), undefined, 'Sharing previews must not pull an external image');
+  assert.doesNotMatch(head, /https?:\/\/(?!cribscore\.co\/)/i, 'The head may not reference other hosts');
+});
+
 test('page landmarks and skip destination support keyboard reading order', async () => {
   const html = await readFile(path.join(servedRoot, 'index.html'), 'utf8');
   assert.equal([...html.matchAll(/<main\b/gi)].length, 1, 'Use one main landmark');

@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {build} from 'esbuild';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
-const type={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml'};
+const type={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.txt':'text/plain; charset=utf-8'};
 const files=[];
 async function walk(path=''){
   for(const entry of (await readdir(`${root}dist/${path}`,{withFileTypes:true})).sort((a,b)=>a.name.localeCompare(b.name))){
@@ -19,7 +19,10 @@ for(const path of files){
   const extension=path.slice(path.lastIndexOf('.'));if(!type[extension])throw Error(`Unrecognized public asset type: ${path}`);
   const bytes=await readFile(`${root}dist/${path}`);const body=new TextDecoder('utf-8',{fatal:true}).decode(bytes);
   if(bytes.length>2_000_000)throw Error(`Public asset exceeds size limit: ${path}`);
-  assets['/'+path]={type:type[extension],body};manifest.push({path:`dist/${path}`,bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')});
+  const sha256=createHash('sha256').update(bytes).digest('hex');
+  // The Worker's ETag is the asset hash; its style-src admits exactly the inline <style> blocks shipped in HTML.
+  const styleHashes=extension==='.html'?[...body.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map(match=>'sha256-'+createHash('sha256').update(match[1]).digest('base64')):[];
+  assets['/'+path]={type:type[extension],body,sha256,...(styleHashes.length?{styleHashes}:{})};manifest.push({path:`dist/${path}`,bytes:bytes.length,sha256});
 }
 if(!assets['/index.html']||!assets['/app.js'])throw Error('Required public entrypoint missing');
 await mkdir(`${root}worker`,{recursive:true});await mkdir(`${root}dist/server`,{recursive:true});await mkdir(`${root}dist/.openai`,{recursive:true});
