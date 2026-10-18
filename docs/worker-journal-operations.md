@@ -104,6 +104,8 @@ Future calendar and price readers must return the retained evidence bound to fro
 
 ## Starting and using the journal
 
+A visitor without platform identity, such as anyone opening a publicly shared Site, sees an owner-only journal and price-setup state. The browser sends no journal write or observation request from that state, and the research views stay readable.
+
 A new owner with no saved journal first chooses **Start automatic journal** or **Backup & restore**. Restore a backup first when its identity should be adopted. Automatic observations begin after setup and only while the app is active. An unconfirmed observation leaves the last confirmed history visible and requires sync before another change. The browser does not fabricate a substitute publication or paper result.
 
 Visible-page clock and visibility recovery can trigger observations. There is no background scheduler, webhook observer or server cron. A hidden or suspended tab is not a reliable unattended collector. Cross-device persistence means the same signed-in owner can retrieve saved history; it is not push synchronization. Use **Check journal sync** to retrieve and reconcile another session's changes.

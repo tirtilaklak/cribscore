@@ -57,6 +57,8 @@ export function createPriceSetupClient({fetch:request = globalThis.fetch,onChang
         const result = await Promise.race([
           (async () => {
             const reply = await request('/api/market-data/setup',{method:'GET',credentials:'same-origin',cache:'no-store',signal});
+            // No platform identity: the status belongs to the signed-in owner. This is not a Site outage.
+            if (reply.status === 401) { try { await reply.body?.cancel?.(); } catch {} return {status:'owner_only',checkedAt:null,reasons:[]}; }
             if (reply.ok !== true || reply.status !== 200) throw Error('setup_unavailable');
             const body = await readStatusResponse(reply,signal,deadline), p = body?.provider;
             if (body?.ok !== true || !utc(body.checkedAt) || p?.id !== 'alpaca' || !safeStates.has(p.status)
@@ -80,11 +82,12 @@ export function createPriceSetupClient({fetch:request = globalThis.fetch,onChang
 }
 
 export function renderPriceSetup(state = {status:'unchecked',reasons:[]}) {
-  const status = ['unchecked','loading','unavailable',...safeStates].includes(state?.status) ? state.status : 'unavailable';
+  const status = ['unchecked','loading','unavailable','owner_only',...safeStates].includes(state?.status) ? state.status : 'unavailable';
   const message = {
     unchecked:'Check whether a server-side price source has been configured.',
     loading:'Checking price-feed setup…',
     unavailable:'Price-feed setup could not be checked. Try again when the Site is available.',
+    owner_only:'Price-feed setup is visible to the signed-in site owner only.',
     setup_required:'Alpaca setup is incomplete. Source-backed price capture remains off.',
     configured_unverified:'Alpaca configuration is present. Its connection has not been tested, and price capture remains off.',
   }[status];

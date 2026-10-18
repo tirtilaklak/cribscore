@@ -26,8 +26,11 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
   const savedMessage=revision=>localPreview?`Saved in temporary local preview memory · revision ${revision}. It resets when the preview server stops.`:`Saved to this private Site · revision ${revision}. Available on your other signed-in devices.`;
   let needsSetup=false,priceImportRun=0,capacityRevision=null;
   const capacityMessage='This update would exceed the 20,000-event journal limit. Updates are paused; saved history remains available to read and export. Exporting does not free space.';
+  // A visitor without platform identity (a public view) gets a read-only shell:
+  // no journal, no setup status, and no browser-side write or observation.
+  const ownerOnlyMessage='The journal is available to the signed-in site owner only. This view records and saves nothing.';
   function pauseForCapacity(){capacityRevision=revision;storage={state:'capacity',message:capacityMessage};automation={publisherState:'unavailable',checkedAt:null,pendingReasons:['journal_capacity_exceeded']};feedback=capacityMessage;}
-  let storage={state:'unavailable',message:'Connecting to the private journal…'};
+  let storage={state:'unavailable',message:'Connecting to the journal…'};
   let automation={publisherState:'unavailable',checkedAt:null,pendingReasons:['observation_not_checked']};
   let symbol='IBM',rangeSessions=20,series=[],priceFeedback=null,requestedChart=null,chartFrame=null,lastPriceStatus=null;
   const id=prefix=>`${prefix}-${uuid()}`;
@@ -107,7 +110,10 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     if(busy)return;if(pendingImport){feedback='Apply or cancel the reviewed backup before checking sync again.';changed();return;}busy=true;loadState='loading';changed();
     try{
       const result=await store.load();
-      if(!result.ok){loadState='unavailable';storage={state:'unavailable',message:`Private journal unavailable: ${errors(result)}.`};return;}
+      if(!result.ok){
+        if(result.error==='authentication_required'){loadState='owner_only';storage={state:'unavailable',message:ownerOnlyMessage};return;}
+        loadState='unavailable';storage={state:'unavailable',message:`Private journal unavailable: ${errors(result)}.`};return;
+      }
       const remote=result.journal;
       const restoreBaseMatches=uncertainRestore&&(uncertainRestore.base===null?saved===null:saved&&canonical(saved)===canonical(uncertainRestore.base));
       const recoveredRestore=reconcile&&restoreBaseMatches&&remote&&journalDomain.checkAppendOnly(uncertainRestore.candidate,remote).ok;
@@ -139,7 +145,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
   }
   function journalHTML(){
     const controls=`<div class="desk-actions"><button type="button" class="desk-button desk-button-secondary" data-journal-action="sync"${busy?' disabled':''}>${busy?'Working…':'Check journal sync'}</button></div>`;
-    if(!draft)return `<section class="card desk-panel desk-empty"><h2>${loadState==='loading'?'Loading the journal':'Journal unavailable'}</h2><p>${escape(storage.message)}</p>${controls}</section>`;
+    if(!draft)return `<section class="card desk-panel desk-empty"><h2>${loadState==='loading'?'Loading the journal':loadState==='owner_only'?'Owner-only journal':'Journal unavailable'}</h2><p>${escape(storage.message)}</p>${controls}</section>`;
     const setup=needsSetup?'<section class="card desk-panel"><h2>Start your private journal</h2><p>Record assessments automatically while this app is open. Paper trading will remain unavailable until reviewed publication and price inputs are connected. If you have a backup, review it in Backup &amp; restore first. This choice is needed only for an empty cloud journal.</p><button type="button" class="desk-button" data-journal-action="start">Start automatic journal</button></section>':'';
     return `${setup}${controls}${renderJournalView(viewModel(),{feedback,automation,importPreview:pendingImport&&!busy?{message:pendingImport.message}:null})}`;
   }
