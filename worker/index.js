@@ -1,6 +1,7 @@
 import { handleJournalRequest } from '../server/journal-api.js';
 import { createJournalObserver } from '../server/journal/observe.mjs';
 import { createScheduledJournalMcp } from '../server/journal/scheduled-mcp.mjs';
+import { readCalendar } from '../server/calendar/calendar.mjs';
 import { handleMarketDataSetupRequest } from '../server/market-data/setup-status.mjs';
 import { buildStockSnapshot } from '../dist/lib/candidates.js';
 import { publicAssets } from './generated-assets.js';
@@ -9,7 +10,7 @@ import { publicAssets } from './generated-assets.js';
 // cannot become publication, calendar or reviewed-price authority.
 const observer=createJournalObserver({
   readPublications:null,
-  readCalendar:null,
+  readCalendar,
   readReviewedPrices:null,
   readObservationContext:({at})=>{
     const evidence=JSON.parse(publicAssets['/data/stock-evidence.json'].body);

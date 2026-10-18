@@ -4,7 +4,7 @@
 
 This source snapshot documents the Worker and D1 contracts. Production deployment, identity and release receipts are managed separately. Local checks do not establish hosted persistence.
 
-The current desk contains six unranked company cases and zero eligible selections. Publication, calendar and reviewed-price readers are null. The server can retain current ABSTAIN decisions from its two stock-horizon contexts; it cannot produce authoritative picks, paper positions or reviewed valuations from those contexts. TradingView is a separate display-only chart. Imported daily prices remain unreviewed chart inputs and cannot supply paper marks.
+The current desk contains six unranked company cases and zero eligible selections. Publication and reviewed-price readers are null; the calendar reader holds an unreviewed record and serves nothing until the owner reviews it. The server can retain current ABSTAIN decisions from its two stock-horizon contexts; it cannot produce authoritative picks, paper positions or reviewed valuations from those contexts. TradingView is a separate display-only chart. Imported daily prices remain unreviewed chart inputs and cannot supply paper marks.
 
 The hosted chart uses a fixed TradingView HTTPS iframe on the vendor's own origin, with only an allowlisted public symbol and fixed display options. It sends no referrer or journal context and has no message or accounting bridge. Supporting browsers request a credentialless frame. The UI reports that the chart was requested; an iframe load does not establish market-data readiness. The external TradingView link remains available when embedding fails. The imported-history range controls only the imported panel; the vendor chart has its own controls.
 
@@ -85,7 +85,9 @@ D1 uses a primary-started session and transactional batch semantics; see the [Cl
 
 ## Observation states and reader limits
 
-The configured publication, calendar and reviewed-price readers are null. A server-owned context reader supplies retained stock snapshots for `next_day` and `next_week`. Each saved snapshot retains its original source/cutoff information. The server observation clock does not refresh that evidence or certify eligible selections.
+The configured publication and reviewed-price readers are null. A server-owned context reader supplies retained stock snapshots for `next_day` and `next_week`. Each saved snapshot retains its original source/cutoff information. The server observation clock does not refresh that evidence or certify eligible selections.
+
+The calendar reader in `server/calendar/calendar.mjs` holds one record, `server/calendar/nyse-2026.json`: the 2026 NYSE regular sessions generated from the exchange's published holiday and early-close list, with the SHA-256 and capture time of that page. The record ships as `captured_unreviewed`, so the reader answers `unconfigured` and no paper window resolves. The owner review and the field change that activates it are in `server/calendar/README.md`.
 
 The observation response includes `automation.publisherState`, `checkedAt` and bounded `pendingReasons`:
 
