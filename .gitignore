@@ -8,3 +8,5 @@ node_modules/
 worker/generated-assets.js
 dist/server/
 .local/
+dist/.openai/
+docs/worker-build-manifest.json
