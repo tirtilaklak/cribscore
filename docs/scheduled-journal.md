@@ -1,7 +1,8 @@
 # Scheduled journal observations
 
-This source enables an owner-authenticated Site MCP observation writer and declares
-its hosting capability. The factory remains disabled by default; `worker/index.js`
+This source enables an owner-authenticated Site MCP observation writer.
+`.openai/hosting.json` does not yet declare the `mcp` capability; it has only `d1`
+and `r2`. The factory remains disabled by default; `worker/index.js`
 explicitly seals `writesEnabled: true`. Request headers, JSON and runtime values
 cannot change that setting. The production publisher, calendar and reviewed-price
 readers remain unconfigured, so observations can record honest abstentions and
@@ -22,7 +23,7 @@ The available native tool declarations confirm:
 | Journal identity | Sites forwards `oai-authenticated-user-id` to authenticated `/mcp` calls | The ID is scoped to the Site. No browser/body field selects an owner. |
 | Private service access | `OAI-Sites-Authorization: Bearer …` can cross the Site access boundary | It supplies no visitor identity or connected-app consent. This module never treats it as a journal credential. |
 | Durable persistence | The existing `DB` D1 binding and application API | Native Sites database tools only inspect schema and read bounded rows; there is no native arbitrary SQL/write endpoint in the inspected surface. |
-| Hosted agent tools | Add `"mcp"` to hosting capabilities and publish a stateless `POST /mcp` implementation | Sites provisions the Site plugin. A supported installation/connection must be verified separately. |
+| Hosted agent tools | Add `"mcp"` to `.openai/hosting.json` (not yet declared) and publish a stateless `POST /mcp` implementation | Sites provisions the Site plugin. A supported installation/connection must be verified separately. |
 
 No secrets belong in source, the manifest, browser assets, schedule text, or this
 document. A separate token-to-owner mapping or shared public writer would weaken
