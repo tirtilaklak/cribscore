@@ -7,6 +7,17 @@ const response = (status, body, extra = {}) => new Response(JSON.stringify(body)
   vary:'oai-authenticated-user-id', 'x-content-type-options':'nosniff', ...extra,
 }});
 
+// Server-owned runtime values only. Browser input never reaches this reader, and
+// an unparseable review is reported as missing setup without echoing it.
+export function readAlpacaConfiguration(env = {}) {
+  let authorization;
+  const encoded = env.ALPACA_DATA_AUTHORIZATION_JSON;
+  if (typeof encoded === 'string' && encoded.length <= 30_000) {
+    try { authorization = JSON.parse(encoded); } catch { /* Report missing setup without returning configuration. */ }
+  }
+  return {credentials:{keyId:env.ALPACA_API_KEY_ID,secretKey:env.ALPACA_API_SECRET_KEY},authorization};
+}
+
 // Runtime configuration is server-owned. This endpoint accepts no credentials,
 // source approvals or price requests from browser input and performs no fetch.
 export function handleMarketDataSetupRequest(request, env = {}, {now = () => new Date().toISOString()} = {}) {
@@ -19,12 +30,7 @@ export function handleMarketDataSetupRequest(request, env = {}, {now = () => new
   let at;
   try { at = now(); } catch { return response(503, {ok:false,error:'setup_status_unavailable'}); }
   if (!utc(at)) return response(503, {ok:false,error:'setup_status_unavailable'});
-  let authorization;
-  const encoded = env.ALPACA_DATA_AUTHORIZATION_JSON;
-  if (typeof encoded === 'string' && encoded.length <= 30_000) {
-    try { authorization = JSON.parse(encoded); } catch { /* Report missing setup without returning configuration. */ }
-  }
-  const status = inspectAlpacaSetup({credentials:{keyId:env.ALPACA_API_KEY_ID,secretKey:env.ALPACA_API_SECRET_KEY},authorization,at});
+  const status = inspectAlpacaSetup({...readAlpacaConfiguration(env),at});
   return response(200, {ok:true,checkedAt:at,provider:{
     id:'alpaca',status:status.status,reasons:[...status.reasons],connectionVerified:false,
     captureEnabled:false,displayEnabled:false,journalPricesEnabled:false,

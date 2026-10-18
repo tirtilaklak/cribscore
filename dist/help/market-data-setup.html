@@ -8,6 +8,7 @@
 <h2>Configure server values</h2>
 <p>An operator can configure <code>ALPACA_API_KEY_ID</code> and <code>ALPACA_API_SECRET_KEY</code> as hosted runtime secrets. The server also expects a current, reviewed <code>ALPACA_DATA_AUTHORIZATION_JSON</code> configuration. Keep credentials out of source files and browser inputs. The source repository’s Alpaca adapter documentation describes the authorization contract.</p>
 <p>After configuration, use <strong>Check data setup</strong> in Prices. “Configuration is present” means its shape and review dates passed the setup checks. The connection, data retrieval and valuation path still need to be verified before capture can be activated.</p>
+<p>The owner can also probe the connection. It requests one completed New York day of SPY and reports the outcome without storing anything.</p>
 <h2>Which prices this adapter supports</h2>
 <p>The adapter prepares historical, unadjusted US-dollar daily stock bars from the SIP feed. Its conservative completion rule accepts prior New York dates and requires the requested end to be at least 15 minutes old. An October 19 daily bar is therefore deferred until October 20 in New York. These are daily-bar references, not promised auction execution prices.</p>
 <p>Each fetched page retains its own response hash and observation time. Incomplete or inconsistent histories remain unavailable. Captured data starts unreviewed; it cannot silently become an eligible stock selection, a paper fill or an actual trade.</p>
