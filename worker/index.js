@@ -2,6 +2,7 @@ import { handleJournalRequest } from '../server/journal-api.js';
 import { createJournalObserver } from '../server/journal/observe.mjs';
 import { createScheduledJournalMcp } from '../server/journal/scheduled-mcp.mjs';
 import { handleMarketDataSetupRequest } from '../server/market-data/setup-status.mjs';
+import { handleMarketDataProbeRequest } from '../server/market-data/alpaca-probe.mjs';
 import { buildStockSnapshot } from '../dist/lib/candidates.js';
 import { publicAssets } from './generated-assets.js';
 
@@ -36,6 +37,7 @@ export default {
     const url=new URL(request.url);
     if(url.pathname==='/mcp')return scheduledMcp.fetch(request,env);
     if(url.pathname==='/api/market-data/setup')return handleMarketDataSetupRequest(request,env);
+    if(url.pathname==='/api/market-data/probe')return handleMarketDataProbeRequest(request,env);
     if(url.pathname.startsWith('/api/'))return handleJournalRequest(request,env,{observer});
     if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405,headers:{Allow:'GET, HEAD'}});
     const asset=publicAssets[url.pathname==='/'?'/index.html':url.pathname];
