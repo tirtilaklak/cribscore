@@ -47,7 +47,7 @@ The Worker preview listens on `127.0.0.1:4180` unless `CRIBSCORE_PORT` overrides
 
 The build embeds public UTF-8 assets, bundles the Worker and writes `docs/worker-build-manifest.json`. Validation compares current source/input hashes, public inventory, bundle hash and bytes served by the compiled Worker. It also checks private-path exclusions and missing-identity/missing-D1 responses. Rebuild after changing code, public assets, package/lock files, hosting configuration or migrations.
 
-Use the supported Sites workflow with the same project and existing private audience. Synchronize the managed source repository with a fresh short-lived source credential through the source helper's hidden stdin. Never put credentials in commands, files, browser code or receipts. The helper owns the commit, push and archive. Supply the matching `project_id`, `commit_sha` and unchanged archive to the native owner-private save/deploy operation. A read-only review archive is not a release artifact.
+Use the supported Sites workflow with the same project. The audience is set in ChatGPT Sites; `launch-checklist.md` covers the public switch. Synchronize the managed source repository with a fresh short-lived source credential through the source helper's hidden stdin. Never put credentials in commands, files, browser code or receipts. The helper owns the commit, push and archive. Supply the matching `project_id`, `commit_sha` and unchanged archive to the native owner-private save/deploy operation. A read-only review archive is not a release artifact.
 
 The official package must contain:
 
@@ -63,11 +63,11 @@ The packager copies root `drizzle/` into that metadata location. Public assets r
 
 Verify every release archive against its own tested build manifest and migration hashes, including exclusion of private inputs and synthetic fixtures. Retain the source commit, archive hash, version/deployment IDs, terminal deployment status and verification times. A source push or local build is not deployment confirmation.
 
-After deployment succeeds, verify the journal in the existing signed-in Site session. Missing visitor identity must return 401. A Sites service-access bearer token alone does not identify an owner. Check a legitimate owner operation, readback and reload; check the same owner's retrieval on an authorized second device/session when available. Never create a fake actual trade for a smoke test. Record only the hosted checks actually performed.
+After deployment succeeds, verify the journal in the existing signed-in Site session. Missing visitor identity must return 401, and a forged `oai-authenticated-user-id` header sent from outside the platform must also return 401. A visitor without identity sees the owner-only state in the browser. A Sites service-access bearer token alone does not identify an owner. Check a legitimate owner operation, readback and reload; check the same owner's retrieval on an authorized second device/session when available. Never create a fake actual trade for a smoke test. Record only the hosted checks actually performed.
 
 ## Identity and API consistency
 
-The platform's `oai-authenticated-user-id` is the owner key. It is stable within this Site, not portable across newly created Sites. Email is not used as ownership. Request JSON never selects an owner. Preserve the platform's private audience and authentication integration.
+The platform's `oai-authenticated-user-id` is the owner key. It is stable within this Site, not portable across newly created Sites. Email is not used as ownership. Request JSON never selects an owner. The Site audience is public; identity still comes only from the platform header. Preserve that authentication integration.
 
 | Route | Purpose and accepted input |
 | --- | --- |

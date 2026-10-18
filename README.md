@@ -2,7 +2,9 @@
 
 Stock-first research desk with prospective next-session and five-session windows, source-qualified company cards, separate chart context, and an owner-scoped append-only journal.
 
-This is a source-only collaboration snapshot. Live hosting remains private and is managed separately. It includes public research summaries and synthetic test fixtures, but no private PDFs, raw source archives, owner journal data, credentials, deployment receipts or persistent access grants. The local hosting manifest has no production project ID.
+This is a source-only collaboration snapshot. Hosting is managed separately. The live Site at cribscore.co serves public research views: the stock desk, prices, the Evidence room, the library and the methodology. The journal, price-setup and MCP routes answer only to the signed-in owner, keyed by the platform identity header; a visitor without it sees an owner-only state. The snapshot includes public research summaries and synthetic test fixtures, but no private PDFs, raw source archives, owner journal data, credentials, deployment receipts or persistent access grants. The local hosting manifest has no production project ID.
+
+Operating documents: `docs/launch-checklist.md` (the audience change and the Monday 2026-10-19 timeline), `docs/public-audience.md` (what stays owner-only and why) and `docs/sec-rights-review.md` (the Evidence room's rights review and its expiry).
 
 The retained October 17, 2026 research snapshot has six unranked candidates and zero eligible selections. Current prices, expected returns, gain probabilities and validated rankings are unavailable. Publication, calendar and reviewed-price readers are unconfigured. The app records dated abstention context after explicit journal setup; it has no unattended schedule and cannot provide trading recommendations from chart data.
 
@@ -42,4 +44,4 @@ The preview is at http://127.0.0.1:4180 with temporary SQLite and a clearly labe
 
 UI source is under `dist/`, Worker entry is `worker/index.js`, and the journal API/coordinator are under `server/`. The build embeds the explicit public assets; no private source directory is served. Schema and migration files are under `db/` and `drizzle/`.
 
-Use an isolated branch for proposed fixes. Include a failing regression and exact before/after results. Do not configure providers, add credentials, change authentication, publish, or modify production data from this snapshot. The production integration owner reviews changes before publishing the exact tested source to the existing private Site.
+Use an isolated branch for proposed fixes. Include a failing regression and exact before/after results. Do not configure providers, add credentials, change authentication, publish, or modify production data from this snapshot. The production integration owner reviews changes before publishing the exact tested source to the existing Site.
