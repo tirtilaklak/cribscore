@@ -35,6 +35,8 @@ export class Element {
   querySelector(s){return this.querySelectorAll(s)[0]||null;}
   closest(s){let node=this;while(node){if(s.split(',').some(part=>matches(node,part)))return node;node=node.parentElement;}return null;}
   focus(){if(this.isConnected)this.ownerDocument.activeElement=this;}
+  remove(){const parent=this.parentElement;if(!parent)return;if(this.contains(this.ownerDocument?.activeElement))this.ownerDocument.activeElement=this.ownerDocument.body;parent.children.splice(parent.children.indexOf(this),1);this.parentElement=null;}
+  replaceWith(node){const parent=this.parentElement;if(!parent||node===this)return;node.remove();const index=parent.children.indexOf(this);this.remove();parent.children.splice(index,0,node);node.parentElement=parent;}
   addEventListener(name,fn){if(!this.listeners.has(name))this.listeners.set(name,[]);this.listeners.get(name).push(fn);}
   dispatch(event){event.target??=this;for(const fn of this.listeners.get(event.type)||[])fn(event);if(this.parentElement)this.parentElement.dispatch(event);else if(this!==this.ownerDocument.body)this.ownerDocument.dispatch(event);else this.ownerDocument.dispatch(event);}
   close(){this.open=false;for(const fn of this.listeners.get('close')||[])fn({type:'close',target:this});}
