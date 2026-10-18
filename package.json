@@ -3,6 +3,9 @@
   "private": true,
   "type": "module",
   "version": "0.1.0",
+  "engines": {
+    "node": ">=22.13 <26"
+  },
   "scripts": {
     "start": "node scripts/serve.mjs",
     "test": "node --test --test-concurrency=4 tests/*.test.mjs scripts/sec-adapter.test.mjs server/*/*.test.mjs server/*/tests/*.test.mjs",
