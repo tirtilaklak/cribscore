@@ -17,7 +17,7 @@ test('collapsed abstention identifies a dated context observation while planned 
   const model=projectJournal(result.journal),before=structuredClone(model),html=renderJournalView(model),dom=parse(html);
   const card=all(dom,node=>node.attrs['data-journal-entry']==='observed-context')[0];assert.ok(card);
   const visible=collapsedText(card);
-  assert.match(visible,/2026-10-17/);assert.match(visible,/5-day window/);assert.match(visible,/No eligible stock/);assert.match(visible,/Abstain/);assert.ok(visible.includes(reason));
+  assert.match(visible,/2026-10-17/);assert.match(visible,/5 trading days/);assert.match(visible,/No eligible stock/);assert.match(visible,/Abstain/);assert.ok(visible.includes(reason));
   assert.doesNotMatch(visible,/2026-10-19|2026-10-23|USD 0|Realized P&L|Actual/);
   assert.equal(all(card,node=>node.attrs['data-journal-action']==='confirm-actual').length,0);
   assert.equal(all(card,node=>(node.attrs.class||'').split(/\s+/).includes('journal-account')).length,0);

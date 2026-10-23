@@ -20,6 +20,16 @@ const exampleModel = () => {
   const imported = parsePriceImport(raw, { at });
   return buildPriceView(imported.series[0], { at });
 };
+// A small view model in the shape buildPriceView returns, for states the synthetic example cannot reach.
+const synthetic = ({ days = 2, missing = 1, delay = null, sessionStatus = 'calendar_unknown', ...rest } = {}) => ({
+  status: 'partial', symbol: 'TEST', currency: 'USD', priceBasis: 'unadjusted', volumeBasis: 'shares',
+  points: ['2026-10-14', '2026-10-16'].slice(-days).map((session, index) => ({ session, open: 10, high: 12, low: 9, close: 11, volume: 100, breakBefore: index > 0, actions: [] })),
+  source: { provider: 'Test fixture', dataset: 'Synthetic unit test', url: null, capturedAt: '2026-10-17T10:00:00Z', publishedAt: null, channel: 'manual_import' },
+  freshness: { captureStatus: 'stale', sessionStatus, expectedLatestSession: '2026-10-16', declaredDelayMinutes: delay },
+  gaps: { status: missing ? 'incomplete' : 'complete', missingSessions: ['2026-10-13', '2026-10-15'].slice(2 - missing) },
+  comparison: { status: 'unavailable', reason: 'benchmark_missing' }, chartTrust: 'manual_import', issues: [], warnings: [], ...rest,
+});
+const rowsOf = html => Object.fromEntries(all(all(parse(html), node => node.attrs['data-state-key'] === 'prices:provenance')[0], node => node.tag === 'div' && node.children.some(child => child.tag === 'dt')).map(node => node.children.map(plain)));
 const options = [{ symbol: 'IBM', label: 'IBM · International Business Machines' }, { symbol: 'TSLA', label: 'TSLA · Tesla' }];
 const desk = html => all(parse(html), node => classes(node).includes('price-desk'))[0];
 // One label per top-level block, in document order.
@@ -106,8 +116,19 @@ test('chart panel copy names the separate site, and the delay line follows the c
   assert.equal(plain(parts[1]), 'This chart loads from TradingView, a separate site, only when you ask.');
   assert.equal(parts[2].attrs.id, 'hosted-price-chart');
   assert.ok(classes(parts[3]).includes('desk-source'));
-  assert.match(plain(parts[3]), /^Open chart at TradingView \(opens in a new tab\) ↗ Prices may be delayed\. TradingView shows Cboe One data for NYSE and Nasdaq stocks\.$/);
+  assert.match(plain(parts[3]), /^Open chart at TradingView \(opens in a new tab\) ↗ Prices may be delayed\. For NYSE and Nasdaq stocks, TradingView shows Cboe One data \(prices from Cboe’s own stock exchanges only\)\.$/);
   assert.doesNotMatch(plain(dom), /price action/i);
+});
+
+test('the outcome line can take keyboard focus, so a long message that scrolls inside it can be read', () => {
+  const feedback = all(parse(renderPriceView(null, { symbol: 'IBM', feedback: 'Import rejected: bars shape invalid.' })), node => classes(node).includes('desk-feedback'));
+  assert.equal(feedback.length, 1);
+  assert.equal(feedback[0].tag, 'p');
+  assert.equal(feedback[0].attrs.tabindex, '0');
+  assert.equal(feedback[0].attrs.role, undefined, 'no competing live region');
+  assert.equal(feedback[0].attrs['aria-live'], undefined);
+  assert.equal(plain(feedback[0]), 'Import rejected: bars shape invalid.');
+  assert.equal(all(parse(renderPriceView(null, { symbol: 'IBM' })), node => classes(node).includes('desk-feedback')).length, 0, 'no empty focus stop without a message');
 });
 
 test('the picker keeps its form hooks and applies with one secondary button', () => {
@@ -156,7 +177,7 @@ test('without a dataset the provenance disclosure holds one sentence; any model 
   const provenance = html => all(parse(html), node => node.attrs['data-state-key'] === 'prices:provenance')[0];
   const none = provenance(renderPriceView());
   assert.equal(plain(all(none, node => node.tag === 'summary')[0]), 'Source, timing and adjustments');
-  assert.equal(plain(none), 'Source, timing and adjustmentsSource details appear after you import a file for this company. Paper marks remain unavailable.');
+  assert.equal(plain(none), 'Source, timing and adjustmentsSource details appear after you import a file for this company. Paper marks (the checked prices the journal uses to value practice trades) remain unavailable.');
   assert.equal(all(none, node => node.tag === 'dl').length, 0);
   for (const model of [{ status: 'unavailable', points: [], issues: [] }, exampleModel()]) {
     const rows = all(all(provenance(renderPriceView(model)), node => node.tag === 'dl')[0], node => node.tag === 'div');
@@ -170,6 +191,75 @@ test('the gap note states the limit as its own sentence', () => {
   assert.match(text, /Calendar coverage is unknown\. A continuous line does not prove that no trading days are missing\./);
   assert.doesNotMatch(text, /coverage is unknown;/);
   assert.match(text, /This dataset has not been verified for journal valuation\. Paper marks remain unavailable\./);
+  // The pinned notice stays word for word; a plain sentence after it explains the term.
+  assert.match(text, /Paper marks remain unavailable\. Paper marks are the checked prices the journal uses to value practice trades\./);
+});
+
+test('the imported panel says trading day where it said session, and counts read correctly at one', () => {
+  const one = renderPriceView(synthetic({ days: 1, missing: 1, delay: 1, sessionStatus: 'current_completed_session' }));
+  const oneDom = parse(one);
+  assert.equal(plain(all(oneDom, node => node.tag === 'figcaption')[0]), 'Approximate daily close · USD · 1 trading day');
+  assert.match(plain(all(oneDom, node => node.tag === 'desc')[0]), /^1 trading day, 2026-10-16 through 2026-10-16\. USD prices\. Breaks mark missing trading days or corporate actions\./);
+  assert.match(plain(oneDom), /1 expected trading day is missing\. The line breaks at known gaps\./);
+  assert.match(plain(oneDom), /Latest completed trading day included/);
+  assert.equal(rowsOf(one)['Declared delay'], '1 minute');
+  const two = renderPriceView(synthetic({ days: 2, missing: 2, delay: 15, sessionStatus: 'behind_completed_session' }));
+  const twoDom = parse(two);
+  assert.equal(plain(all(twoDom, node => node.tag === 'figcaption')[0]), 'Approximate daily close · USD · 2 trading days');
+  assert.match(plain(twoDom), /2 expected trading days are missing\. The line breaks at known gaps\./);
+  assert.equal(rowsOf(two)['Declared delay'], '15 minutes');
+  assert.equal(rowsOf(two)['Trading-day coverage'], 'Latest completed trading day missing');
+  assert.equal(rowsOf(two)['Expected latest trading day'], '2026-10-16');
+  assert.equal(rowsOf(renderPriceView(synthetic()))['Trading-day coverage'], 'Trading-day coverage unknown');
+  const compared = renderPriceView(synthetic({ comparison: { status: 'available', benchmarkSymbol: 'SPY', basis: 'descriptive_price_index', points: [{ session: '2026-10-14', targetIndex: 100, benchmarkIndex: 100 }, { session: '2026-10-16', targetIndex: 101, benchmarkIndex: 99 }] } }));
+  assert.deepEqual(all(parse(compared), node => node.tag === 'thead').map(head => plain(all(head, node => node.tag === 'th')[0])), ['Trading day', 'Trading day']);
+  assert.match(plain(parse(compared)), /Indexed to 100 on the first shared trading day\./);
+  // "Price session" and "Volume session" name the market session a price comes from (regular or extended hours), so they stay.
+  for (const html of [one, two, compared]) assert.doesNotMatch(plain(parse(html)).replace(/Price session|Volume session/g, ''), /\bsessions?\b/i);
+});
+
+test('comparison reasons and data warnings read as plain sentences, never as codes', () => {
+  const source = readFileSync(new URL('../dist/lib/prices.js', import.meta.url), 'utf8');
+  const comparison = source.slice(source.indexOf('function indexedComparison'), source.indexOf('export function buildPriceView'));
+  const reasons = [...new Set([...comparison.matchAll(/empty\('([a-z_]+)'\)/g)].map(match => match[1])), 'price_series_unavailable'];
+  assert.ok(reasons.length >= 10 && source.includes("reason:'price_series_unavailable'"), `expected every comparison reason, got ${reasons.length}`);
+  const comparisonText = model => plain(all(parse(renderPriceView(model)), node => node.attrs['data-state-key'] === 'prices:comparison')[0]);
+  for (const reason of reasons) {
+    const text = comparisonText(synthetic({ comparison: { status: 'unavailable', reason } }));
+    const sentence = text.replace(/^Benchmark comparisonComparable benchmark history is unavailable\. /, '');
+    assert.notEqual(sentence, text, `${reason} keeps the pinned first sentence`);
+    assert.match(sentence, /^[A-Z][^_]*\.$/, `${reason} reads as a sentence`);
+    assert.ok(!sentence.toLowerCase().includes(reason.replaceAll('_', ' ')), `${reason} is not printed as a code`);
+  }
+  assert.match(comparisonText(synthetic({ comparison: { status: 'unavailable', reason: 'matching_basis_required' } })), /Comparable benchmark history is unavailable\. Reason: matching basis required\.$/, 'an unknown reason still shows');
+  // Warning codes are pushed one by one, added on a condition, or listed after an adapter's own warnings.
+  const listed = [...source.matchAll(/unique\(\[\.\.\.[a-z.]*warnings,((?:'[a-z_]+',)+)/g)].flatMap(match => [...match[1].matchAll(/'([a-z_]+)'/g)]);
+  const warnings = [...new Set([...source.matchAll(/warnings\.push\('([a-z_]+)'\)/g), ...source.matchAll(/\?\['([a-z_]+)'\]:\[\]/g), ...listed].map(match => match[1]))];
+  assert.ok(warnings.length >= 16, `expected every warning, got ${warnings.length}`);
+  const provenance = all(parse(renderPriceView(synthetic({ warnings: [...warnings, 'synthetic_new_warning'] }))), node => node.attrs['data-state-key'] === 'prices:provenance')[0];
+  const items = all(provenance, node => node.tag === 'li').map(plain);
+  assert.equal(items.length, warnings.length + 1);
+  warnings.forEach((code, index) => {
+    assert.match(items[index], /^[A-Z][^_]*\.$/, `${code} reads as a sentence`);
+    assert.ok(!items[index].toLowerCase().includes(code.replaceAll('_', ' ')), `${code} is not printed as a code`);
+  });
+  assert.equal(items.at(-1), 'synthetic new warning', 'an unknown warning still shows');
+});
+
+test('the price basis reads in plain words on the badge and in the source rows', () => {
+  for (const [priceBasis, label] of [['unadjusted', 'Not adjusted for splits or dividends'], ['split_adjusted', 'Adjusted for splits'], ['total_return_adjusted', 'Adjusted for splits and dividends'], ['unknown', 'Adjustment unknown']]) {
+    const html = renderPriceView(synthetic({ priceBasis }));
+    const panel = all(parse(html), node => node.attrs['aria-labelledby'] === 'imported-price-heading')[0];
+    assert.equal(plain(all(panel, node => classes(node).includes('desk-badge'))[0]), label);
+    assert.equal(rowsOf(html)['Price basis'], label);
+  }
+  assert.equal(rowsOf(renderPriceView({ status: 'unavailable', points: [], issues: [] }))['Price basis'], 'Unavailable');
+  // Lookups use own keys only, so a code that names an object method still prints as plain words.
+  const odd = renderPriceView(synthetic({ priceBasis: 'constructor', warnings: ['toString'], comparison: { status: 'unavailable', reason: 'hasOwnProperty' } }));
+  assert.equal(rowsOf(odd)['Price basis'], 'constructor');
+  assert.match(plain(parse(odd)), /Reason: hasOwnProperty\./);
+  assert.deepEqual(all(all(parse(odd), node => node.attrs['data-state-key'] === 'prices:provenance')[0], node => node.tag === 'li').map(plain), ['toString']);
+  assert.doesNotMatch(odd, /native code|function /);
 });
 
 test('the import disclosure keeps its five pinned sentences, adds a plain gloss and keeps one guide link', () => {
@@ -186,7 +276,7 @@ test('price-feed setup is a card disclosure with plain copy and every pinned phr
   const copy = {
     unchecked: 'Check whether a price feed is set up on the server.',
     loading: 'Checking the price-feed setup…',
-    unavailable: 'Price-feed setup could not be checked. Try again later.',
+    unavailable: 'Price-feed setup could not be checked. Select Check data setup to try again.',
     setup_required: 'Alpaca setup is incomplete. Price capture remains off.',
     configured_unverified: 'Alpaca settings are present. The connection has not been tested, so price capture remains off.',
   };
@@ -214,7 +304,7 @@ test('price-feed setup is a card disclosure with plain copy and every pinned phr
     assert.match(plain(details), /Valuing journal trades needs more checked inputs\. They are share identities, a trading calendar, the price basis and split and dividend records\. Chart data cannot supply them\./);
   }
   const items = all(parse(renderPriceSetup({ status: 'setup_required', reasons: ['credentials_missing_or_invalid', 'rights_review_missing'] })), node => node.tag === 'li').map(plain);
-  assert.deepEqual(items, ['Your Alpaca credentials are missing or invalid. These are the API key and secret.', 'A current source-access and account-entitlement review is required. That review checks what your data plan allows.']);
+  assert.deepEqual(items, ['Your Alpaca credentials are missing or invalid. These are the API key and secret (two access codes from Alpaca, the market-data provider).', 'A current source-access and account-entitlement review is required. That review checks what your data plan allows.']);
 });
 
 test('every new-tab link on Prices says so to screen readers and hides its arrow glyph', () => {
@@ -260,6 +350,16 @@ test('the area C stylesheet block fixes the plot row and reserves chart space on
   // Shared card disclosures drop their vertical padding, so the open setup card keeps its own bottom padding.
   assert.match(block, /\.price-setup\[open\]\{padding-bottom:var\(--space-5,20px\)\}/);
   assert.match(block, /@media\(max-width:680px\)\{[^@]*\.price-setup\[open\]\{padding-bottom:var\(--space-4,16px\)\}/);
+  // The range picker shows its whole value at every width; small phones put the company on its own row.
+  assert.match(block, /\.price-desk \.desk-selection\{grid-template-columns:minmax\(0,1fr\) minmax\(max-content,\.6fr\) auto\}/);
+  assert.match(block, /@media\(max-width:680px\)\{[^@]*\.price-desk \.desk-selection\{grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)\}/);
+  assert.match(block, /@media\(max-width:480px\)\{\s*\.price-desk \.desk-selection\{grid-template-columns:minmax\(0,1fr\) auto\}\s*\.price-desk \.desk-selection>label:first-child\{grid-column:1\/-1\}/);
+  assert.match(block, /@media\(max-width:359px\)\{\s*\.price-desk \.desk-selection\{grid-template-columns:minmax\(0,1fr\)\}/);
+  // The delay limit is as large as the chart copy; links look like the app's other text actions.
+  assert.match(block, /\.hosted-price-panel \.desk-source>span\{[^}]*font-size:var\(--t-body,14px\)/);
+  assert.match(block, /\.price-desk \.desk-source a,\.price-desk a\[href\^="\.\/help\/"\]\{[^}]*font-size:var\(--t-small,13px\)[^}]*text-decoration:none/);
+  assert.match(block, /\.price-desk \.desk-source a:hover,\.price-desk a\[href\^="\.\/help\/"\]:hover\{text-decoration:underline\}/);
+  assert.match(block, /@media\(max-width:680px\)\{[^@]*\.price-desk \.price-value strong\{font-size:var\(--t-title,22px\)\}/);
   assert.doesNotMatch(block, /--(?:ink|muted|paper|white)\s*:/, 'no shared token is redeclared');
   // Colours come from the app tokens; a hex value appears only as a var() fallback.
   const scroll = block.match(/\.price-desk \.desk-table-scroll\{[^}]*\}/)?.[0] || '';

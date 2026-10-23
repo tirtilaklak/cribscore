@@ -11,7 +11,7 @@
 <body>
 <header class="top">
 <p class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>cribscore<span class="brand-dot">.</span> <small>help</small></span></p>
-<p class="top-status">Private preview of unvalidated research. Nothing here is a forecast or a recommendation.</p>
+<p class="top-status">Private preview of unvalidated research (not proven to work; a test may have failed). Nothing here is a forecast or a recommendation.</p>
 </header>
 <main>
 <p class="eyebrow">Prices help</p>
@@ -21,7 +21,7 @@
 <p>A successful import immediately replaces the current imported batch. It stays in that tab until you reload. A rejected file keeps the previous data. Keep your original file.</p>
 <h2>Steps</h2>
 <ol>
-<li>Copy the synthetic example (invented data for practice) from the next section, or start from your own data.</li>
+<li>Copy the synthetic example (invented data for practicing the format) from the next section, or start from your own data.</li>
 <li>Fill in the fields described below. Use <code>null</code> for unknown values where this page allows it.</li>
 <li>Save the file as UTF-8 text (the standard encoding most text editors use) with a <code>.json</code> extension.</li>
 <li>In Cribscore, open <strong>Prices → Import daily price data</strong>. Choose the file, then select <strong>Import price data</strong>.</li>
@@ -31,7 +31,7 @@
 <h2 id="synthetic-heading">The example uses invented data</h2>
 <p><strong>Every value, symbol and timestamp in this example is invented.</strong> It is only for practicing the format. It is not real market data, past or present. It has no verified source, trading calendar, record of splits and dividends, or chart link.</p>
 <p class="small">The complete JSON is below. Copy it into a UTF-8 text file with a <code>.json</code> extension to practice the format. It imports with warnings on purpose. Reading this page does not import anything. Keep the app open in its original tab.</p>
-<details id="synthetic-example"><summary>Show the complete synthetic JSON</summary><pre tabindex="0" aria-label="Synthetic import example JSON">{
+<details id="synthetic-example"><summary>Show the complete synthetic JSON</summary><pre tabindex="0" role="region" aria-label="Synthetic import example JSON">{
   &quot;schemaVersion&quot;: &quot;cribscore-price-series-v1&quot;,
   &quot;id&quot;: &quot;synthetic-guide-example&quot;,
   &quot;symbol&quot;: &quot;DEMO&quot;,
@@ -91,24 +91,24 @@
 <h2>Fields to prepare</h2>
 <table><caption>One series (the daily prices for one company)</caption><tbody>
 <tr><th scope="row">Format</th><td><code>schemaVersion: "cribscore-price-series-v1"</code>, a distinct <code>id</code>, an uppercase <code>symbol</code> and a three-letter <code>currency</code> such as <code>USD</code>.</td></tr>
-<tr><th scope="row">Sessions</th><td><code>interval: "1d"</code> and a <code>sessionTimezone</code> given as an IANA time zone (a standard place name such as <code>America/New_York</code>). Write each <code>session</code> (trading day) as the exchange’s local date, <code>YYYY-MM-DD</code>.</td></tr>
+<tr><th scope="row">Trading days</th><td><code>interval: "1d"</code> and a <code>sessionTimezone</code> given as an IANA time zone (a standard place name such as <code>America/New_York</code>). Write each <code>session</code> (the trading day the prices belong to) as the exchange’s local date, <code>YYYY-MM-DD</code>.</td></tr>
 <tr><th scope="row">Prices</th><td>Write <code>open</code>, <code>high</code>, <code>low</code> and <code>close</code> as quoted decimal text, such as <code>"10.25"</code>. Keep every digit the source gave. Do not convert them to floating-point numbers first (computer numbers that can change the last digits). The high must be at or above the open and close. The low must be at or below them.</td></tr>
 <tr><th scope="row">Volume</th><td>A number, or <code>null</code> when volume is unknown. Unknown volume is not zero. Ordinary share volume must be a whole number. Split-adjusted volume (rescaled so older values match after a stock split) may have a fraction. Set <code>volumeBasis</code> to <code>shares</code>, <code>split_adjusted_shares</code> or <code>unknown</code>.</td></tr>
 <tr><th scope="row">Source</th><td><code>source.provider</code> (the company that supplied the data) and <code>source.dataset</code> (the name of the data product) must not be empty. Set <code>channel: "manual_import"</code>. Use <code>null</code> for an unknown <code>url</code>, <code>capturedAt</code>, <code>publishedAt</code>, <code>responseSha256</code> or <code>declaredDelayMinutes</code> (how many minutes late the source says its data is). A known URL must use HTTPS and contain no credentials. A known <code>responseSha256</code> (a fingerprint of the exact file the source sent) is 64 lowercase hexadecimal characters (digits 0–9 and letters a–f). Do not invent a capture time or digest to clear a warning.</td></tr>
-<tr><th scope="row">Adjustments</th><td>Set <code>priceBasis</code> to <code>unadjusted</code>, <code>split_adjusted</code>, <code>total_return_adjusted</code> (also adjusted as if dividends were reinvested) or <code>unknown</code>. Use the basis your source establishes. If you have not confirmed every corporate action (an event like a split or dividend that changes shares) for these dates, use <code>actions.status: "unknown"</code> with <code>items: []</code>. An empty list does not certify that no actions occurred.</td></tr>
+<tr><th scope="row">Adjustments</th><td>Set <code>priceBasis</code> to <code>unadjusted</code>, <code>split_adjusted</code>, <code>total_return_adjusted</code> (also adjusted as if dividends were reinvested) or <code>unknown</code>. Use the basis your source establishes. Have you confirmed every corporate action (an event like a split or dividend that changes shares) for these dates? If not, use <code>actions.status: "unknown"</code> with <code>items: []</code>. An empty list does not certify that no actions occurred.</td></tr>
 </tbody></table>
 <p>Three fields are optional: <code>originalSymbol</code>, <code>entityId</code> and <code>exchange</code>. They keep the source’s identity for the company when you know it. Leave them out or set them to <code>null</code> when you do not.</p>
 <p>You do not need to write the <code>decimals</code> fields. The app creates them. If you re-import a normalized file (one that already has <code>decimals</code> fields), keep its numbers and decimal text consistent.</p>
 <p>The data table and the large closing price keep your exact digits. Trailing zeros that do not change the value may disappear, so <code>10.50</code> shows as <code>10.5</code>. The plot is approximate. So are the values under “Benchmark comparison”, where both series start at 100 on their first shared day.</p>
 <h2>Keep the clocks separate</h2>
 <p><code>capturedAt</code> is the time the data was actually retrieved from the source. <code>publishedAt</code> is a publication time you know separately. Write both as exact UTC timestamps (Coordinated Universal Time, ending in Z) with seconds, such as <code>2020-01-08T22:00:00Z</code>. You may add 1–3 fractional digits. Publication must not come after capture. Where a field allows <code>null</code>, keep unknown values <code>null</code>. When you import the same data later, keep its original clocks.</p>
-<p>If a bar (one trading day’s prices and volume) has an <code>availableAt</code> (when those prices became available), it must be a valid UTC timestamp. It must be no earlier than known publication and no later than known capture. Take care here, because an invalid value rejects the file. If it is omitted or <code>null</code>, the parser uses capture, then known publication, or leaves availability unknown. A session date alone is not the time a price was quoted.</p>
+<p>If a bar (one trading day’s prices and volume) has an <code>availableAt</code> (when those prices became available), it must be a valid UTC timestamp. It must be no earlier than known publication and no later than known capture. Take care here, because an invalid value rejects the file. If it is omitted or <code>null</code>, the parser uses capture, then known publication, or leaves availability unknown. A <code>session</code> date alone is not the time a price was quoted.</p>
 <h2>Limits</h2>
 <ul>
-<li>The form accepts JSON files only. CSV is not accepted by this form.</li>
+<li>The form accepts JSON files only.</li>
 <li>At most 2 MiB per file (2,097,152 bytes, about 2.1 MB).</li>
 <li>At most 16 series per file, 5,000 bars (one bar per trading day) per series and 40,000 bars in total.</li>
-<li>Session dates must be unique within each series. IDs and symbols must be unique within a batch.</li>
+<li>Each <code>session</code> date must be unique within its series. IDs and symbols must be unique within a batch.</li>
 <li>Duplicate JSON keys are rejected.</li>
 <li>Prices must be positive. They can have up to 12 decimal places, with a maximum value of <code>1000000000000</code> (one trillion).</li>
 <li>Decimal text cannot contain commas, currency signs or exponents (such as <code>1e6</code>).</li>
@@ -116,9 +116,9 @@
 <h2>Several companies in one file</h2>
 <p>To keep several companies together, put their complete series objects in the <code>series</code> list of a wrapper: <code>{"schemaVersion": "cribscore-price-import-v1", "series": []}</code>. The list holds 1–16 series. Each successful upload replaces the previous batch, so put every company you want to see in the same file.</p>
 <h2>What imported data does not prove</h2>
-<p>Imports do not provide a verified exchange calendar (the official list of trading days). A continuous line does not prove that holidays, early closes or missing sessions are covered. A recent capture does not mean prices are current. An unknown delay is not zero. An empty action list does not prove that no splits or dividends occurred.</p>
+<p>Imports do not provide a verified exchange calendar (the official list of trading days). A continuous line does not prove that holidays, early closes or missing trading days are covered. A recent capture does not mean prices are current. An unknown delay is not zero. An empty action list does not prove that no splits or dividends occurred.</p>
 <p>A successful import does not verify your source rights or account entitlement (what your data plan allows). It does not create a paper trade, supply journal marks (prices the journal uses to value decisions) or change rankings. TradingView (a separate charting site that the app can show) never shows your file.</p>
-<p>Raw provider responses, including Alpaca bars (Alpaca is a market-data provider), need conversion to this format with their original source metadata. Importing them does not connect or authenticate a provider account. Never put account keys or passwords in the file or in a source URL. To connect a price source, open Price-feed setup at the bottom of the Prices page. Its link “How to set up the price feed” opens the setup guide.</p>
+<p>Raw provider responses need conversion to this format, with their original source metadata. This includes Alpaca bars (Alpaca is a company that provides stock market data). Importing them does not connect or authenticate a provider account. Never put account keys or passwords in the file or in a source URL. To connect a price source, open Price-feed setup at the bottom of the Prices page. Its link “How to set up the price feed” opens the setup guide.</p>
 <h2>If the import is rejected</h2>
 <p>Your previous data stays in place. The message under the company picker lists each problem in words, such as “bar price invalid”. Open the list below and find those words.</p>
 <details id="rejection-messages"><summary>Show every message and its fix</summary>

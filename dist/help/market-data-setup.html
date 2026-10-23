@@ -13,12 +13,12 @@
 <header class="top">
 <p class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>cribscore<span class="brand-dot">.</span> <small>help</small></span></p>
 <nav aria-label="Cribscore"><a class="back" href="../index.html#prices"><span aria-hidden="true">←</span>Back to Prices</a></nav>
-<p class="top-status">Private preview of unvalidated research. Nothing here is a forecast or a recommendation.</p>
+<p class="top-status">Private preview of unvalidated research (not proven to work; a test may have failed). Nothing here is a forecast or a recommendation.</p>
 </header>
 <main>
 <p class="eyebrow">Prices help</p>
 <h1>Set up the price feed</h1>
-<p class="lead">Cribscore has server code, called the adapter, that can fetch daily stock prices from Alpaca (a market-data provider). This page lists what you need and where each value goes. It also explains what the setup check tells you.</p>
+<p class="lead">Cribscore has server code, called the adapter, that can fetch daily stock prices from Alpaca (a company that provides stock market data). This page lists what you need and where each value goes. It also explains what the setup check tells you.</p>
 <p class="small muted">This page opened in a new tab. Close it to return to Prices. The Back to Prices link opens a second copy of the app.</p>
 <p class="notice"><strong>Price capture is currently off.</strong> A valid API key and secret (the two access codes a data provider gives an account) are not enough on their own. They do not make data ready for journal valuation (using prices to value the trades in your journal).</p>
 <h2>What the setup check does</h2>
@@ -26,8 +26,8 @@
 <h2>What you need</h2>
 <ol>
 <li>An Alpaca account with access to the historical stock data you need. You also need that account’s API key and secret.</li>
-<li>A current review of the provider and exchange terms, your account entitlement (what your Alpaca plan lets you use) and your intended use. Fetching, keeping, displaying and using prices for journal evaluation need the right permissions. Do not assume a free plan covers every operation.</li>
-<li>Reviewed security identities (which exact share each symbol means) and the exchange calendar (the days the market was open) for the dates you need. For the same dates, you need the raw price and volume basis (whether values were adjusted for splits or dividends) and complete records of corporate actions (events like splits and dividends that change shares).</li>
+<li>A current review of the provider and exchange terms, your account entitlement (what your Alpaca plan lets you use) and your intended use. Fetching, keeping, displaying and using prices for journal valuation need the right permissions. Do not assume a free plan covers every operation.</li>
+<li>Reviewed security identities (which exact share each symbol means) and the exchange calendar (the days the market was open) for the dates you need. For the same dates, you need the raw price and volume basis (whether values were adjusted for splits or dividends). You also need complete records of corporate actions (events like splits and dividends that change shares).</li>
 </ol>
 <h2>Add the server values</h2>
 <p>Add these three values as hosted runtime secrets (private settings the server reads, kept outside the code). Keep credentials out of source files and browser inputs.</p>
@@ -40,20 +40,20 @@
 <p>In Cribscore, open <strong>Prices</strong>. Expand <strong>Price-feed setup</strong> at the bottom of the page and select <strong>Check data setup</strong>.</p>
 <h2>What the result means</h2>
 <dl class="pairs">
-<dt>“Alpaca setup is incomplete. Price capture remains off.”</dt><dd>A value is missing or failed a check. The list under the message says which. “Your Alpaca credentials are missing or invalid. These are the API key and secret.” points to the key ID or the secret key. “A current source-access and account-entitlement review is required. That review checks what your data plan allows.” points to the authorization record. It is missing, unreadable, incomplete or outside its review dates.</dd>
+<dt>“Alpaca setup is incomplete. Price capture remains off.”</dt><dd>A value is missing or failed a check. The list under the message says which. “Your Alpaca credentials are missing or invalid. These are the API key and secret (two access codes from Alpaca, the market-data provider).” points to the key ID or the secret key. “A current source-access and account-entitlement review is required. That review checks what your data plan allows.” points to the authorization record. It is missing, unreadable, incomplete or outside its review dates.</dd>
 <dt>“Alpaca settings are present. The connection has not been tested, so price capture remains off.”</dt><dd>The settings passed the setup checks for their shape and review dates. Nothing has contacted Alpaca. The connection, data retrieval and valuation path still need to be verified before capture can be turned on.</dd>
-<dt>“Price-feed setup could not be checked. Try again later.”</dt><dd>The check itself did not finish. It says nothing about your values.</dd>
+<dt>“Price-feed setup could not be checked. Select Check data setup to try again.”</dt><dd>The check itself did not finish. It says nothing about your values.</dd>
 </dl>
 <h2>Which prices the adapter supports</h2>
 <p>The adapter prepares past daily stock prices in US dollars, with no adjustment for splits or dividends. They come from the SIP feed (the combined record of trades from all US exchanges). They are daily reference prices. Nobody promises you could trade at them in the opening or closing auction.</p>
 <p>The adapter’s completion rule is cautious. It accepts only dates before the current New York date. The requested end must also be at least 15 minutes old. So prices for October 19 wait until October 20 in New York.</p>
 <h2>What happens to captured data</h2>
-<p>Each fetched page keeps its own response hash (a fingerprint of the exact data Alpaca sent) and observation time (when it was fetched). Incomplete or inconsistent histories stay unavailable. Captured data starts out unreviewed. It never turns into an eligible stock, a paper trade or a real trade on its own.</p>
+<p>Each fetched page keeps its own response hash (a fingerprint of the exact data Alpaca sent). It also keeps its observation time (the time when Cribscore fetched the page). Incomplete or inconsistent histories stay unavailable. Captured data starts out unreviewed. On its own, it never makes a stock eligible (passed every check needed before a stock can be ranked). On its own, it never creates a paper trade (a practice trade with no real money) or a real trade.</p>
 <h2>Sources</h2>
 <ul class="links">
 <li><a href="https://docs.alpaca.markets/us/docs/about-market-data-api" target="_blank" rel="noopener noreferrer">Alpaca market-data documentation<span class="sr-only"> (opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
 <li><a href="https://docs.alpaca.markets/us/docs/market-data-faq" target="_blank" rel="noopener noreferrer">Alpaca market-data FAQ<span class="sr-only"> (opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
-<li><a href="https://docs.alpaca.markets/us/reference/stockbars" target="_blank" rel="noopener noreferrer">Historical stock bars API<span class="sr-only"> (opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
+<li><a href="https://docs.alpaca.markets/us/reference/stockbars" target="_blank" rel="noopener noreferrer">Alpaca reference for historical stock prices<span class="sr-only"> (opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
 <li><a href="https://files.alpaca.markets/disclosures/library/TermsAndConditions.pdf" target="_blank" rel="noopener noreferrer">Alpaca terms (PDF)<span class="sr-only"> (opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
 </ul>
 <p class="small muted">To load your own daily prices for the chart, see <a href="price-import.html">Prepare a daily price file</a>.</p>

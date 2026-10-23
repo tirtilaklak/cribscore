@@ -29,8 +29,8 @@ test('correction controls preserve each supported fractional UTC instant without
 test('abstention copy identifies UTC observations without claiming unattended daily assessments',()=>{
   const entry={id:'observed',date:'2026-10-17',status:'abstain',symbol:null,horizonId:'next_day',reason:'No eligible published suggestion',context:{snapshot:{},observedAt:'2026-10-17T17:00:00Z'},paper:null,actual:{confirmed:false},revisions:[]};
   const html=renderJournalView(base([entry]));
-  assert.match(html,/A day with no eligible stock is saved as an abstention \(a recorded decision not to trade\)\./);
+  assert.match(html,/An assessment that finds no eligible stock is saved as an abstention \(a record that the desk had nothing eligible\)\./);
   assert.match(html,/<dt>Date checked \(UTC\)<\/dt><dd>2026-10-17<\/dd>/);
-  assert.doesNotMatch(html,/A day without an eligible suggestion|<dt>Decision date<\/dt>/);
+  assert.doesNotMatch(html,/\b(?:(?:a|each|every|any) (?:calendar |trading )?day|(?:calendar |trading )?days)\b[^.<>]{0,60}?\b(?:no|without an?) eligible\b|\b(?:each|every) (?:calendar |trading )?day[’']s\b|\bevery (?:calendar |trading )?day\b|\bdaily assessments?\b|\bwhile (?:the|this) app is closed\b|<dt>Decision date<\/dt>/i);
   assert.doesNotMatch(html,/data-journal-action="confirm-actual"/);
 });

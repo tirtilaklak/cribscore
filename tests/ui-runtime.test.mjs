@@ -24,7 +24,7 @@ test('actual app boots, loads retained stocks, switches horizon and opens second
  const click=element=>listeners.get('click')({target:{closest(selector){if(selector==='[data-horizon]'&&element.dataset.horizon)return element;if(selector==='[data-view],[data-go]'&&element.dataset.view)return element;return null;}}});
  click(horizons[1]);assert.equal(horizons[1].attributes['aria-pressed'],'true');assert.match(node('#view-content').innerHTML,/All of these calls fall inside this window\./);assert.match(node('#view-content').innerHTML,/2026-10-23 20:00 UTC/);
  node('#research-search').input({target:{value:'TXN'}});assert.match(node('#view-content').innerHTML,/>TXN</);assert.doesNotMatch(node('#view-content').innerHTML,/>NFLX</);
- click(navigation[3]);assert.match(node('#view-content').innerHTML,/From the economy to each share/);assert.match(node('#view-content').innerHTML,/How we use Nobel ideas/);assert.match(node('#view-content').innerHTML,/No prize proves a one-day trading edge\./);
+ click(navigation[3]);assert.match(node('#view-content').innerHTML,/From the economy to each share/);assert.match(node('#view-content').innerHTML,/How we use Nobel ideas/);assert.match(node('#view-content').innerHTML,/No prize proves an investment edge in either window\./);
  node('#research-search').input({target:{value:''}});click(navigation[2]);assert.equal((node('#view-content').innerHTML.match(/class="card library-card"/g)||[]).length,16);
  assert.ok(windowListeners.has('hashchange'));
 });

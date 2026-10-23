@@ -84,13 +84,13 @@ export function renderPriceSetup(state = {status:'unchecked',reasons:[]}) {
   const message = {
     unchecked:'Check whether a price feed is set up on the server.',
     loading:'Checking the price-feed setup…',
-    unavailable:'Price-feed setup could not be checked. Try again later.',
+    unavailable:'Price-feed setup could not be checked. Select Check data setup to try again.',
     setup_required:'Alpaca setup is incomplete. Price capture remains off.',
     configured_unverified:'Alpaca settings are present. The connection has not been tested, so price capture remains off.',
   }[status];
   const reasons = new Set(Array.isArray(state?.reasons) ? state.reasons : []);
   const items = [];
-  if (reasons.has('credentials_missing_or_invalid')) items.push('Your Alpaca credentials are missing or invalid. These are the API key and secret.');
+  if (reasons.has('credentials_missing_or_invalid')) items.push('Your Alpaca credentials are missing or invalid. These are the API key and secret (two access codes from Alpaca, the market-data provider).');
   if ([...reasons].some(reason => reason !== 'credentials_missing_or_invalid')) items.push('A current source-access and account-entitlement review is required. That review checks what your data plan allows.');
   return `<details class="card desk-panel desk-disclosure price-setup" data-state-key="prices:setup"><summary>Price-feed setup</summary><p data-price-setup-status="${status}">${message}</p>${items.length?`<ul>${items.map(item=>`<li>${item}</li>`).join('')}</ul>`:''}<p>Valuing journal trades needs more checked inputs. They are share identities, a trading calendar, the price basis and split and dividend records. Chart data cannot supply them.</p><div class="desk-actions"><button id="price-check-setup" class="desk-button desk-button-secondary" type="button" data-price-action="check-setup"${status==='loading'?' aria-disabled="true" aria-busy="true"':''}>${status==='loading'?'Checking setup…':'Check data setup'}</button> <a href="./help/market-data-setup.html" target="_blank" rel="noopener noreferrer">How to set up the price feed<span class="sr-only"> (opens in a new tab)</span> <span aria-hidden="true">↗</span></a></div></details>`;
 }

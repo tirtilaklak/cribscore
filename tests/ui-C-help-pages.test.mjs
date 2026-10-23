@@ -18,7 +18,9 @@ const setupDoc = parse(read('market-data-setup.html'));
 const styleOf = doc => { const styles = all(doc, node => node.tag === 'style'); assert.equal(styles.length, 1); return plain(styles[0]); };
 const cspOf = doc => all(doc, node => node.tag === 'meta' && node.attrs['http-equiv'] === 'Content-Security-Policy')[0]?.attrs.content || '';
 const withoutPre = doc => { const strip = node => typeof node === 'string' ? node : { ...node, children: node.children.filter(child => typeof child === 'string' || child.tag !== 'pre').map(strip) }; return plain(strip(doc)); };
-const g1 = 'Private preview of unvalidated research. Nothing here is a forecast or a recommendation.';
+// The app's private-preview line, with "unvalidated" explained on its first use on each help page (charter glossary).
+const g1 = 'Private preview of unvalidated research (not proven to work; a test may have failed). Nothing here is a forecast or a recommendation.';
+const withoutGlosses = text => text.replace(/ \([^)]*\)/g, '');
 
 test('every rejection message the import guide names is one the parser can produce, and every reachable one is named', () => {
   const source = readFileSync(new URL('../dist/lib/prices.js', import.meta.url), 'utf8');
@@ -80,7 +82,7 @@ test('the setup guide is accessible static text with a matching CSP, a same-tab 
   assert.equal(plain(back[0]).replace('←', ''), 'Back to Prices');
   assert.ok(anchors.some(a => a.attrs.href === 'https://files.alpaca.markets/disclosures/library/TermsAndConditions.pdf'));
   const text = plain(setupDoc);
-  for (const pattern of [/Price capture is currently off\./, /This check reads configuration status only\. It does not contact Alpaca or download prices\./, /are not enough on their own\. They do not make data ready for journal valuation/, /Do not assume a free plan covers every operation\./, /Keep credentials out of source files and browser inputs\./, /still need to be verified before capture can be turned on\./, /at least 15 minutes old/, /Captured data starts out unreviewed\. It never turns into an eligible stock, a paper trade or a real trade on its own\./, /They are daily reference prices\. Nobody promises you could trade at them in the opening or closing auction\./, /Incomplete or inconsistent histories stay unavailable\./])
+  for (const pattern of [/Price capture is currently off\./, /This check reads configuration status only\. It does not contact Alpaca or download prices\./, /are not enough on their own\. They do not make data ready for journal valuation/, /Do not assume a free plan covers every operation\./, /Keep credentials out of source files and browser inputs\./, /still need to be verified before capture can be turned on\./, /at least 15 minutes old/, /Captured data starts out unreviewed\. On its own, it never makes a stock eligible \(passed every check needed before a stock can be ranked\)\. On its own, it never creates a paper trade \(a practice trade with no real money\) or a real trade\./, /They are daily reference prices\. Nobody promises you could trade at them in the opening or closing auction\./, /Incomplete or inconsistent histories stay unavailable\./])
     assert.match(text, pattern);
   const main = all(setupDoc, node => node.tag === 'main')[0].children.filter(child => typeof child !== 'string');
   const lead = main.findIndex(node => (node.attrs.class || '') === 'lead');
@@ -115,6 +117,28 @@ test('both guides share one light style text with the app tokens and carry the p
     assert.ok(header && all(doc, node => node.tag === 'main')[0], 'header and main');
     assert.equal(all(header, node => (node.attrs.class || '') === 'top-status').map(plain)[0], g1);
   }
+  // Without its gloss, the help line is the app's own top-bar sentence.
+  const app = parse(readFileSync(new URL('../dist/index.html', import.meta.url), 'utf8'));
+  assert.equal(withoutGlosses(g1), withoutGlosses(plain(all(app, node => node.attrs.id === 'workspace-date')[0])));
+});
+
+test('the import example stays one focusable, named region with its byte-identical text', () => {
+  const pres = all(importDoc, node => node.tag === 'pre');
+  assert.equal(pres.length, 1);
+  assert.deepEqual([pres[0].attrs.tabindex, pres[0].attrs.role, pres[0].attrs['aria-label']], ['0', 'region', 'Synthetic import example JSON']);
+  assert.equal(createHash('sha256').update(plain(pres[0])).digest('hex'), 'ad24aec4c6a5de3b408aa2661fe0e9f723f3fcd5fb46463d6591efe4ec647856');
+});
+
+test('no help sentence runs over 25 words', () => {
+  // Each block element ends a line, so a heading, a term and its definition never merge into one sentence.
+  const blocks = new Set(['p', 'li', 'dt', 'dd', 'h1', 'h2', 'h3', 'th', 'td', 'caption', 'summary', 'tr']);
+  const lines = node => typeof node === 'string' ? node.replace(/\s+/g, ' ') : node.tag === 'pre' ? '\n' : node.children.map(lines).join('') + (blocks.has(node.tag) ? '\n' : '');
+  for (const doc of [importDoc, setupDoc]) {
+    const sentences = lines(all(doc, node => node.tag === 'main')[0]).split('\n')
+      .flatMap(line => line.trim().split(/(?<=[.?!][”"]?)\s+(?=[A-Z“"(0-9])/)).map(sentence => sentence.trim()).filter(Boolean);
+    assert.ok(sentences.length > 40, 'the whole page was read');
+    for (const sentence of sentences) assert.ok(sentence.split(' ').length <= 25, `long sentence: ${sentence}`);
+  }
 });
 
 test('help copy keeps the owner voice rules outside the pinned example', () => {
@@ -139,4 +163,12 @@ test('help terms get a plain explanation where they first appear', () => {
   firstUse(mainText(setupDoc), /API key and secret/, 'API key and secret (the two access codes a data provider gives an account)');
   firstUse(mainText(setupDoc), /raw price and volume basis/, 'raw price and volume basis (whether values were adjusted for splits or dividends)');
   firstUse(mainText(setupDoc), /\bJSON\b/, 'JSON (a plain-text format for structured data)');
+  firstUse(mainText(setupDoc), /\bAlpaca\b/, 'Alpaca (a company that provides stock market data)');
+  firstUse(mainText(setupDoc), /\beligible\b/, 'eligible (passed every check needed before a stock can be ranked)');
+  firstUse(mainText(setupDoc), /\bpaper trade/, 'paper trade (a practice trade with no real money)');
+  firstUse(mainText(importDoc), /\bpaper trade/, 'paper trade (a practice trade with no real money)');
+  firstUse(mainText(importDoc), /\bAlpaca\b/, 'Alpaca bars (Alpaca is a company that provides stock market data)');
+  firstUse(mainText(importDoc), /\bcorporate action/, 'corporate action (an event like a split or dividend that changes shares)');
+  // "unvalidated" first appears in each page's header line, where the glossary explanation follows it.
+  for (const doc of [importDoc, setupDoc]) firstUse(withoutPre(doc), /\bunvalidated\b/, 'unvalidated research (not proven to work; a test may have failed)');
 });

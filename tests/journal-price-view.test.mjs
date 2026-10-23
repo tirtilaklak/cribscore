@@ -75,7 +75,7 @@ test('missing prices draw no series and hosted chart remains a separate user act
 
 test('imported series preserves gaps, exact table data and explicit unreviewed capture status',()=>{
   const model=price(),html=renderPriceView(model),dom=parse(html);
-  assert.match(html,/Imported daily prices/);assert.match(html,/not been verified for journal valuation/);assert.match(html,/Source capture is stale/);assert.match(html,/Session-calendar coverage unknown/);assert.match(html,/Declared delay<\/dt><dd>Not specified/);
+  assert.match(html,/Imported daily prices/);assert.match(html,/not been verified for journal valuation/);assert.match(html,/Source capture is stale/);assert.match(html,/Trading-day coverage unknown/);assert.match(html,/Declared delay<\/dt><dd>Not specified/);
   const svg=all(dom,node=>node.tag==='svg')[0];assert.equal(svg.attrs.role,'img');assert.ok(svg.attrs['aria-labelledby']);
   assert.equal(all(svg,node=>node.tag==='polyline').length,0,'known gap never joined');
   assert.equal(all(svg,node=>node.tag==='path'&&node.attrs.class==='price-line').length,2);

@@ -59,6 +59,18 @@ test('the shell drops repeated chrome and keeps the private preview line at the 
   const line=document.querySelector('#workspace-date');
   assert.equal(line.textContent,G1);assert.equal(line.tagName,'P');
   assert.ok(line.closest('header.topbar'),'the line lives in the page banner');
+  // Markup can hide G1 as well as CSS can: no hidden, aria-hidden or visually-hidden class on the line,
+  // the footer limit or anything around them.
+  const limit=document.querySelectorAll('.main-footer span').find(span=>span.textContent==='Unvalidated research');
+  assert.ok(limit,'the footer limit is its own span');
+  for(const start of [line,limit])for(let node=start;node&&node.tagName!=='BODY';node=node.parentElement){
+    assert.equal(node.getAttribute('hidden'),null,`G1 is never hidden by markup (${node.tagName})`);
+    assert.equal(node.getAttribute('aria-hidden'),null,`G1 stays in the accessibility tree (${node.tagName})`);
+    assert.doesNotMatch(node.getAttribute('class')||'',/\bsr-only\b|visually-hidden/,`G1 is not visually hidden (${node.tagName})`);
+  }
+  const live=document.querySelector('#workspace-status');
+  assert.ok(live,'the live region ships in index.html');
+  assert.equal(live.getAttribute('role'),'status');assert.equal(live.getAttribute('aria-live'),'polite');
   const crumb=document.querySelector('#breadcrumb-current');
   assert.ok(crumb,'the live label source stays in the DOM');
   assert.equal(crumb.closest('.breadcrumb').getAttribute('hidden'),'','the old breadcrumb stays hidden');
@@ -166,7 +178,8 @@ test('no later rule hides the preview line, the footer limit, the dek or the des
   assert.equal(declaration(desk.at(-1),'position'),'static','the stock desk h1 shows on phones');
   const appended=cssRules(css.slice(css.indexOf('/* == area:A shell == */')));
   const guarded=/topbar|workspace-date|main-footer/;
-  for(const rule of appended)if(rule.selectors.some(selector=>guarded.test(selector)))assert.doesNotMatch(rule.body,/display\s*:\s*none|visibility\s*:\s*hidden|clip(?:-path)?\s*:|opacity\s*:\s*0(?:[;.]|$)|width\s*:\s*1px/,`appended rule hides G1: ${rule.selectors.join(',')}`);
+  const hides=/display\s*:\s*none|visibility\s*:\s*hidden|clip(?:-path)?\s*:|opacity\s*:\s*0(?:[;.]|$)|width\s*:\s*1px|(?:^|;)\s*(?:max-)?height\s*:\s*0(?:px)?\s*(?:[;!]|$)|font-size\s*:\s*0(?:px|r?em)?\s*(?:[;!]|$)|text-indent\s*:\s*-|color\s*:\s*transparent/;
+  for(const rule of appended)if(rule.selectors.some(selector=>guarded.test(selector)))assert.doesNotMatch(rule.body,hides,`appended rule hides G1: ${rule.selectors.join(',')}`);
   // Blocks merged after area A never style the G1 shell at all.
   assert.ok(css.includes('/* == end area:A == */'),'block A ends with its marker');
   for(const rule of cssRules(css.slice(css.indexOf('/* == end area:A == */'))))assert.ok(!rule.selectors.some(s=>/topbar|workspace-date|main-footer|footer-logo/.test(s)),`a later block styles the G1 shell: ${rule.selectors.join(',')}`);
@@ -186,6 +199,59 @@ test('the outcome line never sits over a focused control',()=>{
   const reach=parseFloat(declaration(sticky.at(-1),'top'))+parseFloat(declaration(capped.at(-1),'max-height'));
   const padding=rules.filter(rule=>rule.selectors.includes('html:has(.utility-desk>.desk-feedback)')&&wide(rule)&&declaration(rule,'scroll-padding-top'));
   assert.ok(padding.length&&parseFloat(declaration(padding.at(-1),'scroll-padding-top'))>reach,'keyboard scrolling stops below the sticky outcome line');
+  // A capped line that scrolls is a keyboard stop (C and D render it with tabindex="0"); it shows the project ring.
+  const ring=rules.filter(rule=>rule.selectors.includes('.desk-feedback:focus-visible')&&!rule.at.length&&declaration(rule,'outline'));
+  assert.ok(ring.length,'the outcome line shows a ring when the keyboard reaches it');
+  assert.equal(declaration(ring.at(-1),'outline'),'3px solid var(--focus)');
+  assert.equal(declaration(ring.at(-1),'outline-offset'),'4px','the same ring as the other desk controls');
+});
+
+test('in forced colours the current page and the pressed window keep their state and a system-colour ring',()=>{
+  const forced=cssRules(css).filter(rule=>rule.at.some(at=>/forced-colors:\s*active/.test(at)));
+  const system=/^(?:CanvasText|Canvas|HighlightText|Highlight|ButtonText|ButtonFace|LinkText|Mark|MarkText|AccentColor|AccentColorText)$/;
+  for(const selector of ['.sidebar .nav-item[aria-current="page"]','.segmented button[aria-pressed="true"]']){
+    const state=forced.filter(rule=>rule.selectors.includes(selector)&&/forced-color-adjust\s*:\s*none/.test(rule.body));
+    assert.ok(state.length&&/Highlight/.test(declaration(state.at(-1),'background')),`${selector} keeps its state colour`);
+  }
+  // A control that opts out of forced colours also opts out of the forced ring colour, so it must set its own.
+  const optOut=forced.filter(rule=>/forced-color-adjust\s*:\s*none/.test(rule.body)).flatMap(rule=>rule.selectors);
+  for(const selector of optOut){
+    const rings=forced.filter(rule=>rule.selectors.includes(`${selector}:focus-visible`)&&declaration(rule,'outline-color'));
+    assert.ok(rings.length,`${selector} sets its own ring colour`);
+    for(const rule of rings)assert.match(declaration(rule,'outline-color'),system,`${selector} ring uses a system colour`);
+  }
+});
+
+test('on wide screens hiding the window toggle moves nothing in the toolbar',()=>{
+  const wide=cssRules(css).filter(rule=>rule.at.some(at=>/min-width:\s*961px/.test(at)));
+  const keep=wide.filter(rule=>rule.selectors.includes('.research-toolbar>.search-box')&&declaration(rule,'margin-left'));
+  assert.equal(declaration(keep.at(-1),'margin-left'),'auto','the search box keeps the right edge with or without the toggle');
+  const height=wide.filter(rule=>rule.selectors.includes('.research-toolbar')&&declaration(rule,'min-height'));
+  assert.ok(height.length&&parseFloat(declaration(height.at(-1),'min-height'))>=52,'the toolbar keeps the height of the window toggle');
+  // From 865px the toggle and the search share a row while the toggle's label sits above its buttons.
+  const tablet=cssRules(css).filter(rule=>rule.at.some(at=>/min-width:\s*865px/.test(at))&&rule.at.some(at=>/max-width:\s*960px/.test(at)));
+  assert.equal(declaration(tablet.filter(rule=>rule.selectors.includes('.research-toolbar>.search-box')).at(-1),'margin-left'),'auto');
+  assert.ok(parseFloat(declaration(tablet.filter(rule=>rule.selectors.includes('.research-toolbar')&&declaration(rule,'min-height')).at(-1),'min-height'))>=82,'the toolbar keeps the height of the labelled toggle');
+});
+
+test('an open dialog holds the page behind it still',()=>{
+  const rules=cssRules(css);
+  const locked=rules.filter(rule=>rule.selectors.includes('html:has(#detail-dialog[open])')&&!rule.at.length&&declaration(rule,'overflow'));
+  assert.equal(declaration(locked.at(-1),'overflow'),'hidden');
+  assert.equal(declaration(locked.at(-1),'scrollbar-gutter'),'stable','the page keeps its width while the scroll bar is hidden');
+  const contained=rules.filter(rule=>rule.selectors.includes('#detail-dialog')&&declaration(rule,'overscroll-behavior'));
+  assert.equal(declaration(contained.at(-1),'overscroll-behavior'),'contain','scrolling past the end of a note stays in the dialog');
+});
+
+test('the phone shell leaves the first screen to the page and keeps a focused brand in view',()=>{
+  const rules=cssRules(css);
+  const phone=rule=>rule.at.some(at=>/max-width:\s*680px/.test(at))&&!rule.at.some(at=>/min-width|max-height|forced-colors/.test(at));
+  const last=(selector,name)=>rules.filter(rule=>rule.selectors.includes(selector)&&phone(rule)&&declaration(rule,name)).at(-1);
+  assert.equal(declaration(last('.page-heading .eyebrow','display'),'display'),'none','the active menu cell names the page, so the eyebrow goes');
+  assert.equal(declaration(last('.topbar-status','font-size'),'font-size'),'var(--t-meta)','the preview line keeps the 12px floor');
+  assert.equal(declaration(last('.sidebar:has(.brand:focus-visible)','top'),'top'),'0','a focused brand pulls the band down into view');
+  const row=rules.filter(rule=>rule.selectors.includes('.research-toolbar')&&rule.at.some(at=>/min-width:\s*540px/.test(at))&&declaration(rule,'flex-direction'));
+  assert.equal(declaration(row.at(-1),'flex-direction'),'row','wider phones put the window toggle and the search on one row');
 });
 
 const statusCode=app.slice(app.indexOf('function updateLoadStatus()'),app.indexOf('async function startLoad('));
@@ -202,12 +268,13 @@ test('the desk workspace panels mark their state and offer Retry only after a fa
   for(const view of ['prices','journal']){
     const loading=createDocument(`<body>${toolsView(view,'loading')}</body>`),failed=createDocument(`<body>${toolsView(view,'unavailable')}</body>`);
     assert.equal(loading.querySelector('[data-desk-state]').getAttribute('data-desk-state'),'loading');
-    assert.equal(loading.querySelector('h2').textContent,view==='journal'?'Loading your journal':'Loading prices');
+    assert.equal(loading.querySelector('h2').textContent,view==='journal'?'Loading the journal':'Loading prices');
     assert.equal(loading.querySelectorAll('button').length,0,'nothing to retry while loading');
     assert.equal(failed.querySelector('[data-desk-state]').getAttribute('data-desk-state'),'unavailable');
     assert.equal(failed.querySelector('h2').textContent,'Workspace unavailable');
     assert.match(failed.querySelector('p').textContent,/Your saved records are unchanged\./);
     assert.equal(failed.querySelectorAll('[data-retry-tools]').length,1);
+    for(const panel of [loading,failed]){const heading=panel.querySelector('h2');assert.equal(heading.getAttribute('tabindex'),'-1');assert.notEqual(heading.getAttribute('data-focus-fallback'),null,'the heading takes focus when the panel replaces a focused control');}
   }
 });
 
@@ -218,7 +285,7 @@ test('the live region reads the desk panel state before desk feedback and never 
     assert.equal(failed.announced,'Workspace unavailable. Prices and the journal did not load. Your saved records are unchanged. Press Retry, or reload the page.');
     assert.doesNotMatch(failed.announced,/ready/i);assert.equal(failed.busy,'false');
     const loading=liveStatus({view,label,content:toolsView(view,'loading')});
-    assert.equal(loading.announced,view==='journal'?'Loading your journal.':'Loading prices.');
+    assert.equal(loading.announced,view==='journal'?'Loading the journal.':'Loading prices.');
     assert.doesNotMatch(loading.announced,/ready/i);assert.equal(loading.busy,'true');
   }
   const panel=liveStatus({view:'journal',label:'Journal',content:'<section class="card desk-panel desk-empty" data-desk-state="unavailable"><h2>The journal did not load</h2><p>No records are shown, and nothing was changed.</p><button type="button">Try again</button></section>'});
@@ -231,11 +298,12 @@ test('a ready announcement counts the results while a search is active',()=>{
   assert.equal(liveStatus({view:'library',label:'Library',content:cards(16)}).announced,'Library ready.');
   assert.equal(liveStatus({view:'library',label:'Library',query:'2013',content:cards(1)}).announced,'Library ready for “2013”. 1 result shown.');
   assert.equal(liveStatus({view:'research',label:'Stock desk',query:'zzzz',content:'<div class="search-empty"></div>'}).announced,'Stock desk ready for “zzzz”. 0 results shown.');
+  assert.equal(liveStatus({view:'research',label:'Stock desk',query:'TXN',content:'<article class="card stock-card"></article><article class="event-item"></article>'}).announced,'Stock desk ready for “TXN”. 2 results shown.','an earnings-call row on screen is a result too');
   assert.equal(liveStatus({view:'evidence',label:'Sources',query:'sec',content:'<article class="card evidence-card source-note"></article><article class="card registry-card"></article><article class="card registry-card"></article>'}).announced,'Sources ready for “sec”. 2 results shown.');
   assert.equal(liveStatus({view:'library',label:'Library',topic:'Policy',content:cards(3)}).announced,'Library ready. 3 results shown.');
 });
 
-for(const scenario of ['menu-links-route-plain-clicks-only','each-view-keeps-its-own-search','controls-follow-the-view','retry-recovery-focuses-the-view-fallback'])test(`shell scenario: ${scenario}`,()=>{
+for(const scenario of ['menu-links-route-plain-clicks-only','each-view-keeps-its-own-search','controls-follow-the-view','retry-recovery-focuses-the-view-fallback','retry-that-fails-again-keeps-the-failure-in-view','unknown-hash-keeps-the-view-and-its-address'])test(`shell scenario: ${scenario}`,()=>{
   const result=spawnSync(process.execPath,['--experimental-vm-modules',fileURLToPath(new URL('./helpers/ui-A-scenarios.mjs',import.meta.url)),scenario],{encoding:'utf8',env:process.env,timeout:15000});
   assert.equal(result.status,0,`${result.stdout}\n${result.stderr}`);
   assert.equal(JSON.parse(result.stdout.trim()).passed,true);

@@ -18,7 +18,7 @@ test('current precise windows and no-gap policy stay unchanged; session count ne
     assert.equal((html.match(/class="card stock-card"/g)||[]).length,6);
     assert.equal((html.match(/class="event-item"/g)||[]).length,5);
     assert.match(html,/0 eligible/);
-    assert.match(html,/-day window<\/span>/);
+    assert.match(html,horizon==='next_day'?/>1 trading day<\/span>/:/>5 trading days<\/span>/);
     snapshot.window.sessions=Array.from({length:horizon==='next_day'?1:5},(_,index)=>({open:`2026-10-${19+index}T13:30:00Z`,close:`2026-10-${19+index}T20:00:00Z`}));
     assert.ok(render(snapshot).includes(horizon==='next_day'?'>1 trading day<':'>5 trading days<'));
   }
@@ -35,7 +35,7 @@ test('shifted window labels and event positions follow selected endpoints withou
   assert.match(html,/<small>2026-10-30 20:00:30 UTC<\/small>/);
   assert.match(html,/October 23 close is a historical reference/);
   assert.match(html,/Price reference session Oct 23/);
-  assert.match(html,/Oct 23 completed-session OHLCV/);
+  assert.match(html,/Oct 23 daily prices \(OHLCV\)/);
   assert.match(html,/before the window/);
   assert.doesNotMatch(html,/All of these calls fall inside this window\./);
   assert.doesNotMatch(html,/<small>2026-10-19|<small>2026-10-23/);
@@ -50,7 +50,7 @@ test('unavailable timing has its own alert and malformed source dates never norm
   snapshot.source_checks[0].observed_at='2026-02-30T01:00:00Z';
   const html=render(snapshot);
   assert.match(html,/The window dates \(the trading days this research covers\) could not be read\./);
-  assert.doesNotMatch(html,/This snapshot \(a dated review that is not updated\) is archived/);
+  assert.doesNotMatch(html,/\bis archived\b|Archived snapshot/);
   assert.match(html,/Window dates unavailable/);
   assert.doesNotMatch(html,/<time datetime="2026-02-30/);
   assert.match(html,/Source timing needs review<br>Original observation: Unavailable/);

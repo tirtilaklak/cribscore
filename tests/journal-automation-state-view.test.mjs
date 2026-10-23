@@ -13,7 +13,7 @@ const clock='2026-10-17T17:40:12.123Z';
 
 test('absent automation status preserves the current unconfigured default and invents no check clock',()=>{
   const html=renderJournalView(model());
-  assert.match(html,/Automatic paper tracking needs a reviewed research source and a reviewed price feed\. Neither is connected yet\./);
+  assert.match(html,/Automatic paper trades \(practice trades with no real money\) need a reviewed research source and a reviewed price feed\. Neither is connected yet\./);
   assert.doesNotMatch(html,/data-publisher-state|Last checked:|Research source checked/);
   assert.equal(html,renderJournalView(model(),{automation:null}));
   assert.doesNotMatch(html,/class="journal-account|data-journal-entry/);

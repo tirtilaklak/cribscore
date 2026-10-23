@@ -41,7 +41,7 @@ test('canonical serialized bytes render only after the trusted reader is explici
   assert.equal(articles.length,3);assert.match(content(dom),/Research rank 1 · tied/);assert.match(content(dom),/Research rank 3/);
   assert.match(content(dom),/Research evidence score 75\/100 · Unvalidated/);
   assert.match(content(dom),/Unvalidated research priorities; not a return forecast\./);
-  assert.doesNotMatch(content(dom),/Forecast unavailable|No eligible|return estimate|gain probability|Price:/);
+  assert.doesNotMatch(content(dom),/Forecast unavailable|No eligible|return estimate|gain probability|Chance of gain|Expected return|Price:/);
   for(const article of articles){
     assert.match(content(article),/Entry · open:/);assert.match(content(article),/Exit · close:/);assert.match(content(article),/Downside:/);
     assert.match(content(article),/Synthetic earnings webcast/);assert.equal(all(article,'time').length,3);

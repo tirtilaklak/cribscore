@@ -30,7 +30,7 @@ const scenarios={
   async 'each-view-keeps-its-own-search'(){
     const app=await boot();
     app.input('TXN');assert.equal(app.queryAll('.stock-card').length,1);
-    assert.equal(app.live(),'Stock desk ready for “TXN”. 1 result shown.');
+    assert.equal(app.live(),'Stock desk ready for “TXN”. 2 results shown.','the count covers the company case and its earnings call');
     app.click(app.query('[data-view="library"]'));
     assert.equal(app.query('#research-search').value,'','the library opens with its own empty search');
     assert.equal(app.queryAll('.library-card').length,16,'a stock desk query never filters the library');
@@ -48,6 +48,7 @@ const scenarios={
   },
   async 'controls-follow-the-view'(){
     const app=await boot();
+    assert.doesNotMatch(app.html(),/Ranked upside|stock-shortlist|Top pick|aria-label="[^"]*(?:rank|pick|upside)/i,'the desk and its wrapper add no ranking language');
     const expected={research:[false,false,false,'Search stocks and events'],prices:[true,true,true,null],journal:[true,true,true,null],evidence:[false,true,false,'Search sources'],library:[false,true,false,'Search notes'],methodology:[true,true,true,null]};
     for(const [view,[toolbar,horizon,search,label]] of Object.entries(expected)){
       app.click(app.query(`[data-view="${view}"]`));
@@ -63,20 +64,50 @@ const scenarios={
     }
   },
   async 'retry-recovery-focuses-the-view-fallback'(){
-    // Marks the Prices heading as the view's fallback target unless the module already does.
-    const mark=(url,code)=>new URL(url).pathname.endsWith('/lib/price-view.js')&&!code.includes('data-focus-fallback')?code.replace('<h2 id="hosted-price-heading">','<h2 id="hosted-price-heading" tabindex="-1" data-focus-fallback>'):code;
-    const app=await boot({failImport:url=>url.endsWith('/lib/desk-tools.js'),moduleTransform:mark});
+    const app=await boot({failImport:url=>url.endsWith('/lib/desk-tools.js')});
     app.click(app.query('[data-view="prices"]'));
     assert.ok(app.query('[data-desk-state="unavailable"]'),'the failure panel marks its state');
     assert.equal(app.live(),'Workspace unavailable. Prices and the journal did not load. Your saved records are unchanged. Press Retry, or reload the page.');
     assert.doesNotMatch(app.live(),/ready/i);
     assert.equal(app.query('#view-content').getAttribute('aria-busy'),'false');
-    const retry=app.query('[data-retry-tools]');retry.focus();app.click(retry);await app.flush();
+    const retry=app.query('[data-retry-tools]');retry.focus();app.click(retry);
+    // Before the retried module arrives, the page already says it is loading.
+    assert.ok(app.query('[data-desk-state="loading"]'),'Retry replaces the failure panel with the loading panel at once');
+    assert.equal(app.query('[data-desk-state="unavailable"]'),null);
+    assert.equal(app.query('#view-content').getAttribute('aria-busy'),'true');
+    assert.equal(app.live(),'Loading prices.');
+    assert.equal(app.document.activeElement.textContent,'Loading prices','focus moves to the loading heading');
+    await app.flush();
     assert.equal(app.query('[data-desk-state]'),null,'the recovered view replaces the failure panel');
     const target=app.query('[data-focus-fallback]');
     assert.ok(target,'the recovered Prices view offers a focus fallback');
     assert.equal(app.document.activeElement,target,'focus lands on the view fallback target');
     assert.doesNotMatch(app.live(),/unavailable/i);
+  },
+  async 'retry-that-fails-again-keeps-the-failure-in-view'(){
+    const app=await boot({failImport:url=>url.includes('/lib/desk-tools.js')});
+    app.click(app.query('[data-view="journal"]'));
+    const retry=app.query('[data-retry-tools]');retry.focus();app.click(retry);
+    assert.ok(app.query('[data-desk-state="loading"]'));assert.equal(app.live(),'Loading the journal.');
+    await app.flush();
+    assert.ok(app.query('[data-desk-state="unavailable"]'),'a second failure shows the failure panel again');
+    assert.equal(app.query('#view-content').getAttribute('aria-busy'),'false');
+    assert.equal(app.live(),'Workspace unavailable. Prices and the journal did not load. Your saved records are unchanged. Press Retry, or reload the page.');
+    assert.equal(app.document.activeElement.textContent,'Workspace unavailable','focus stays in the panel, on its heading');
+    assert.ok(app.query('[data-retry-tools]'),'Retry is offered again');
+  },
+  async 'unknown-hash-keeps-the-view-and-its-address'(){
+    const app=await boot();
+    app.click(app.query('[data-view="library"]'));
+    app.route('https://offline.invalid/#nonsense','hashchange');
+    assert.equal(app.query('#page-title').textContent,'The Nobel library.','an unknown hash keeps the current view');
+    assert.equal(app.location.hash,'#library','the address shows the current view again');
+    app.route('https://offline.invalid/?horizon=next_week#nonsense','hashchange');
+    assert.equal(app.location.hash,'#library');assert.equal(app.location.search,'?horizon=next_week','the window choice stays in the address');
+    assert.equal(app.query('[data-horizon="next_week"]').getAttribute('aria-pressed'),'true');
+    app.route('https://offline.invalid/?horizon=next_week#methodology','hashchange');
+    assert.equal(app.query('#page-title').textContent,'The method.','a known hash still routes');
+    assert.equal(app.location.hash,'#methodology');
   }
 };
 const name=process.argv[2];assert.ok(Object.hasOwn(scenarios,name),`known scenario ${name}`);await scenarios[name]();console.log(JSON.stringify({scenario:name,passed:true}));

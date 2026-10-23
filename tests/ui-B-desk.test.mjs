@@ -33,18 +33,18 @@ test('default desk never shows ranking, pick, target or forecast-trading words, 
   }
 });
 
-test('the lede card tells the window story first: status tag, date, state sentence, eligibility, review date, then times',()=>{
+test('the lede card leads with the status tag, the date, the eligibility line and the review date, then the state sentence before the times',()=>{
   for(const {horizon,state} of cases){
     const snapshot=snap(horizon,state),dom=parse(renderStockView(snapshot));
     const cards=byClass(dom,'window-card');assert.equal(cards.length,1);
     const card=cards[0];assert.equal(card.attrs['aria-label'],'Research window');
     const order=card.children.filter(child=>typeof child!=='string').map(child=>child.tag==='h2'?'h2':(child.attrs.class||'').split(' ')[0]);
-    const expected=['window-title','h2',state==='upcoming'?'window-note':'window-alert','window-eligibility','window-reviewed','window-times','eligibility-details','window-details'];
+    const expected=['window-title','h2','window-eligibility','window-reviewed',state==='upcoming'?'window-note':'window-alert','window-times','eligibility-details','window-details'];
     assert.deepEqual(order,expected,`${horizon}/${state}`);
     assert.equal(text(card.children.find(child=>child.tag==='h2')),horizon==='next_day'?'October 19, 2026':'October 19–23, 2026');
     assert.equal(text(byClass(card,'window-eligibility')[0]),'No stock is eligible. Expected return unavailable.');
     assert.match(text(byClass(card,'window-reviewed')[0]),/^Research checked Oct 16, 2026, 22:40 EDT\.$/);
-    assert.equal(text(byClass(card,'eyebrow')[0]),horizon==='next_day'?'1-day window':'5-day window');
+    assert.equal(text(byClass(card,'eyebrow')[0]),horizon==='next_day'?'1 trading day':'5 trading days');
     const times=byClass(card,'window-times')[0];assert.deepEqual(all(times,n=>n.tag==='span'&&!n.attrs['aria-hidden']).map(text),['Starts at the open','Ends at the close']);
     assert.equal(all(card,n=>n.tag==='details'&&n.attrs.class==='window-details').length,1,'window-details class stays exact');
     assert.equal(byClass(card,'window-alert').length,state==='upcoming'?0:1,'amber alert only for a window that opened or closed');
@@ -54,7 +54,7 @@ test('the lede card tells the window story first: status tag, date, state senten
 test('each state sentence is plain, dated and points to a new snapshot; unavailable dates get their own sentence',()=>{
   const sentence=html=>{const dom=parse(html);return text(byClass(dom,'window-alert')[0]||byClass(dom,'window-note')[0]);};
   assert.equal(sentence(renderStockView(snap('next_day','upcoming'))),'This window (the trading days this research covers) opens Oct 19, 2026, 09:30 EDT.');
-  assert.equal(sentence(renderStockView(snap('next_week','in_progress'))),'This window (the trading days this research covers) opened Oct 19, 2026, 09:30 EDT. The cases below were written before it opened. They give no new starting point. A new window needs a new snapshot (a new review with its own date).');
+  assert.equal(sentence(renderStockView(snap('next_week','in_progress'))),'This window (the trading days this research covers) opened Oct 19, 2026, 09:30 EDT. The cases below were written before it opened. The time to use that opening price has passed. A new window needs a new snapshot (a new review with its own date).');
   assert.equal(sentence(renderStockView(snap('next_week','archived'))),'This snapshot (a dated review that is not updated) is archived. Its window (the trading days it covered) closed Oct 23, 2026, 16:00 EDT. Nothing on this page is current. A new window needs a new snapshot.');
   const broken=snap('next_day','upcoming');broken.status='unavailable';broken.window.entry_at='invalid';
   const html=renderStockView(broken);
@@ -180,7 +180,7 @@ test('earnings heading and intro follow the status and the event positions, with
   for(const horizon of ['next_day','next_week']){
     assert.equal(heading(renderStockView(snap(horizon,'upcoming'))),'Earnings calls ahead');
     for(const state of ['in_progress','archived'])assert.equal(heading(renderStockView(snap(horizon,state))),'Earnings calls in this snapshot');
-    const tail=' These dates were listed in the review of Oct 16, 2026, 22:40 EDT. They are not updated. An earnings call can move a stock up or down.';
+    const tail=' These dates come from this snapshot. They are not updated. An earnings call can move a stock up or down.';
     assert.equal(intro(renderStockView(snap(horizon,'archived'))),(horizon==='next_day'?'All of these calls fall after this window.':'All of these calls fall inside this window.')+tail);
     assert.equal(intro(renderStockView(snap(horizon,'archived'),'no-such-company-or-phrase')),'No matching event dates.');
   }
@@ -194,20 +194,25 @@ test('research context carries the Nobel limit beside the Nobel mention and link
   const dom=parse(renderStockView(snap('next_day','archived'))),context=byClass(dom,'research-context')[0];
   assert.equal(text(all(context,node=>node.tag==='summary')[0]),'Method and economic context');
   const prose=text(all(context,node=>node.tag==='p')[0]);
-  assert.ok(prose.indexOf('Ideas from Nobel research')<prose.indexOf('These ideas are background only. No prize proves a one-day or five-day trading edge.'));
+  assert.ok(prose.indexOf('Ideas from Nobel research')<prose.indexOf('These ideas are background only. No prize proves an investment edge (a lasting advantage over the market) in either window.'));
   assert.match(prose,/The timing and funding rules are our own design choices\. So is the rule that every case has a case against\./);
   const inApp=all(context,node=>node.attrs?.['data-go']==='methodology');assert.equal(inApp.length,1);
   assert.doesNotMatch(text(inApp[0]),/↗/,'no new-tab glyph on an in-app move');
   for(const link of all(context,node=>node.tag==='a'))assert.match(text(link),/↗ \(opens in a new tab\)$/,'external sources keep the new-tab glyph and note');
 });
 
-test('window labels follow explicit sessions, with plain fallbacks',()=>{
+test('window labels name the window as the toggle does; only explicit sessions give another count',()=>{
   const snapshot=snap('next_week','upcoming');
-  assert.match(renderStockView(snapshot),/<span class="eyebrow">5-day window<\/span>/);
+  assert.match(renderStockView(snapshot),/<span class="eyebrow">5 trading days<\/span>/);
   snapshot.window.sessions=Array.from({length:5},(_,i)=>({open:`2026-10-${19+i}T13:30:00Z`,close:`2026-10-${19+i}T20:00:00Z`}));
   assert.match(renderStockView(snapshot),/<span class="eyebrow">5 trading days<\/span>/);
   const day=snap('next_day','upcoming');day.window.sessions=[{open:'2026-10-19T13:30:00Z',close:'2026-10-19T20:00:00Z'}];
   assert.match(renderStockView(day),/<span class="eyebrow">1 trading day<\/span>/);
+  // A shorter window: its dates alone never produce a count; checked sessions do.
+  const short=snap('next_week','upcoming');short.window.exit_at='2026-10-21T20:00:00Z';
+  assert.match(renderStockView(short),/<span class="eyebrow">5 trading days<\/span>/);
+  short.window.sessions=Array.from({length:3},(_,i)=>({open:`2026-10-${19+i}T13:30:00Z`,close:`2026-10-${19+i}T20:00:00Z`}));
+  assert.match(renderStockView(short),/<span class="eyebrow">3 trading days<\/span>/);
 });
 
 test('approved slate mirrors the desk labels and keeps "Unvalidated" on every score line',async()=>{
@@ -247,7 +252,7 @@ test('style.css block B: appended once, no global token overrides, no text under
 
 // Review fixes (SP/reports/review-B.md S1-S4, N3, N5-N7).
 const eventIntro=html=>text(byClass(parse(html),'section-intro').find(node=>!text(node).startsWith('Forecast')));
-const eventTail=' These dates were listed in the review of Oct 16, 2026, 22:40 EDT. They are not updated. An earnings call can move a stock up or down.';
+const eventTail=' These dates come from this snapshot. They are not updated. An earnings call can move a stock up or down.';
 
 test('unknown call positions: unreadable window dates say the calls cannot be placed; a readable window asks the reader to compare dates',()=>{
   for(const field of ['entry_at','exit_at']){
@@ -323,12 +328,12 @@ test('style.css block B: the slate score line meets the 12 px floor and coverage
 });
 
 // Orchestrator rulings on the review NITs N1, N2, N4 and N9.
-test('JNJ guidance keeps every number, gloss, source and limit without a rounding claim; each sources line says some files were not saved',()=>{
+test('JNJ guidance keeps every number, gloss, source and limit, and says the $0.06 rise is rounded; each sources line says some files were not saved',()=>{
   for(const horizon of ['next_day','next_week']){
     const dom=parse(renderStockView(snap(horizon,'archived')));
     const jnj=byClass(dom,'stock-card').find(card=>text(byClass(card,'ticker')[0])==='JNJ');
     const guidance=all(jnj,node=>node.tag==='p'&&text(node).startsWith('Adjusted diluted EPS'));
-    assert.deepEqual(guidance.map(text),["Adjusted diluted EPS (earnings per share) for FY2026, as stated by the company. This is a non-GAAP figure (adjusted by the company, outside standard accounting rules). The stated midpoint moved from $11.04 to $11.10, up $0.06. Source: the company's Q3 2026 results release, linked under Sources read. Guidance is the company's own estimate. It does not estimate the stock's return."]);
+    assert.deepEqual(guidance.map(text),["Adjusted diluted EPS (earnings per share, profit divided by the number of shares) for FY2026, as stated by the company. This is a non-GAAP figure (adjusted by the company, outside standard accounting rules). The stated midpoint moved from $11.04 to $11.10, up $0.06. The company rounded its earlier midpoint. The range itself gives $11.035, so the $0.06 rise is rounded. Source: the company's Q3 2026 results release, linked under Sources read. Guidance is the company's own estimate. It does not estimate the stock's return."]);
     assert.doesNotMatch(text(dom),/rounds its midpoints/);
     for(const card of byClass(dom,'stock-card')){
       const line=all(card,node=>node.tag==='p'&&hasClass(node,'source-date')&&text(node).startsWith('Research checked'));
@@ -337,7 +342,7 @@ test('JNJ guidance keeps every number, gloss, source and limit without a roundin
   }
 });
 
-test('earnings intro drops the dated tail only when no call is listed, and the paper test is glossed at its first use',()=>{
+test('earnings intro drops the dated tail only when no call is listed, and the paper trade is glossed at its first use',()=>{
   for(const horizon of ['next_day','next_week']){
     for(const query of ['no-such-company-or-phrase','no-results']){
       const html=renderStockView(snap(horizon,'archived'),query);
@@ -346,10 +351,10 @@ test('earnings intro drops the dated tail only when no call is listed, and the p
     }
     for(const query of ['','PG'])assert.ok(eventIntro(renderStockView(snap(horizon,'archived'),query)).endsWith(eventTail),`${horizon} ${JSON.stringify(query)} keeps the tail while calls are listed`);
     const dom=parse(renderStockView(snap(horizon,'archived'))),details=byClass(dom,'window-details')[0];
-    const paper=all(details,node=>node.tag==='p'&&text(node).includes('paper test'));
+    const paper=all(details,node=>node.tag==='p'&&text(node).includes('paper trade'));
     assert.equal(paper.length,1);
-    assert.match(text(paper[0]),/^A paper test \(a practice trade with no real money\) would use this window's opening and closing prices\. A real order might fill at another price\./);
-    assert.equal((text(dom).match(/paper test/g)||[]).length,1,'the gloss sits at the only use');
+    assert.match(text(paper[0]),/^A paper trade \(a practice trade with no real money\) would use this window's opening and closing prices\. A real order might fill at another price\./);
+    assert.equal((text(dom).match(/paper trade/g)||[]).length,1,'the gloss sits at the only use');
     assert.equal(text(byClass(dom,'window-eligibility')[0]),'No stock is eligible. Expected return unavailable.','the lede stays unglossed');
   }
 });
