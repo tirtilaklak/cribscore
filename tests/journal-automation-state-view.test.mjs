@@ -13,14 +13,14 @@ const clock='2026-10-17T17:40:12.123Z';
 
 test('absent automation status preserves the current unconfigured default and invents no check clock',()=>{
   const html=renderJournalView(model());
-  assert.match(html,/Automatic paper tracking requires a connected, reviewed publisher and price feed; those inputs are currently unavailable\./);
-  assert.doesNotMatch(html,/data-publisher-state|Last checked:|Publication history checked/);
+  assert.match(html,/Automatic paper tracking needs a reviewed research source and a reviewed price feed\. Neither is connected yet\./);
+  assert.doesNotMatch(html,/data-publisher-state|Last checked:|Research source checked/);
   assert.equal(html,renderJournalView(model(),{automation:null}));
   assert.doesNotMatch(html,/class="journal-account|data-journal-entry/);
 });
 
 test('ready, empty and unavailable describe archive checks without implying tradable positions or no eligible records after failure',()=>{
-  const states={ready:'Publication history checked',empty:'No publication records in this check',unavailable:'Suggestion check unavailable',unconfigured:'Automatic tracking unavailable'};
+  const states={ready:'Research source checked',empty:'No new research in this check',unavailable:'Research source not checked',unconfigured:'Automatic paper tracking is off'};
   for(const [publisherState,label] of Object.entries(states)){
     const html=renderJournalView(model(),{automation:{publisherState,checkedAt:clock,pendingReasons:[]}}),dom=parse(html);
     const status=all(dom,node=>node.attrs['data-publisher-state']===publisherState)[0];
@@ -28,8 +28,8 @@ test('ready, empty and unavailable describe archive checks without implying trad
     assert.equal(all(status,node=>node.tag==='time')[0].attrs.datetime,clock);
     assert.equal(all(dom,node=>node.attrs['data-journal-entry']).length,0);
     assert.doesNotMatch(html,/USD 0|trade available|Tracking active|eligible selections: 0/i);
-    if(publisherState==='unavailable')assert.doesNotMatch(plain(status),/No publication|No published/);
-    if(publisherState==='ready')assert.doesNotMatch(html,/those inputs are currently unavailable/);
+    if(publisherState==='unavailable')assert.doesNotMatch(plain(status),/No new research|No published/);
+    if(publisherState==='ready')assert.doesNotMatch(html,/Neither is connected yet/);
   }
 });
 

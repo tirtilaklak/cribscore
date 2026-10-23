@@ -83,7 +83,7 @@ test('a second journal backup cannot replace an in-progress review and can be re
 test('sync requested during an automatic observation is visibly unavailable or performed after completion',{concurrency:false},async t=>{
   const h=await client(t),held=h.holdObservation(),getsBefore=h.requests.filter(item=>item.method==='GET').length;
   const observing=h.app.observe();await settle();assert.equal(h.app.status().busy,true);
-  const control=h.query('[data-journal-action="sync"]'),disabled=control.getAttribute('disabled')!==null;
+  const control=h.query('[data-journal-action="sync"]'),disabled=control.getAttribute('aria-disabled')==='true';
   if(!disabled)await h.action('sync');
   held.resolve(new Response(JSON.stringify({ok:false,error:'journal_revision_conflict'}),{status:409}));await observing;await settle();
   assert.ok(disabled||h.requests.filter(item=>item.method==='GET').length>getsBefore,'An enabled sync action must not silently disappear while the observation becomes stale');

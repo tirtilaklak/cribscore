@@ -29,8 +29,8 @@ test('correction controls preserve each supported fractional UTC instant without
 test('abstention copy identifies UTC observations without claiming unattended daily assessments',()=>{
   const entry={id:'observed',date:'2026-10-17',status:'abstain',symbol:null,horizonId:'next_day',reason:'No eligible published suggestion',context:{snapshot:{},observedAt:'2026-10-17T17:00:00Z'},paper:null,actual:{confirmed:false},revisions:[]};
   const html=renderJournalView(base([entry]));
-  assert.match(html,/An observed assessment with no eligible suggestion is recorded as an abstention\./);
-  assert.match(html,/<dt>Observation date \(UTC\)<\/dt><dd>2026-10-17<\/dd>/);
+  assert.match(html,/A day with no eligible stock is saved as an abstention \(a recorded decision not to trade\)\./);
+  assert.match(html,/<dt>Date checked \(UTC\)<\/dt><dd>2026-10-17<\/dd>/);
   assert.doesNotMatch(html,/A day without an eligible suggestion|<dt>Decision date<\/dt>/);
   assert.doesNotMatch(html,/data-journal-action="confirm-actual"/);
 });

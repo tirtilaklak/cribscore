@@ -83,7 +83,7 @@ test('all initial controls expose accessible names and horizon selection', async
   }
   const horizons = [...html.matchAll(/<button\b(?=[^>]*\bdata-horizon\s*=\s*["'](next_day|next_week)["'])([^>]*)>/gi)];
   assert.equal(horizons.length, 2, 'Expose next trading day and next five sessions as separate choices');
-  assert.match(html, /<[^>]+\brole\s*=\s*["']group["'][^>]*\baria-label\s*=\s*["']Research horizon["']/i, 'Give the horizon choices a named semantic group');
+  assert.match(html, /<[^>]+\brole\s*=\s*["']group["'][^>]*\baria-label\s*=\s*["']Research window["']/i, 'Give the horizon choices a named semantic group');
   assert.equal(horizons.filter((match) => /\baria-pressed\s*=\s*["']true["']/i.test(match[2])).length, 1, 'Expose one selected research horizon');
   for (const match of horizons) assert.match(match[2], /\baria-pressed\s*=\s*["'](?:true|false)["']/i);
 });

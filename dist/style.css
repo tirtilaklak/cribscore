@@ -359,3 +359,420 @@ dialog .detail-copy{color:#526267}
 /* Scope focus foregrounds to the light desk and dark navigation surfaces. */
 main :is(button,a,input,select,summary,[tabindex]):focus-visible,dialog :is(button,a,input,select,summary,[tabindex]):focus-visible,.utility-desk :is(select,[tabindex]):focus-visible{outline-color:#315d49}
 .sidebar :is(button,a,input,select,summary,[tabindex]):focus-visible{outline-color:#a8d9b2}
+/* == area:A shell == */
+/* Tokens. Area A declares every new token; areas B to E only use them. */
+:root{--line-strong:#7a8985;--warn-bg:#fbf3df;--warn-line:#d9c08a;--warn-text:#63501f;--nav-text:#b3c3ba;--nav-label:#a2b6a9;--nav-active:#2c4338;--nav-bar:#a4c7ac;--focus:#315d49;--focus-dark:#a8d9b2;--serif:Georgia,"Times New Roman",serif;--t-meta:12px;--t-small:13px;--t-body:14px;--t-lead:16px;--t-section:17px;--t-title:22px;--t-page:40px;--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-7:32px;--space-8:40px;--radius-control:6px;--radius-tag:4px}
+[hidden]{display:none!important}
+
+/* Type: one scale, weights up to 600, nothing informational under 12px. */
+body{font-size:var(--t-body);line-height:1.6}
+b,strong{font-weight:600}
+h1{font-family:var(--serif);font-size:var(--t-page);font-weight:400;line-height:1.1;letter-spacing:-.02em;margin:4px 0 8px;color:var(--ink)}
+h1 span{color:#4f8a63}
+.eyebrow{font-size:var(--t-meta);font-weight:600;letter-spacing:.06em;line-height:1.4;text-transform:uppercase;color:var(--muted)}
+.page-heading{margin-bottom:20px;align-items:flex-end}
+.page-heading .eyebrow{display:block}
+.page-heading p{display:block;margin:0;max-width:68ch;font-size:var(--t-lead);line-height:1.5;color:var(--muted)}
+.section-label-row h2,.desk-section-heading h2{font-size:var(--t-section);font-weight:600;letter-spacing:0}
+.section-label-row>span,.desk-section-heading>span{font-size:var(--t-small);color:var(--muted)}
+.section-intro,.view-intro{font-size:var(--t-body);line-height:1.6;color:var(--muted)}
+.view-intro{max-width:70ch}
+
+/* Chips and badges: one neutral box. Amber is kept for warnings. */
+.tag,.tag.neutral,.desk-badge,.section-count{color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:var(--radius-tag);font-size:var(--t-meta);font-weight:500;line-height:1.4;padding:2px 7px}
+.tag.caution{color:var(--warn-text);background:var(--warn-bg);border-color:var(--warn-line)}
+
+/* Text actions are green, and only things you can act on are green. */
+.text-button,.detail-button,.source-link{color:var(--green);font-size:var(--t-small);font-weight:600}
+.text-button:hover,.detail-button:hover,.source-link:hover{color:var(--green);text-decoration:underline;text-underline-offset:3px}
+
+/* Controls: borders reach 3:1 against white and paper. */
+.search-box,.quiet-button,.desk-button-secondary,.utility-desk :is(input,select),.load-feedback-actions button,.load-feedback-actions a{border-color:var(--line-strong)}
+.search-box{background:#fff}
+.research-toolbar{flex-wrap:wrap;row-gap:12px}
+.search-box{width:300px;max-width:100%}
+@media(max-width:960px){.search-box{width:auto;flex:1 1 280px;max-width:420px}}
+@media(max-width:400px){.search-box kbd{display:none}}
+.search-box:focus-within{outline:3px solid var(--focus);outline-offset:2px}
+.search-box input{font-size:var(--t-body)}
+.search-box input::placeholder{color:var(--muted)}
+.search-box kbd{font-size:var(--t-meta);color:var(--muted);border-color:var(--line-strong)}
+.toolbar-label{font-size:var(--t-meta);color:var(--muted)}
+.quiet-button,.load-feedback-actions button,.load-feedback-actions a{font-size:var(--t-small)}
+.segmented{background:#e7ebe3;border-color:var(--line)}
+.segmented button{font-size:var(--t-small)}
+.segmented button[aria-pressed=true]{background:#fff;color:var(--green);font-weight:600;box-shadow:inset 0 0 0 1px var(--line-strong)}
+.desk-button-secondary{background:#fff;color:var(--green)}
+.desk-button[aria-disabled="true"]{opacity:.55;cursor:default}
+.desk-button[aria-disabled="true"]:hover{background:var(--green);border-color:var(--green)}
+.desk-button-secondary[aria-disabled="true"]:hover{background:#fff;color:var(--green);border-color:var(--line-strong)}
+@media(max-width:680px),(pointer:coarse){.utility-desk :is(input,select,textarea),.search-box input{font-size:16px}}
+@media(hover:none) and (pointer:coarse){.search-box kbd{display:none}}
+
+/* Shared desk parts used by Prices and Journal. */
+.utility-desk{gap:16px}
+.desk-panel,.desk-controls,.card.desk-empty{padding:20px}
+.desk-panel p,.desk-panel li{font-size:var(--t-body);line-height:1.6}
+.desk-panel-heading h2,.desk-panel>h2{font-family:var(--serif);font-size:var(--t-title);font-weight:400;line-height:1.25;letter-spacing:-.01em;color:var(--ink);margin:4px 0 8px}
+.desk-empty h2,.desk-empty h3{font-family:inherit;font-size:var(--t-lead);font-weight:600;line-height:1.4;letter-spacing:0;color:var(--ink);margin:0 0 4px}
+.desk-facts dt{font-size:var(--t-meta)}
+.desk-disclosure.card{padding-block:0}
+.desk-disclosure.card>summary{line-height:1.5;padding:11px 0}
+.desk-feedback{position:sticky;top:12px;z-index:3;background:#fff;border:1px solid var(--line);border-left:3px solid var(--line-strong);border-radius:var(--radius-control);color:var(--ink)}
+@media(max-width:480px){.desk-panel-heading{flex-wrap:wrap;row-gap:8px}.desk-badge{max-width:none}}
+.loading-state{color:var(--muted);font-size:var(--t-small)}
+
+/* Dialog chrome: the close button stays in reach while a long note scrolls. */
+dialog:focus-visible{outline:3px solid var(--focus);outline-offset:-6px}
+#detail-dialog .dialog-top{position:sticky;top:-28px;z-index:2;margin:-28px -32px 0;padding:18px 32px 8px;background:#fafcf7}
+.dialog-top .eyebrow{font-size:var(--t-meta)}
+.icon-button{color:var(--muted);font-size:16px;min-width:44px;min-height:44px}
+
+/* Focus moves to main after navigation. Main is not a control, so it gets no frame. */
+#main:focus,#main:focus-visible{outline:none}
+[data-focus-fallback]:focus{outline:none}
+[data-focus-fallback]:focus-visible{outline:3px solid var(--focus);outline-offset:4px}
+
+/* Sidebar menu: two labelled groups of three links. */
+.brand{min-height:44px}
+.nav-groups{display:grid;gap:20px;margin-top:28px}
+.nav-section{min-width:0}
+.nav-group{display:grid;gap:4px;margin:0;padding:0;list-style:none}
+.nav-group-label{margin:0 0 6px;padding:0 11px;font-size:var(--t-meta);font-weight:600;letter-spacing:.06em;line-height:1.4;text-transform:uppercase;color:var(--nav-label)}
+.sidebar .nav-item{display:flex;align-items:center;gap:10px;min-height:44px;padding:10px 11px;border:0;border-radius:var(--radius-control);background:transparent;box-shadow:none;color:var(--nav-text);font-size:var(--t-small);font-weight:500;line-height:1.3;text-decoration:none}
+.sidebar .nav-item:hover{background:#213b34;color:#fff}
+.sidebar .nav-item.active{background:var(--nav-active);color:#fff;font-weight:600;box-shadow:inset 3px 0 var(--nav-bar)}
+.sidebar .nav-icon{width:18px;height:18px;flex:none;color:inherit}
+@media(min-width:681px){.sidebar{overflow-y:auto;overscroll-behavior:contain;scrollbar-color:#4f6b5f transparent}}
+@media(min-width:681px) and (max-height:640px){
+  .sidebar{padding-top:10px;padding-bottom:10px}
+  .nav-groups{gap:8px;margin-top:6px}
+  .nav-group{gap:0}
+  .nav-group-label{margin-bottom:0;line-height:1.3}
+}
+
+/* Topbar: one line that stays at every width. */
+.topbar{display:flex;height:auto;min-height:40px;padding-block:8px;justify-content:flex-start;align-items:center}
+.topbar-status{margin:0;font-size:var(--t-small);line-height:1.5;color:var(--muted)}
+
+/* Main area: reserve the view height so late data does not push the footer. */
+#view-content{min-height:100vh}
+.noscript{position:static;max-width:none;margin:0 0 24px;padding:24px}
+.noscript h2{font-family:var(--serif);font-size:var(--t-title);font-weight:400;line-height:1.25;margin:0 0 8px}
+.noscript p{margin:8px 0 0;color:var(--muted)}
+.main-footer{flex-wrap:wrap;gap:8px 16px;font-size:var(--t-meta);color:var(--muted)}
+.main-footer>span:last-child{display:inline;margin-left:auto;font-size:var(--t-meta);color:var(--muted)}
+.main-footer .footer-logo{color:var(--green)}
+
+/* Phones: all six views in a pinned grid. The brand row scrolls away. */
+@media(max-width:680px){
+  .sidebar{position:sticky;top:-58px;padding:10px 12px 6px}
+  .brand{padding:0 6px}
+  .nav-groups{grid-template-columns:minmax(0,1fr);gap:4px;margin-top:4px}
+  .nav-group{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+  .nav-group-label{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  .sidebar .nav-item{justify-content:center;min-width:0;padding:6px 4px;border:1px solid #4f6b5f;font-size:var(--t-small);line-height:1.25;text-align:center;white-space:nowrap}
+  .sidebar .nav-item.active{background:var(--nav-active)!important;border-color:var(--nav-bar);color:#fff;box-shadow:inset 0 -3px var(--nav-bar)}
+  .sidebar .nav-icon{display:none}
+  .sidebar .nav-item:focus-visible{outline-offset:-3px}
+  html{scroll-padding-top:106px}
+  .search-box{width:100%;max-width:100%;flex:none}
+  .topbar{min-height:0}
+  .topbar-status{font-size:var(--t-meta)}
+  .page-heading{margin-bottom:16px}
+  h1{font-size:30px;line-height:1.15;letter-spacing:-.01em}
+  .desk-panel,.desk-controls,.card.desk-empty{padding:16px}
+  #detail-dialog .dialog-top{top:-23px;margin:-23px -23px 0;padding:12px 23px 8px}
+}
+@media(min-width:600px) and (max-width:680px){
+  .nav-groups{grid-template-columns:repeat(2,minmax(0,1fr))}
+  html{scroll-padding-top:58px}
+}
+@media(max-width:680px) and (max-height:600px){
+  .sidebar{position:static}
+  html{scroll-padding-top:0}
+}
+@media(max-width:650px){.page-heading p{font-size:var(--t-body);line-height:1.55}}
+@media(max-width:420px){
+  main:has(> #view-content > .stock-desk:not(.approved-research-slate)) > .page-heading h1{position:static;width:auto;height:auto;margin:4px 0 8px;overflow:visible;clip:auto;white-space:normal}
+  main:has(> #view-content > .stock-desk:not(.approved-research-slate)) > .page-heading{margin-bottom:12px}
+}
+
+/* Very wide screens: heading, toolbar and cards share one content edge. */
+@media(min-width:1500px){main{max-width:1372px}.topbar{padding-inline:max(36px,calc((100% - 1372px)/2 + 36px))}}
+@media(min-width:1600px){.topbar{padding-inline:max(46px,calc((100% - 1372px)/2 + 46px))}}
+
+/* Forced colors: the current page and pressed buttons keep a visible state. */
+@media(forced-colors:active){
+  .sidebar .nav-item[aria-current="page"],.segmented button[aria-pressed="true"],.filter-button[aria-pressed="true"]{forced-color-adjust:none;background:Highlight!important;color:HighlightText;border-color:Highlight}
+  .sidebar .nav-item[aria-current="page"] .nav-icon{color:HighlightText}
+}
+
+/* Outcome line (amends D21): it never covers a focused control. Static on phones;
+   from 681px it stays sticky but short, and keyboard scrolling leaves room under it. */
+@media(max-width:680px){.desk-feedback{position:static}}
+@media(min-width:681px){.desk-feedback{max-height:96px;overflow-y:auto}html:has(.utility-desk>.desk-feedback){scroll-padding-top:120px}}
+/* == end area:A == */
+/* == area:B stock-desk == */
+/* Stock desk: one column. The lede card leads with the window state, then the
+   eligibility line, the review date and the window times. Amber marks only the
+   window alert. Every desk label is 12 px or larger. Tokens come from area A,
+   with fallbacks so the page also renders on its own. */
+.stock-desk:not(.approved-research-slate){grid-template-columns:minmax(0,1fr);gap:var(--space-4,16px)}
+.stock-desk:not(.approved-research-slate)>.window-card{grid-column:1/-1;grid-row:auto}
+.stock-desk .window-card{background:var(--mint,#eaf0e9);padding:var(--space-5,20px) var(--space-5,20px) var(--space-1,4px)}
+.stock-desk .window-title{flex-wrap:wrap;gap:var(--space-2,8px) var(--space-3,12px)}
+.stock-desk .eyebrow,.stock-desk .window-title .eyebrow{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,#56655e)}
+.stock-desk .window-title .tag,.stock-desk .stock-card-header .tag{font-size:12px;font-weight:500;line-height:1.4;padding:2px 8px;color:var(--muted,#56655e);background:var(--white,#fff);border:1px solid var(--line,#d9dfd5);border-radius:var(--radius-tag,4px);white-space:nowrap;text-align:left}
+.stock-desk .window-card h2,.stock-desk:not(.approved-research-slate)>.window-card h2{font-family:var(--serif,Georgia,"Times New Roman",serif);font-size:22px;line-height:1.25;font-weight:400;letter-spacing:-.01em;margin:var(--space-1,4px) 0 var(--space-3,12px);color:var(--ink)}
+.stock-desk .window-alert{margin:0 0 var(--space-3,12px);padding:var(--space-3,12px) 14px;max-width:75ch;font-size:14px;line-height:1.5;color:var(--warn-text,#63501f);background:var(--warn-bg,#fbf3df);border:1px solid var(--warn-line,#d9c08a);border-radius:var(--radius-control,6px)}
+.stock-desk .window-note{margin:0 0 var(--space-3,12px);max-width:75ch;font-size:14px;line-height:1.5;color:var(--ink)}
+.stock-desk .window-eligibility{margin:0;max-width:75ch;font-size:16px;line-height:1.5;color:var(--ink)}
+.stock-desk .window-eligibility strong{font-weight:600}
+.stock-desk .window-reviewed{margin:var(--space-1,4px) 0 var(--space-4,16px);font-size:13px;line-height:1.5;color:var(--muted)}
+.stock-desk .window-times{gap:var(--space-3,12px) var(--space-4,16px);margin:0 0 var(--space-4,16px)}
+.stock-desk .window-times>div>span{font-size:12px;font-weight:600;letter-spacing:.06em;line-height:1.4;text-transform:uppercase;color:var(--muted)}
+.stock-desk .window-times strong{font-size:14px;line-height:1.4}
+.stock-desk .window-times small{font-size:12px;line-height:1.4}
+.stock-desk .window-card>details{margin:0;border-top:1px solid var(--line,#d9dfd5)}
+.stock-desk .window-card>details>div{padding-bottom:var(--space-3,12px)}
+.stock-desk summary{font-size:13px}
+.stock-desk :is(.window-details,.eligibility-details) p,.stock-desk .ordering-note{max-width:72ch;margin:var(--space-2,8px) 0;font-size:14px;line-height:1.6;color:var(--muted)}
+.stock-desk .snapshot-meta{font-size:12px;line-height:1.6}
+.stock-desk .window-details h3,.stock-desk .source-age-feedback h3{margin:var(--space-4,16px) 0 var(--space-1,4px);font-size:14px;font-weight:600;line-height:1.4;color:var(--ink)}
+.stock-desk .source-age-feedback{margin:var(--space-2,8px) 0;padding:10px 14px;background:var(--white,#fff);border-left:3px solid var(--line-strong,#7a8985);border-radius:0 var(--radius-control,6px) var(--radius-control,6px) 0}
+.stock-desk .source-age-feedback h3{margin-top:0}
+.stock-desk .source-age-feedback p{margin:var(--space-1,4px) 0;font-size:13px;line-height:1.5}
+.stock-desk .source-checks{display:block;list-style:none;margin:var(--space-2,8px) 0 0;padding:0}
+.stock-desk .source-checks>li{padding:var(--space-3,12px) 0;border-top:1px solid var(--line,#d9dfd5);font-size:13px;line-height:1.5;color:var(--ink)}
+.stock-desk .source-checks>li>strong{font-weight:600}
+.stock-desk .source-checks>li>p{margin:var(--space-1,4px) 0 0;max-width:72ch;font-size:13px;line-height:1.5;color:var(--muted)}
+.stock-desk .source-coverage>summary{min-height:44px;padding:10px 0}
+.stock-desk .coverage-strip{padding:0;font-size:13px;line-height:1.6;color:var(--muted)}
+.stock-desk .coverage-strip span[aria-hidden]{padding:0 6px;color:var(--muted)}
+.stock-desk .coverage-strip>.coverage-part{padding:0;color:inherit;white-space:nowrap}
+.stock-desk .section-label-row{margin-bottom:var(--space-2,8px);flex-wrap:wrap;gap:var(--space-1,4px) var(--space-3,12px)}
+.stock-desk .section-label-row h2{font-size:17px;font-weight:600;letter-spacing:0}
+.stock-desk .section-label-row>span{font-size:13px;color:var(--muted)}
+.stock-desk .section-count{font-size:12px}
+.stock-desk .section-intro{margin:0 0 var(--space-3,12px);max-width:75ch;font-size:14px;line-height:1.6;color:var(--ink)}
+.stock-desk .stock-card{padding:var(--space-5,20px) var(--space-5,20px) var(--space-1,4px)}
+.stock-desk .stock-identity h3{font-size:13px}
+.stock-desk .stock-thesis,.stock-desk .stock-risk{margin:var(--space-3,12px) 0 0;max-width:62ch;font-size:16px;line-height:1.5;letter-spacing:0;color:var(--ink)}
+.stock-desk .stock-risk{margin-top:var(--space-1,4px)}
+.stock-desk .stock-thesis strong,.stock-desk .stock-risk strong{font-weight:600}
+.stock-desk .stock-catalyst{margin:var(--space-2,8px) 0 var(--space-3,12px);font-size:13px;line-height:1.6;color:var(--muted)}
+.stock-desk .stock-details{margin-top:0}
+.stock-desk .stock-card .desk-button-secondary{min-height:44px;margin:0 0 var(--space-2,8px);padding:0;border-color:transparent;background:none;justify-content:flex-start;font-size:13px;font-weight:600;color:var(--green)}
+.stock-desk .stock-card .desk-button-secondary:hover{border-color:transparent;background:none;color:var(--green);text-decoration:underline;text-underline-offset:3px}
+.stock-desk .expanded-stock{font-size:14px;line-height:1.6}
+.stock-desk .expanded-stock :is(p,li){max-width:75ch}
+.stock-desk .expanded-stock h4{margin:var(--space-5,20px) 0 6px;font-size:14px;font-weight:600;line-height:1.4;color:var(--ink)}
+.stock-desk .stock-summary h4{margin-top:var(--space-3,12px)}
+.stock-desk .evidence-chain strong{font-size:13px;font-weight:600}
+.stock-desk .chain-kind{font-size:12px;padding:0 6px}
+.stock-desk .source-date{font-size:12px;line-height:1.6}
+.stock-desk .stock-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-3,12px) var(--space-5,20px)}
+.stock-desk .stock-metrics dt{font-size:12px}
+.stock-desk .stock-metrics dd{font-size:13px}
+.stock-desk .source-link{font-size:13px}
+.stock-desk .stock-sources .source-link{min-width:44px}
+.stock-desk .event-list{padding:0 var(--space-5,20px)}
+.stock-desk .event-details>summary.event-row{min-height:56px;padding:6px 0}
+.stock-desk .event-ticker{font-size:14px;font-weight:600;letter-spacing:0}
+.stock-desk .event-time>strong{font-size:13px;font-weight:600}
+.stock-desk .event-time>span,.stock-desk .event-toggle{font-size:12px}
+.stock-desk .event-toggle::after{content:' +' / ''}
+.stock-desk .event-details[open] .event-toggle::after{content:' \2212' / ''}
+.stock-desk .event-expanded{font-size:14px;line-height:1.6}
+.stock-desk .event-expanded h3{font-size:14px;font-weight:600}
+.stock-desk .research-context{padding:0 var(--space-5,20px);background:var(--white,#fff)}
+.stock-desk .research-context>summary{min-height:44px;padding:12px 0}
+.stock-desk .method-application h2{font-family:var(--serif,Georgia,"Times New Roman",serif);font-size:22px;line-height:1.25;font-weight:400;letter-spacing:-.01em;margin:var(--space-1,4px) 0 var(--space-2,8px)}
+.stock-desk .method-application p{max-width:68ch;font-size:14px;line-height:1.6}
+.stock-desk .macro-strip>strong{font-size:13px;font-weight:600}
+.stock-desk .macro-strip span{font-size:12px;line-height:1.5}
+@media (min-width:1101px){.stock-desk .source-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:var(--space-6,24px)}}
+@media (max-width:680px){
+  .stock-desk .window-card,.stock-desk .stock-card{padding:var(--space-4,16px) var(--space-4,16px) var(--space-1,4px)}
+  .stock-desk .research-context,.stock-desk .event-list{padding:0 var(--space-4,16px)}
+  .stock-desk .stock-metrics{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:420px){.stock-desk:not(.approved-research-slate)>.window-card{padding:var(--space-4,16px) var(--space-4,16px) var(--space-1,4px)}}
+.stock-desk .stock-status{font-size:12px}
+/* == end area:B == */
+/* == area:C prices == */
+/* Prices: the lede states the limit first; eyebrows are written in sentence case. */
+.price-desk>.price-lede{margin:0;max-width:68ch;font-size:var(--t-lead,16px);line-height:1.5;color:var(--ink)}
+.price-desk .eyebrow{text-transform:uppercase}
+/* The plot row takes the layout's height, so the line never crosses the axis or the notes below. */
+.price-plot-layout{grid-template-rows:minmax(0,1fr)}
+/* The idle chart box is compact. Space for the chart is reserved only after a load is requested. */
+.hosted-price-chart{min-height:0;border-radius:var(--radius-control,6px)}
+.hosted-price-chart[data-hosted-status="requested"]{min-height:460px}
+.hosted-price-chart>.desk-empty{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2,8px) var(--space-4,16px);padding:var(--space-4,16px) var(--space-5,20px)}
+.hosted-price-chart>.desk-empty p{margin:0}
+.hosted-price-panel .desk-source>span{max-width:90ch}
+/* The empty state's heading sits under the panel title, so it takes the shared sans empty-state style (same values as area A). */
+.price-desk .desk-empty h3{font-family:inherit;font-size:var(--t-lead,16px);font-weight:600;line-height:1.4;letter-spacing:0;margin:0 0 var(--space-1,4px)}
+/* Axis, date and fact labels stay at 12 px or more. */
+.price-axis,.price-date-axis,.price-desk .desk-facts dt{font-size:var(--t-meta,12px)}
+/* Wide tables keep the date column in view and shade the edge while more columns remain. */
+.price-desk .desk-table th:first-child{position:sticky;left:0;z-index:1;white-space:nowrap;box-shadow:inset -1px 0 var(--line)}
+.price-desk .desk-table-scroll{background:linear-gradient(270deg,var(--white,#fff) 30%,transparent) 100% 0/40px 100% no-repeat local,radial-gradient(farthest-side at 100% 50%,color-mix(in srgb,var(--ink,#1d2926) 19%,transparent),transparent) 100% 0/14px 100% no-repeat scroll,var(--white,#fff)}
+/* The two help links are green actions with a 44 px row. */
+.price-desk a[href^="./help/"]{display:inline-flex;align-items:center;gap:5px;min-height:44px;color:var(--green);font-size:var(--t-small,13px);font-weight:600;text-underline-offset:3px}
+/* Price-feed setup: a quiet card at the end of the page. */
+.price-setup [data-price-setup-status]{color:var(--ink)}
+.price-setup .desk-actions{align-items:center;gap:var(--space-2,8px) var(--space-5,20px);margin-bottom:0}
+/* Open, the card keeps its bottom padding even where card disclosures drop their vertical padding. */
+.price-setup[open]{padding-bottom:var(--space-5,20px)}
+@media(max-width:680px){
+  .hosted-price-chart[data-hosted-status="requested"]{min-height:410px}
+  .price-setup[open]{padding-bottom:var(--space-4,16px)}
+}
+/* == end area:C == */
+/* == area:D journal == */
+/* Journal: one mint lead panel. Before start it is the setup card; after start it is the daily record. */
+.journal-setup,.journal-overview{background:var(--mint,#eaf0e9);border-color:#c7d2c1}
+.journal-setup+.journal-desk{margin-top:var(--space-4,16px)}
+.journal-setup .desk-panel-heading h2,.journal-overview .desk-panel-heading h2{margin-top:0}
+.journal-setup>p{max-width:68ch;font-size:var(--t-body,14px);line-height:1.6;color:var(--ink)}
+.journal-setup>.desk-muted{color:var(--muted);margin-bottom:0}
+.journal-setup .desk-actions{align-items:center;margin:var(--space-4,16px) 0 var(--space-3,12px)}
+.journal-overview>.journal-summary{max-width:68ch;margin:0 0 var(--space-1,4px);font-size:var(--t-lead,16px);font-weight:500;line-height:1.5;color:var(--ink)}
+/* The storage line is the journal's status: never hidden, label in ink, warnings in amber, sync at its end. */
+.journal-storage{align-items:center;gap:var(--space-1,4px) var(--space-3,12px);font-size:var(--t-small,13px)}
+.journal-storage strong{color:var(--ink);font-weight:600}
+.journal-storage[data-storage-state=unsaved] strong,.journal-storage[data-storage-state=conflict] strong,.journal-storage[data-storage-state=unavailable] strong{color:var(--warn-text,#63501f)}
+.journal-storage>.desk-button{margin-left:auto}
+.journal-overview>.journal-storage{margin-top:var(--space-4,16px)}
+.journal-desk>.journal-storage{border:1px solid var(--line);border-radius:var(--radius-control,6px);background:#fff;padding:var(--space-3,12px) var(--space-4,16px)}
+/* Counters show only once entries exist: a compact row, three columns on small screens, one column on phones. */
+.journal-counts{grid-template-columns:repeat(6,auto);justify-content:start;gap:var(--space-2,8px) var(--space-7,32px);margin:var(--space-4,16px) 0}
+.journal-counts>div,.journal-counts>div:first-child,.journal-counts>div:nth-child(4){border-left:0;padding-left:0}
+.journal-counts>div{gap:var(--space-1,4px)}
+.journal-counts dt{font-size:var(--t-meta,12px);line-height:1.5}
+.journal-counts dd{font-size:var(--t-title,22px);font-weight:500;line-height:1.2;margin:0;color:var(--ink)}
+/* Entry cards: ink titles and journal labels at 12 px or more (eyebrows, badges and facts use area A's shared rules). */
+.journal-entry .desk-panel-heading h3{font-family:var(--serif,Georgia,"Times New Roman",serif);font-size:var(--t-title,22px);font-weight:400;line-height:1.25;letter-spacing:-.01em;color:var(--ink);margin:var(--space-1,4px) 0}
+.journal-pnl dt,.journal-account-heading>span{font-size:var(--t-meta,12px)}
+/* No colour on any P&L figure: paper, benchmark and accrual amounts read the same. The sign stays in the text. */
+.journal-pnl dd,.journal-pnl .pnl-positive,.journal-pnl .pnl-negative{color:var(--ink,#1d2926)}
+.journal-entry .journal-accrual{margin:0 0 var(--space-3,12px);font-size:var(--t-small,13px);line-height:1.6;color:var(--ink)}
+/* Fill and confirm steps: the no-order lines read at the size of the button beside them. */
+.journal-fill-form .journal-fill-intro{margin:0;font-size:var(--t-small,13px);line-height:1.6;color:var(--ink)}
+.journal-fill-form .journal-no-order{margin:0;font-size:var(--t-small,13px)!important;color:var(--ink)}
+.journal-confirm>span{font-size:var(--t-small,13px);color:var(--ink)}
+.journal-desk .desk-form-grid{align-items:start}
+.journal-desk>.desk-disclosure>p,.journal-desk>.desk-disclosure li,.journal-overview>p{max-width:75ch}
+/* The window gloss sits above the first card that names a window. */
+.journal-history-note{margin:0 0 var(--space-3,12px);font-size:var(--t-small,13px);line-height:1.5;color:var(--muted)}
+.journal-state .desk-actions{margin-bottom:0}
+@media(max-width:680px){
+  .journal-counts{grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-3,12px) var(--space-4,16px)}
+  .journal-storage>.desk-button{justify-self:start;margin:var(--space-1,4px) 0 0}
+}
+@media(max-width:480px){
+  .journal-counts{grid-template-columns:1fr;gap:0}
+  .journal-counts>div{flex-direction:row;justify-content:space-between;align-items:baseline;gap:var(--space-3,12px);padding:var(--space-2,8px) 0;border-top:1px solid #cbd7c3}
+  .journal-counts>div:first-child{border-top:0}
+  .journal-counts dd{font-size:var(--t-lead,16px)}
+}
+/* == end area:D == */
+/* == area:E reference == */
+/* Sources, Library and Method. Area A owns the tokens and shared selectors; the
+   fallbacks keep these pages whole on their own. One mint lead panel per page. */
+.evidence-counts{display:flex;flex-wrap:wrap;gap:var(--space-1,4px) 0;margin:0 0 var(--space-6,24px);padding:0;list-style:none;font-size:14px;line-height:1.5;color:var(--muted,#56655e)}
+.evidence-counts li+li::before{content:"·";content:"·"/"";margin:0 var(--space-3,12px);color:var(--muted,#56655e)}
+.evidence-counts strong{font-weight:600;color:var(--ink,#1d2926)}
+.desk-layout>.main-column{gap:var(--space-7,32px)}
+.evidence-grid{gap:var(--space-4,16px)}
+.empty-evidence{padding:var(--space-5,20px);background:var(--mint,#eaf0e9);border-color:#c7d2c1}
+.empty-evidence h3{margin:0 0 var(--space-1,4px);font-family:inherit;font-size:16px;line-height:1.4;font-weight:600;letter-spacing:0;color:var(--ink,#1d2926)}
+.empty-evidence p{max-width:68ch;margin:0 0 var(--space-3,12px);font-size:14px;line-height:1.6;color:var(--ink,#1d2926)}
+.empty-foot{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0 var(--space-4,16px);padding-top:var(--space-1,4px);border-top:1px solid #c7d2c1}
+.empty-foot span{font-size:var(--t-meta,12px);color:var(--muted,#56655e)}
+.registry-summary{max-width:68ch;margin:0 0 var(--space-4,16px);font-size:14px;line-height:1.6;color:var(--muted,#56655e)}
+.registry-group{margin:0 0 var(--space-2,8px)}
+.registry-group-title{margin:0 0 var(--space-2,8px);font-size:14px;line-height:1.4;font-weight:600;letter-spacing:0;color:var(--ink,#1d2926)}
+details.registry-group>summary{min-height:44px;padding:10px 0;font-size:14px;line-height:24px;font-weight:600;color:var(--green,#315d49);cursor:pointer}
+details.registry-group[open]>summary{margin-bottom:var(--space-2,8px)}
+.source-registry{display:grid;gap:0;background:var(--white,#fff);border:1px solid var(--line,#d9dfd5);border-radius:var(--radius,10px);overflow:hidden}
+.source-registry>.registry-card{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4,16px);margin:0;padding:var(--space-3,12px) var(--space-5,20px);background:none;border:0;border-top:1px solid var(--line,#d9dfd5);border-radius:0;box-shadow:none}
+.source-registry>.registry-card:first-child{border-top:0}
+.registry-card>div{min-width:0}
+.registry-card h3{margin:2px 0;font-size:14px;line-height:1.4;font-weight:600;letter-spacing:0;color:var(--ink,#1d2926);overflow-wrap:anywhere}
+.registry-card p{margin:0;font-size:13px;line-height:1.5;color:var(--muted,#56655e)}
+.registry-kind{display:block;font-size:var(--t-meta,12px);font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted,#56655e)}
+.registry-card .detail-button{flex-shrink:0;white-space:nowrap}
+.registry-link{display:inline-block;min-height:44px;margin-top:var(--space-1,4px);padding:12px 0;line-height:20px;text-align:left}
+@media (min-width:961px) and (min-height:640px){.desk-layout>.rail{position:sticky;top:var(--space-4,16px)}}
+.rail-card{padding:var(--space-5,20px)}
+.rail-heading{display:block;margin:0 0 var(--space-3,12px);font-size:var(--t-meta,12px);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,#56655e)}
+.rail-data>div{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:var(--space-3,12px);padding:var(--space-2,8px) 0;border-top:1px solid var(--line,#d9dfd5)}
+.rail-data>div:first-child{padding-top:0;border-top:0}
+.rail-data dt{font-size:13px;color:var(--muted,#56655e)}
+.rail-data dd{max-width:none;font-size:13px;font-weight:500;color:var(--ink,#1d2926);text-align:right}
+.rail-note{margin:var(--space-3,12px) 0 0;padding-top:var(--space-3,12px);border-top:1px solid var(--line,#d9dfd5);font-size:13px;line-height:1.6;color:var(--muted,#56655e)}
+.rail-actions{display:grid;justify-items:start;margin-top:var(--space-2,8px)}
+.rail-actions .rail-detail{margin-top:0}
+.library-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-4,16px)}
+.library-card{display:flex;flex-direction:column;min-height:0;padding:var(--space-5,20px)}
+.library-year{display:block;margin:0 0 var(--space-2,8px);font-size:var(--t-meta,12px);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,#56655e)}
+.library-year::before{content:none;display:none}
+.library-card h3{margin:0 0 var(--space-1,4px);font-family:var(--serif,Georgia,"Times New Roman",serif);font-size:22px;line-height:1.25;font-weight:400;letter-spacing:-.01em;color:var(--ink,#1d2926)}
+.library-card .authors{min-height:0;margin:0 0 var(--space-3,12px);font-size:13px;line-height:1.5;color:var(--muted,#56655e)}
+.library-card .library-mechanism{margin:0 0 var(--space-3,12px);font-size:14px;line-height:1.6;color:var(--muted,#56655e)}
+.library-card .library-use{margin:0 0 2px;font-size:13px;line-height:1.5;color:var(--ink,#1d2926)}
+.library-card .library-status{margin:0 0 var(--space-3,12px);font-size:var(--t-meta,12px);line-height:1.5;color:var(--muted,#56655e)}
+.library-card .card-bottom{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0 var(--space-4,16px);margin-top:auto;padding-top:0;border-top:1px solid var(--line,#d9dfd5)}
+.method-status{padding:var(--space-5,20px);background:var(--mint,#eaf0e9);border-color:#c7d2c1}
+.method-status h2{margin:0 0 var(--space-2,8px);font-family:var(--serif,Georgia,"Times New Roman",serif);font-size:22px;line-height:1.25;font-weight:400;letter-spacing:-.01em;color:var(--ink,#1d2926)}
+.method-status>p{max-width:68ch;margin:0 0 var(--space-4,16px);font-size:16px;line-height:1.55;color:var(--ink,#1d2926)}
+.method-gates{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--space-2,8px);margin:0 0 var(--space-1,4px)}
+.method-gates>div{padding:var(--space-3,12px);background:var(--white,#fff);border:1px solid #c7d2c1;border-radius:var(--radius-control,6px)}
+.method-gates dt{margin:0 0 var(--space-1,4px);font-size:var(--t-meta,12px);line-height:1.4;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,#56655e)}
+.method-gates dd{margin:0;font-size:16px;line-height:1.3;font-weight:600;color:var(--ink,#1d2926)}
+.method-gates-status{margin:0 0 var(--space-1,4px);font-size:14px;color:var(--ink,#1d2926)}
+.method-status+.view-intro{margin:var(--space-6,24px) 0 var(--space-4,16px)}
+.method-application.card{grid-template-columns:minmax(0,1fr);gap:var(--space-5,20px);padding:var(--space-5,20px)}
+.method-application.card>div+div{padding-top:var(--space-4,16px);border-top:1px solid var(--line,#d9dfd5)}
+.method-application.card h2{margin:var(--space-1,4px) 0 var(--space-3,12px);font-family:var(--serif,Georgia,"Times New Roman",serif);font-size:22px;line-height:1.25;font-weight:400;letter-spacing:-.01em;color:var(--ink,#1d2926)}
+.method-application.card h3{margin:0 0 2px;font-size:14px;line-height:1.4;font-weight:600;letter-spacing:0;color:var(--ink,#1d2926)}
+.method-application.card p{max-width:75ch;margin:0 0 var(--space-3,12px);font-size:14px;line-height:1.6;color:var(--muted,#56655e)}
+.method-lenses{max-width:75ch;margin:0 0 var(--space-3,12px);padding-left:var(--space-5,20px);font-size:14px;line-height:1.6;color:var(--ink,#1d2926)}
+.method-lenses li+li{margin-top:var(--space-1,4px)}
+@media (min-width:1101px){
+  .method-application.card>div:first-child{columns:2;column-gap:var(--space-8,40px)}
+  .method-application.card>div:first-child>:is(.eyebrow,h2){display:block;column-span:all}
+  .method-application.card>div:first-child>h3{break-after:avoid}
+  .method-application.card>div:first-child>p{break-inside:avoid}
+}
+.method-application.card+.section-label-row{margin-top:var(--space-7,32px)}
+.method-grid{gap:var(--space-4,16px)}
+.method-card{padding:var(--space-5,20px)}
+.method-number{margin:0 0 var(--space-2,8px);font-size:var(--t-meta,12px);line-height:1.4;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,#56655e)}
+.method-card h3{margin:0 0 var(--space-2,8px);font-family:var(--serif,Georgia,"Times New Roman",serif);font-size:22px;line-height:1.25;font-weight:400;letter-spacing:-.01em;color:var(--ink,#1d2926)}
+.method-card p{max-width:68ch;margin:0;font-size:14px;line-height:1.6;color:var(--muted,#56655e)}
+.method-grid>.wide-note{background:var(--white,#fff);border-color:var(--line,#d9dfd5)}
+.search-empty{padding:var(--space-5,20px);border-radius:var(--radius,10px)}
+.search-empty h3{margin:0 0 var(--space-1,4px);font-family:inherit;font-size:16px;line-height:1.4;font-weight:600;letter-spacing:0;color:var(--ink,#1d2926)}
+.search-empty p{margin:0 0 var(--space-2,8px);font-size:14px;color:var(--muted,#56655e)}
+.detail-copy .reason-code{display:inline-block;margin-left:var(--space-1,4px);padding:0 var(--space-1,4px);font:var(--t-meta,12px)/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;background:#edf1e7;border-radius:var(--radius-tag,4px);color:var(--ink,#1d2926);overflow-wrap:anywhere}
+.detail-copy li+li{margin-top:var(--space-1,4px)}
+.fact-label,.fact-context dt,.provenance-list dt,.record-code{font-size:var(--t-meta,12px)}
+@media (max-width:1100px){
+  .library-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .method-gates{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:680px){
+  .evidence-counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-1,4px) var(--space-4,16px)}
+  .evidence-counts li+li::before{content:none}
+  .source-registry>.registry-card{display:block;padding:var(--space-3,12px) var(--space-4,16px)}
+  .registry-card .detail-button{margin-top:var(--space-1,4px)}
+  .library-grid{grid-template-columns:minmax(0,1fr)}
+  .empty-evidence,.rail-card,.library-card,.method-status,.method-application.card,.method-card{padding:var(--space-4,16px)}
+}
+@media (max-width:360px){.method-gates{grid-template-columns:minmax(0,1fr)}}
+/* == end area:E == */

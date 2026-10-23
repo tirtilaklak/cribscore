@@ -142,7 +142,7 @@ test('empty slates fall back; canonical withheld rank gaps do not force five row
 });
 test('one-day canonical slate preserves its exact exit and labels its later catalyst',async()=>{
   const {slot}=await installed(proposal([75],'next_day').serialized),dom=parseHTML(view(slot,'next_day'));
-  assert.match(content(dom),/ONE SESSION/);assert.match(content(dom),/After this holding window/);
+  assert.match(content(dom),/1 trading day/);assert.match(content(dom),/After this holding window/);
   assert.ok(all(dom,'time').some(n=>n.attrs.datetime==='2026-10-19T20:00:00Z'));
 });
 test('plain text ampersands and quotes are escaped while preserving their accessible text',async()=>{

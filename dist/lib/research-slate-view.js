@@ -130,11 +130,11 @@ function card(row,p,priceSymbols){
     <p class="stock-risk"><strong>Downside:</strong> ${escape(row.downside)}</p>
     <p class="stock-status">Research evidence score ${row.research_score}/100 · Unvalidated</p>
     <p class="source-date"><strong>Entry · open:</strong> ${time(p.horizon.entry_at)}<br><strong>Exit · close:</strong> ${time(p.horizon.exit_at)}</p>
-${priceSymbols.includes(row.ticker)?`<button type="button" class="desk-button desk-button-secondary" data-price-symbol="${escape(row.ticker)}">View price action<span class="sr-only"> for ${escape(row.ticker)}</span><span aria-hidden="true">→</span></button>\n`:''}    <details class="stock-details"><summary>Evidence & sources<span class="sr-only"> for ${escape(row.ticker)}</span></summary><div class="expanded-stock">
+    <details class="stock-details"><summary>Evidence & sources<span class="sr-only"> for ${escape(row.ticker)}</span></summary><div class="expanded-stock">
       <h4>What would invalidate the thesis?</h4><p>${escape(row.invalidation_trigger)}</p>
       <p>${link(row.catalyst.source_url,row.catalyst.kind==='known_information'?'Dated information source':'Dated catalyst source')}</p><ul class="stock-sources">${row.sources.map(s=>`<li>${link(s.url,s.label)}</li>`).join('')}</ul>
     </div></details>
-  </article>`;
+${priceSymbols.includes(row.ticker)?`    <button type="button" class="desk-button desk-button-secondary" data-price-symbol="${escape(row.ticker)}">Price chart<span class="sr-only"> for ${escape(row.ticker)}</span><span aria-hidden="true">→</span></button>\n`:''}  </article>`;
 }
 export function renderApprovedResearchView(slot,{horizonId,query='',priceSymbols=[]}={}){
   const p=eligible(slot,horizonId);
@@ -145,15 +145,15 @@ export function renderApprovedResearchView(slot,{horizonId,query='',priceSymbols
   const rows=p.rows.filter(r=>!needle||(exactTicker?r.ticker.toLowerCase()===needle:[r.ticker,r.company,r.thesis,r.downside,r.invalidation_trigger,r.catalyst.label,...r.sources.map(s=>s.label)].join(' ').toLowerCase().includes(needle)));
   const m=p.metadata,health={reviewed_at_cutoff:'Sources reviewed at cutoff',partial_at_cutoff:'Partial source coverage at cutoff',unavailable_at_cutoff:'Source coverage unavailable at cutoff'}[m.source_health.state];
   return `<div class="stock-desk approved-research-slate">
-    <section class="window-card card" aria-label="Exact research holding window"><div class="window-title"><span class="eyebrow">${horizonId==='next_day'?'ONE SESSION':'FIVE EXCHANGE SESSIONS'}</span><span class="tag neutral">Unvalidated research</span></div><h2>Research priorities</h2>
-      <div class="window-times"><div><span>ENTRY · OPEN</span><strong>${time(p.horizon.entry_at)}</strong><small>${utc(p.horizon.entry_at)}</small></div><span class="window-arrow" aria-hidden="true">→</span><div><span>EXIT · CLOSE</span><strong>${time(p.horizon.exit_at)}</strong><small>${utc(p.horizon.exit_at)}</small></div></div>
+    <section class="window-card card" aria-label="Research window"><div class="window-title"><span class="eyebrow">${horizonId==='next_day'?'1 trading day':'5 trading days'}</span><span class="tag neutral">Unvalidated research</span></div><h2>Research priorities</h2>
+      <div class="window-times"><div><span>Starts at the open</span><strong>${time(p.horizon.entry_at)}</strong><small>${utc(p.horizon.entry_at)}</small></div><span class="window-arrow" aria-hidden="true">→</span><div><span>Ends at the close</span><strong>${time(p.horizon.exit_at)}</strong><small>${utc(p.horizon.exit_at)}</small></div></div>
       <div class="snapshot-meta"><span>Source cutoff: ${time(p.source_cutoff_at)} · ${utc(p.source_cutoff_at)}</span><span>Display expires: ${time(p.display_expires_at)} · ${utc(p.display_expires_at)}</span></div>
       <div class="snapshot-meta"><span>Completed price session: <time datetime="${escape(m.price_session.date)}">${dateLabel(m.price_session.date)}</time> · closed ${time(m.price_session.closed_at)}</span><span>${health}: ${escape(m.source_health.label)}</span></div>
       <p class="section-intro">${escape(p.label)}</p>
     </section>
-    <p class="coverage-strip" aria-label="Declared universe and research coverage">Universe ${escape(m.universe_version)} · ${m.counts.roster} roster · ${m.counts.screened} screened · ${m.counts.blocked} blocked · ${m.counts.eligible} research eligible</p>
+    <p class="coverage-strip"><span class="sr-only">Declared universe and research coverage: </span>Universe ${escape(m.universe_version)} · ${m.counts.roster} roster · ${m.counts.screened} screened · ${m.counts.blocked} blocked · ${m.counts.eligible} research eligible</p>
     <p class="section-intro"><a class="source-link" href="#methodology">Retained method & limits</a></p>
-    <section aria-label="Research priorities"><div class="section-label-row"><h2>Stocks to investigate <span class="section-count">${rows.length}</span></h2><span>Research order · ties stay tied</span></div>
+    <section aria-labelledby="slate-cases-heading"><div class="section-label-row"><h2 id="slate-cases-heading">Company cases <span class="section-count">${rows.length}</span></h2><span>Research order · ties stay tied</span></div>
       <div class="stock-list">${rows.map(r=>card(r,p,priceSymbols)).join('')||'<p>No matching research priorities.</p>'}</div>
     </section>
   </div>`;

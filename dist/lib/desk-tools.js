@@ -138,10 +138,11 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     if(!pendingImport)await assess();
   }
   function journalHTML(){
-    const controls=`<div class="desk-actions"><button type="button" class="desk-button desk-button-secondary" data-journal-action="sync"${busy?' disabled':''}>${busy?'Working…':'Check journal sync'}</button></div>`;
-    if(!draft)return `<section class="card desk-panel desk-empty"><h2>${loadState==='loading'?'Loading the journal':'Journal unavailable'}</h2><p>${escape(storage.message)}</p>${controls}</section>`;
-    const setup=needsSetup?'<section class="card desk-panel"><h2>Start your private journal</h2><p>Record assessments automatically while this app is open. Paper trading will remain unavailable until reviewed publication and price inputs are connected. If you have a backup, review it in Backup &amp; restore first. This choice is needed only for an empty cloud journal.</p><button type="button" class="desk-button" data-journal-action="start">Start automatic journal</button></section>':'';
-    return `${setup}${controls}${renderJournalView(viewModel(),{feedback,automation,importPreview:pendingImport&&!busy?{message:pendingImport.message}:null})}`;
+    // One sync button with a stable id: the setup card holds it before start, the storage line after.
+    const sync=label=>`<button type="button" id="journal-sync" class="desk-button desk-button-secondary" data-journal-action="sync"${busy?' aria-disabled="true" aria-busy="true"':''}>${busy?'Working…':label}</button>`;
+    if(!draft)return loadState==='loading'?`<section class="card desk-panel desk-empty journal-state" data-desk-state="loading"><h2>Loading the journal</h2><p>${escape(storage.message)}</p><div class="desk-actions">${sync('Check journal sync')}</div></section>`:`<section class="card desk-panel desk-empty journal-state" data-desk-state="unavailable"><h2>The journal did not load</h2><p>No records are shown, and nothing was changed.</p><p>Press Try again. If you were signed out, sign in, then reload this page.</p><p class="desk-muted">Details: ${escape(storage.message)}</p><div class="desk-actions">${sync('Try again')}</div></section>`;
+    const setup=needsSetup?`<section class="card desk-panel journal-setup" aria-labelledby="journal-setup-heading"><div class="desk-panel-heading"><h2 id="journal-setup-heading">Start your private journal</h2></div><p>Nothing is recorded yet. Once you start, the journal records each day’s assessment while this app is open. A day with no eligible stock is saved as an abstention (a recorded decision not to trade).</p><p>Paper trades (practice trades with no real money) stay off until reviewed research and checked prices are connected. Cribscore never places orders.</p><div class="desk-actions"><button type="button" class="desk-button" data-journal-action="start">Start automatic journal</button>${sync('Check journal sync')}</div><p class="desk-muted">Have a backup? Restore it first in Backup and restore below. You see this step only while the journal is empty.</p></section>`:'';
+    return `${setup}${renderJournalView(viewModel(),{feedback,automation,importPreview:pendingImport&&!busy?{message:pendingImport.message}:null,setupPending:needsSetup,syncControl:needsSetup?'':sync('Check journal sync')})}`;
   }
   // Stock-card navigation uses the same company roster as the Prices selector.
   // It selects local view state only; loading the vendor chart remains explicit.
@@ -157,7 +158,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     const model=priceModel();lastPriceStatus=priceStatus(model);
     const options=companies.map(([symbol,label])=>({symbol,label:`${symbol} · ${label}`}));
     for(const item of series)if(!options.some(option=>option.symbol===item.symbol))options.push({symbol:item.symbol,label:`${item.symbol} · imported`});
-    return renderPriceView(model,{symbol,rangeSessions,symbolOptions:options,hosted:{status:requestedChart===symbol?'requested':'idle',url:hostedChartURL(symbol),symbol},feedback:priceFeedback,priceSetup:priceSetup.state()})+'<p class="desk-muted">Imported price data stays in this tab. The hosted chart is display-only; it does not supply prices to paper accounting.</p>';
+    return renderPriceView(model,{symbol,rangeSessions,symbolOptions:options,hosted:{status:requestedChart===symbol?'requested':'idle',url:hostedChartURL(symbol),symbol},feedback:priceFeedback,priceSetup:priceSetup.state()});
   }
   function mount(view){
     if(view!=='prices'||requestedChart!==symbol)return;

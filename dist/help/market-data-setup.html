@@ -1,16 +1,62 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Price-feed setup · Cribscore</title><style>body{margin:0;background:#f7f8f3;color:#243b33;font:17px/1.65 system-ui,sans-serif}main{max-width:760px;margin:0 auto;padding:40px 22px 80px}h1,h2{line-height:1.2}h1{font-size:2.3rem}h2{margin-top:2rem;font-size:1.35rem}a{color:#315d49;text-underline-offset:3px}a:focus-visible{outline:3px solid #315d49;outline-offset:4px}code{overflow-wrap:anywhere;font-size:.9em}li+li{margin-top:.7rem}.note{background:#eaf0e7;border-left:4px solid #315d49;padding:18px 20px}</style></head><body><main>
-<a href="../index.html#prices">← Return to Prices</a><h1>Connect a price source</h1>
-<p>The Prices screen can check whether the server has an Alpaca configuration. This check reads configuration status only. It does not contact Alpaca or download prices.</p>
-<p class="note">Price capture is currently off. A valid API key alone does not make data ready for journal valuation.</p>
-<h2>What the owner supplies</h2>
-<ol><li>An Alpaca account with access to the requested historical stock data, and that account’s API key and secret.</li><li>A current review of the provider and exchange terms, account entitlement and intended use. Fetching, retaining, displaying and using prices for journal evaluation need the appropriate permissions. Do not assume a free plan covers every operation.</li><li>Reviewed security identities, the exchange calendar, raw price and volume basis, and complete corporate-action coverage for the required dates.</li></ol>
-<h2>Configure server values</h2>
-<p>An operator can configure <code>ALPACA_API_KEY_ID</code> and <code>ALPACA_API_SECRET_KEY</code> as hosted runtime secrets. The server also expects a current, reviewed <code>ALPACA_DATA_AUTHORIZATION_JSON</code> configuration. Keep credentials out of source files and browser inputs. The source repository’s Alpaca adapter documentation describes the authorization contract.</p>
-<p>After configuration, use <strong>Check data setup</strong> in Prices. “Configuration is present” means its shape and review dates passed the setup checks. The connection, data retrieval and valuation path still need to be verified before capture can be activated.</p>
-<h2>Which prices this adapter supports</h2>
-<p>The adapter prepares historical, unadjusted US-dollar daily stock bars from the SIP feed. Its conservative completion rule accepts prior New York dates and requires the requested end to be at least 15 minutes old. An October 19 daily bar is therefore deferred until October 20 in New York. These are daily-bar references, not promised auction execution prices.</p>
-<p>Each fetched page retains its own response hash and observation time. Incomplete or inconsistent histories remain unavailable. Captured data starts unreviewed; it cannot silently become an eligible stock selection, a paper fill or an actual trade.</p>
-<h2>Source references</h2>
-<ul><li><a href="https://docs.alpaca.markets/docs/about-market-data-api" target="_blank" rel="noopener noreferrer">Alpaca market-data documentation (opens in a new tab) ↗</a></li><li><a href="https://docs.alpaca.markets/reference/stockbars" target="_blank" rel="noopener noreferrer">Historical stock bars API (opens in a new tab) ↗</a></li><li><a href="https://files.alpaca.markets/disclosures/library/TermsAndConditions.pdf" target="_blank" rel="noopener noreferrer">Alpaca terms (opens in a new tab) ↗</a></li></ul>
-</main></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src &#x27;none&#x27;; style-src &#x27;sha256-Yn/jwGAMtCbEGjblRLtbb+TrD6XmcGo2QjtTkdtURgI=&#x27;; img-src &#x27;self&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;">
+<title>Set up the price feed · Cribscore help</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>:root{color-scheme:light;--paper:#f5f4ef;--ink:#1d2926;--muted:#56655e;--green:#315d49;--mint:#EAF0E9;--line:#d9dfd5;--line-strong:#7a8985;--code:#ebe8e0;--white:#fff;--focus:#315d49;--serif:Georgia,"Times New Roman",serif}*,::before,::after{box-sizing:border-box}html{background:var(--paper);color:var(--ink);-webkit-text-size-adjust:100%;text-size-adjust:100%}body{margin:0;font:1rem/1.6 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:46rem;margin:0 auto;padding:2rem 1rem 4rem}.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0 1rem;padding:.25rem max(1rem,calc((100% - 44rem) / 2)) .75rem;border-bottom:1px solid var(--line)}.brand{display:flex;align-items:center;gap:.5rem;min-height:44px;margin:0;font-size:1.125rem;font-weight:600;letter-spacing:-.02em}.brand-mark{display:flex;align-items:flex-end;gap:3px;height:18px}.brand-mark i{display:block;width:4px;border-radius:2px;background:var(--green)}.brand-mark i:nth-child(1){height:10px}.brand-mark i:nth-child(2){height:14px}.brand-mark i:nth-child(3){height:18px}.brand-dot{color:var(--green)}.brand small{font-size:.875rem;font-weight:500;letter-spacing:0;color:var(--muted)}.top-status{flex-basis:100%;margin:0;font-size:.8125rem;line-height:1.5;color:var(--muted)}.eyebrow{margin:0 0 .5rem;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}h1,h2{font-family:var(--serif);font-weight:400;line-height:1.2;margin:0}h1{font-size:clamp(1.875rem,1.4rem + 2vw,2.5rem);letter-spacing:-.02em;margin-bottom:1rem}h2{font-size:1.375rem;margin:2.75rem 0 .75rem}h3{font-size:1.0625rem;font-weight:600;line-height:1.4;margin:1.75rem 0 .5rem}p,ul,ol,dl,table{margin:0 0 1rem}ul,ol{padding-left:1.5rem}li+li{margin-top:.5rem}.lead{font-size:1.125rem}.muted{color:var(--muted)}.small{font-size:.9375rem}strong,b,th,caption,summary{font-weight:600}a{color:var(--green);text-decoration-thickness:1px;text-underline-offset:.2em}a:hover{text-decoration-thickness:2px}a:focus-visible,summary:focus-visible,pre:focus-visible{outline:3px solid var(--focus);outline-offset:3px}.back{display:inline-flex;align-items:center;gap:.35rem;min-height:44px;font-weight:600}.links{list-style:none;padding-left:0}.links li+li{margin-top:0}.links a{display:inline-flex;align-items:center;gap:.35rem;min-height:44px}.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.875em}code{overflow-wrap:anywhere;background:var(--code);border-radius:4px;padding:.1em .3em}pre{margin:0;background:var(--white);border:1px solid var(--line-strong);border-radius:10px;padding:1rem;overflow:auto;font-size:.8125rem;line-height:1.5}.notice{background:var(--mint);border-left:4px solid var(--green);border-radius:0 10px 10px 0;padding:1rem 1.25rem;margin:1.5rem 0}.notice h2{margin-top:0}.notice>:last-child{margin-bottom:0}table{border-collapse:collapse;width:100%}caption{text-align:left;padding-bottom:.5rem}th,td{text-align:left;vertical-align:top;padding:.75rem .75rem .75rem 0;border-top:1px solid var(--line)}th{width:8.5rem}td{padding-right:0}.pairs{display:grid;grid-template-columns:minmax(9rem,17rem) 1fr;column-gap:1rem}.pairs dt,.pairs dd{margin:0;padding:.6rem 0;border-top:1px solid var(--line)}.pairs dt{font-weight:600}details{margin:1.5rem 0 0}summary{cursor:pointer;color:var(--green);padding:.6rem 0}details[open] summary{margin-bottom:.75rem}@media (max-width:36rem){table,tbody,tr,th,td,caption{display:block}th{width:auto;padding-bottom:0}td{border-top:0;padding-top:.25rem}.pairs{display:block}.pairs dd{border-top:0;padding-top:0}pre{white-space:pre-wrap;overflow-wrap:anywhere}h2{margin-top:2.25rem}}</style>
+</head>
+<body>
+<header class="top">
+<p class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>cribscore<span class="brand-dot">.</span> <small>help</small></span></p>
+<nav aria-label="Cribscore"><a class="back" href="../index.html#prices"><span aria-hidden="true">←</span>Back to Prices</a></nav>
+<p class="top-status">Private preview of unvalidated research. Nothing here is a forecast or a recommendation.</p>
+</header>
+<main>
+<p class="eyebrow">Prices help</p>
+<h1>Set up the price feed</h1>
+<p class="lead">Cribscore has server code, called the adapter, that can fetch daily stock prices from Alpaca (a market-data provider). This page lists what you need and where each value goes. It also explains what the setup check tells you.</p>
+<p class="small muted">This page opened in a new tab. Close it to return to Prices. The Back to Prices link opens a second copy of the app.</p>
+<p class="notice"><strong>Price capture is currently off.</strong> A valid API key and secret (the two access codes a data provider gives an account) are not enough on their own. They do not make data ready for journal valuation (using prices to value the trades in your journal).</p>
+<h2>What the setup check does</h2>
+<p>The Prices page can check whether the server has an Alpaca configuration. This check reads configuration status only. It does not contact Alpaca or download prices.</p>
+<h2>What you need</h2>
+<ol>
+<li>An Alpaca account with access to the historical stock data you need. You also need that account’s API key and secret.</li>
+<li>A current review of the provider and exchange terms, your account entitlement (what your Alpaca plan lets you use) and your intended use. Fetching, keeping, displaying and using prices for journal evaluation need the right permissions. Do not assume a free plan covers every operation.</li>
+<li>Reviewed security identities (which exact share each symbol means) and the exchange calendar (the days the market was open) for the dates you need. For the same dates, you need the raw price and volume basis (whether values were adjusted for splits or dividends) and complete records of corporate actions (events like splits and dividends that change shares).</li>
+</ol>
+<h2>Add the server values</h2>
+<p>Add these three values as hosted runtime secrets (private settings the server reads, kept outside the code). Keep credentials out of source files and browser inputs.</p>
+<dl class="pairs">
+<dt><code>ALPACA_API_KEY_ID</code></dt><dd>Your Alpaca API key ID.</dd>
+<dt><code>ALPACA_API_SECRET_KEY</code></dt><dd>Your Alpaca API secret key.</dd>
+<dt><code>ALPACA_DATA_AUTHORIZATION_JSON</code></dt><dd>A current, reviewed authorization record written as JSON (a plain-text format for structured data), at most 30,000 characters. It records your rights review. That covers the approved data and operations, the review and expiry dates and the Alpaca terms you read. It also covers your source rights and your account entitlement. The Alpaca adapter notes in the source repository (ALPACA.md) describe every field. Fill it only with evidence from a real review.</dd>
+</dl>
+<h2>Run the check</h2>
+<p>In Cribscore, open <strong>Prices</strong>. Expand <strong>Price-feed setup</strong> at the bottom of the page and select <strong>Check data setup</strong>.</p>
+<h2>What the result means</h2>
+<dl class="pairs">
+<dt>“Alpaca setup is incomplete. Price capture remains off.”</dt><dd>A value is missing or failed a check. The list under the message says which. “Your Alpaca credentials are missing or invalid. These are the API key and secret.” points to the key ID or the secret key. “A current source-access and account-entitlement review is required. That review checks what your data plan allows.” points to the authorization record. It is missing, unreadable, incomplete or outside its review dates.</dd>
+<dt>“Alpaca settings are present. The connection has not been tested, so price capture remains off.”</dt><dd>The settings passed the setup checks for their shape and review dates. Nothing has contacted Alpaca. The connection, data retrieval and valuation path still need to be verified before capture can be turned on.</dd>
+<dt>“Price-feed setup could not be checked. Try again later.”</dt><dd>The check itself did not finish. It says nothing about your values.</dd>
+</dl>
+<h2>Which prices the adapter supports</h2>
+<p>The adapter prepares past daily stock prices in US dollars, with no adjustment for splits or dividends. They come from the SIP feed (the combined record of trades from all US exchanges). They are daily reference prices. Nobody promises you could trade at them in the opening or closing auction.</p>
+<p>The adapter’s completion rule is cautious. It accepts only dates before the current New York date. The requested end must also be at least 15 minutes old. So prices for October 19 wait until October 20 in New York.</p>
+<h2>What happens to captured data</h2>
+<p>Each fetched page keeps its own response hash (a fingerprint of the exact data Alpaca sent) and observation time (when it was fetched). Incomplete or inconsistent histories stay unavailable. Captured data starts out unreviewed. It never turns into an eligible stock, a paper trade or a real trade on its own.</p>
+<h2>Sources</h2>
+<ul class="links">
+<li><a href="https://docs.alpaca.markets/us/docs/about-market-data-api" target="_blank" rel="noopener noreferrer">Alpaca market-data documentation<span class="sr-only"> (opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
+<li><a href="https://docs.alpaca.markets/us/docs/market-data-faq" target="_blank" rel="noopener noreferrer">Alpaca market-data FAQ<span class="sr-only"> (opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
+<li><a href="https://docs.alpaca.markets/us/reference/stockbars" target="_blank" rel="noopener noreferrer">Historical stock bars API<span class="sr-only"> (opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
+<li><a href="https://files.alpaca.markets/disclosures/library/TermsAndConditions.pdf" target="_blank" rel="noopener noreferrer">Alpaca terms (PDF)<span class="sr-only"> (opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
+</ul>
+<p class="small muted">To load your own daily prices for the chart, see <a href="price-import.html">Prepare a daily price file</a>.</p>
+</main>
+</body>
+</html>

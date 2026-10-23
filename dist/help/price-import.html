@@ -4,39 +4,34 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src &#x27;none&#x27;; style-src &#x27;sha256-L+fdAFbvgUhyFAS7eMXv0KKRAlQ8EYG0iwOoF1FVuco=&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;">
-<title>Daily price import format · Cribscore help</title>
-<style>html{color-scheme:light dark}body{max-width:56rem;margin:2rem auto;padding:0 1rem;font:1rem/1.55 system-ui,sans-serif}h1,h2{line-height:1.2}h2{margin-top:2rem}a{text-underline-offset:.2em}code,pre{font-family:ui-monospace,monospace;font-size:.92em}pre{overflow:auto;border:1px solid #888;padding:1rem;border-radius:.4rem}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #888;padding:.6rem;text-align:left;vertical-align:top}caption{text-align:left;font-weight:700;margin:.4rem 0}section.notice{border:2px solid #888;border-radius:.4rem;padding:1rem}p:last-child{margin-bottom:0}.small{font-size:.9rem}a:focus-visible,summary:focus-visible,pre:focus-visible{outline:3px solid Highlight;outline-offset:3px}@media(max-width:36rem){table,tbody,tr,th,td{display:block}th,td{padding:.3rem 0}th{border:0}tr{padding:.5rem 0}pre{font-size:.8rem}}</style>
+<meta http-equiv="Content-Security-Policy" content="default-src &#x27;none&#x27;; style-src &#x27;sha256-Yn/jwGAMtCbEGjblRLtbb+TrD6XmcGo2QjtTkdtURgI=&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;">
+<title>Prepare a daily price file · Cribscore help</title>
+<style>:root{color-scheme:light;--paper:#f5f4ef;--ink:#1d2926;--muted:#56655e;--green:#315d49;--mint:#EAF0E9;--line:#d9dfd5;--line-strong:#7a8985;--code:#ebe8e0;--white:#fff;--focus:#315d49;--serif:Georgia,"Times New Roman",serif}*,::before,::after{box-sizing:border-box}html{background:var(--paper);color:var(--ink);-webkit-text-size-adjust:100%;text-size-adjust:100%}body{margin:0;font:1rem/1.6 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:46rem;margin:0 auto;padding:2rem 1rem 4rem}.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0 1rem;padding:.25rem max(1rem,calc((100% - 44rem) / 2)) .75rem;border-bottom:1px solid var(--line)}.brand{display:flex;align-items:center;gap:.5rem;min-height:44px;margin:0;font-size:1.125rem;font-weight:600;letter-spacing:-.02em}.brand-mark{display:flex;align-items:flex-end;gap:3px;height:18px}.brand-mark i{display:block;width:4px;border-radius:2px;background:var(--green)}.brand-mark i:nth-child(1){height:10px}.brand-mark i:nth-child(2){height:14px}.brand-mark i:nth-child(3){height:18px}.brand-dot{color:var(--green)}.brand small{font-size:.875rem;font-weight:500;letter-spacing:0;color:var(--muted)}.top-status{flex-basis:100%;margin:0;font-size:.8125rem;line-height:1.5;color:var(--muted)}.eyebrow{margin:0 0 .5rem;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}h1,h2{font-family:var(--serif);font-weight:400;line-height:1.2;margin:0}h1{font-size:clamp(1.875rem,1.4rem + 2vw,2.5rem);letter-spacing:-.02em;margin-bottom:1rem}h2{font-size:1.375rem;margin:2.75rem 0 .75rem}h3{font-size:1.0625rem;font-weight:600;line-height:1.4;margin:1.75rem 0 .5rem}p,ul,ol,dl,table{margin:0 0 1rem}ul,ol{padding-left:1.5rem}li+li{margin-top:.5rem}.lead{font-size:1.125rem}.muted{color:var(--muted)}.small{font-size:.9375rem}strong,b,th,caption,summary{font-weight:600}a{color:var(--green);text-decoration-thickness:1px;text-underline-offset:.2em}a:hover{text-decoration-thickness:2px}a:focus-visible,summary:focus-visible,pre:focus-visible{outline:3px solid var(--focus);outline-offset:3px}.back{display:inline-flex;align-items:center;gap:.35rem;min-height:44px;font-weight:600}.links{list-style:none;padding-left:0}.links li+li{margin-top:0}.links a{display:inline-flex;align-items:center;gap:.35rem;min-height:44px}.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.875em}code{overflow-wrap:anywhere;background:var(--code);border-radius:4px;padding:.1em .3em}pre{margin:0;background:var(--white);border:1px solid var(--line-strong);border-radius:10px;padding:1rem;overflow:auto;font-size:.8125rem;line-height:1.5}.notice{background:var(--mint);border-left:4px solid var(--green);border-radius:0 10px 10px 0;padding:1rem 1.25rem;margin:1.5rem 0}.notice h2{margin-top:0}.notice>:last-child{margin-bottom:0}table{border-collapse:collapse;width:100%}caption{text-align:left;padding-bottom:.5rem}th,td{text-align:left;vertical-align:top;padding:.75rem .75rem .75rem 0;border-top:1px solid var(--line)}th{width:8.5rem}td{padding-right:0}.pairs{display:grid;grid-template-columns:minmax(9rem,17rem) 1fr;column-gap:1rem}.pairs dt,.pairs dd{margin:0;padding:.6rem 0;border-top:1px solid var(--line)}.pairs dt{font-weight:600}details{margin:1.5rem 0 0}summary{cursor:pointer;color:var(--green);padding:.6rem 0}details[open] summary{margin-bottom:.75rem}@media (max-width:36rem){table,tbody,tr,th,td,caption{display:block}th{width:auto;padding-bottom:0}td{border-top:0;padding-top:.25rem}.pairs{display:block}.pairs dd{border-top:0;padding-top:0}pre{white-space:pre-wrap;overflow-wrap:anywhere}h2{margin-top:2.25rem}}</style>
 </head>
 <body>
+<header class="top">
+<p class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>cribscore<span class="brand-dot">.</span> <small>help</small></span></p>
+<p class="top-status">Private preview of unvalidated research. Nothing here is a forecast or a recommendation.</p>
+</header>
 <main>
-<h1>Daily price import format</h1>
-<p>Prepare a JSON file for <strong>Prices → Import daily price data → Import price data</strong>. A successful import immediately replaces the current imported batch. It stays in that tab until reload. A rejected file keeps the previous data. Keep your original file.</p>
+<p class="eyebrow">Prices help</p>
+<h1>Prepare a daily price file</h1>
+<p class="small muted">This guide opened in a new tab. Close this tab to return to Prices. Your imported prices stay in the app tab.</p>
+<p class="lead">You can load daily prices from a JSON file (a plain-text format for structured data) and see them on the Prices page. <strong>Imported data is chart context only.</strong> It cannot create a paper trade (a practice trade with no real money) or give the journal prices.</p>
+<p>A successful import immediately replaces the current imported batch. It stays in that tab until you reload. A rejected file keeps the previous data. Keep your original file.</p>
+<h2>Steps</h2>
+<ol>
+<li>Copy the synthetic example (invented data for practice) from the next section, or start from your own data.</li>
+<li>Fill in the fields described below. Use <code>null</code> for unknown values where this page allows it.</li>
+<li>Save the file as UTF-8 text (the standard encoding most text editors use) with a <code>.json</code> extension.</li>
+<li>In Cribscore, open <strong>Prices → Import daily price data</strong>. Choose the file, then select <strong>Import price data</strong>.</li>
+<li>Read the message under the company picker on the Prices page. If the file was rejected, look up its words under “If the import is rejected”.</li>
+</ol>
 <section class="notice" aria-labelledby="synthetic-heading">
-<h2 id="synthetic-heading">Synthetic format example</h2>
-<p><strong>Every value, symbol and timestamp in this example is invented.</strong> It is format practice, not historical or current market data. It has no verified source, calendar, action coverage or hosted chart mapping.</p>
-<p class="small">The complete JSON is below. Copy it into a UTF-8 text file with a <code>.json</code> extension to practice the format. Reading this page does not import anything. Keep the app open in its original tab.</p>
-</section>
-<h2>Fields to prepare</h2>
-<table><caption>One daily series</caption><tbody>
-<tr><th scope="row">Format</th><td><code>schemaVersion: "cribscore-price-series-v1"</code>, a distinct <code>id</code>, uppercase <code>symbol</code>, and three-letter <code>currency</code>.</td></tr>
-<tr><th scope="row">Sessions</th><td><code>interval: "1d"</code>, an IANA <code>sessionTimezone</code> such as <code>America/New_York</code>, and each exchange-local <code>session</code> date as <code>YYYY-MM-DD</code>.</td></tr>
-<tr><th scope="row">Prices</th><td>Quoted ordinary decimal strings for <code>open</code>, <code>high</code>, <code>low</code>, <code>close</code>. Keep the source precision; do not convert to binary floating-point first. High and low must contain open and close.</td></tr>
-<tr><th scope="row">Volume</th><td>A number or <code>null</code> for unknown volume. Ordinary share volume must be a whole number; split-adjusted volume may be fractional. Declare <code>volumeBasis</code> as <code>shares</code>, <code>split_adjusted_shares</code> or <code>unknown</code>.</td></tr>
-<tr><th scope="row">Source</th><td>Nonempty <code>source.provider</code> and <code>source.dataset</code>, with <code>channel: "manual_import"</code>. Use <code>null</code> for an unknown <code>url</code>, <code>capturedAt</code>, <code>publishedAt</code>, <code>responseSha256</code> or <code>declaredDelayMinutes</code>. A known URL must be HTTPS and contain no credentials. A known digest is 64 lowercase hexadecimal characters.</td></tr>
-<tr><th scope="row">Adjustments</th><td><code>priceBasis</code> is <code>unadjusted</code>, <code>split_adjusted</code>, <code>total_return_adjusted</code> or <code>unknown</code>. Use what the source establishes. Use <code>actions.status: "unknown"</code> and <code>items: []</code> when action coverage has not been established. An empty list does not certify that no actions occurred.</td></tr>
-</tbody></table>
-<p>Optional <code>originalSymbol</code>, <code>entityId</code> and <code>exchange</code> retain source identity when known; they can be omitted or <code>null</code>. The table and price highlight preserve canonical decimal strings; insignificant trailing zeros may disappear. The plot and indexed comparisons are approximate. You need not create the generated <code>decimals</code> fields yourself. If re-importing a normalized file, keep its numeric and decimal fields consistent.</p>
-<h2>Keep the clocks separate</h2>
-<p><code>capturedAt</code> is the actual source retrieval time. <code>publishedAt</code> is a separately known publication time. Use exact UTC timestamps with seconds and <code>Z</code>, optionally 1–3 fractional digits. Publication must not follow capture. Keep unknown nullable metadata <code>null</code>; keep original clocks when importing later.</p>
-<p>If you supply a bar <code>availableAt</code>, it must be a valid UTC timestamp, no earlier than known publication and no later than known capture; an invalid value rejects the file. If it is omitted or <code>null</code>, the parser uses capture, then known publication, or leaves availability unknown. A session date alone is not a quote timestamp.</p>
-<h2>Coverage and trust remain explicit</h2>
-<p>Imports do not provide a verified exchange calendar. A continuous line does not establish holidays, early closes or missing-session coverage. A recent capture does not establish current prices; unknown delay is not zero. An empty action list does not establish that no splits or dividends occurred.</p>
-<p><strong>Imported data is chart context only.</strong> Import success does not verify source rights or account entitlement, create a paper trade, supply journal marks or change rankings. TradingView is a separate display. Raw provider responses, including Alpaca bars, need conversion to this format with their original source metadata. Importing them does not connect or authenticate a provider account.</p>
-<h2>Limits and multiple companies</h2>
-<p>The upload UI accepts JSON only: at most 2 MiB, 16 series, 5,000 bars per series and 40,000 bars total. Session dates must be unique per series; IDs and symbols must be unique per batch. Duplicate JSON keys are rejected. Positive prices support up to 12 decimal places and a maximum value of <code>1000000000000</code>. Ordinary decimal strings cannot contain commas, currency signs or exponents.</p>
-<p>To retain several companies together, put their complete objects in the <code>series</code> array of a wrapper with <code>schemaVersion: "cribscore-price-import-v1"</code>. Each successful upload replaces the previous batch. CSV is not accepted by this form.</p>
-<details id="synthetic-example"><summary>Inspect the complete synthetic JSON</summary><pre tabindex="0" aria-label="Synthetic import example JSON">{
+<h2 id="synthetic-heading">The example uses invented data</h2>
+<p><strong>Every value, symbol and timestamp in this example is invented.</strong> It is only for practicing the format. It is not real market data, past or present. It has no verified source, trading calendar, record of splits and dividends, or chart link.</p>
+<p class="small">The complete JSON is below. Copy it into a UTF-8 text file with a <code>.json</code> extension to practice the format. It imports with warnings on purpose. Reading this page does not import anything. Keep the app open in its original tab.</p>
+<details id="synthetic-example"><summary>Show the complete synthetic JSON</summary><pre tabindex="0" aria-label="Synthetic import example JSON">{
   &quot;schemaVersion&quot;: &quot;cribscore-price-series-v1&quot;,
   &quot;id&quot;: &quot;synthetic-guide-example&quot;,
   &quot;symbol&quot;: &quot;DEMO&quot;,
@@ -92,6 +87,90 @@
   }
 }
 </pre></details>
+</section>
+<h2>Fields to prepare</h2>
+<table><caption>One series (the daily prices for one company)</caption><tbody>
+<tr><th scope="row">Format</th><td><code>schemaVersion: "cribscore-price-series-v1"</code>, a distinct <code>id</code>, an uppercase <code>symbol</code> and a three-letter <code>currency</code> such as <code>USD</code>.</td></tr>
+<tr><th scope="row">Sessions</th><td><code>interval: "1d"</code> and a <code>sessionTimezone</code> given as an IANA time zone (a standard place name such as <code>America/New_York</code>). Write each <code>session</code> (trading day) as the exchange’s local date, <code>YYYY-MM-DD</code>.</td></tr>
+<tr><th scope="row">Prices</th><td>Write <code>open</code>, <code>high</code>, <code>low</code> and <code>close</code> as quoted decimal text, such as <code>"10.25"</code>. Keep every digit the source gave. Do not convert them to floating-point numbers first (computer numbers that can change the last digits). The high must be at or above the open and close. The low must be at or below them.</td></tr>
+<tr><th scope="row">Volume</th><td>A number, or <code>null</code> when volume is unknown. Unknown volume is not zero. Ordinary share volume must be a whole number. Split-adjusted volume (rescaled so older values match after a stock split) may have a fraction. Set <code>volumeBasis</code> to <code>shares</code>, <code>split_adjusted_shares</code> or <code>unknown</code>.</td></tr>
+<tr><th scope="row">Source</th><td><code>source.provider</code> (the company that supplied the data) and <code>source.dataset</code> (the name of the data product) must not be empty. Set <code>channel: "manual_import"</code>. Use <code>null</code> for an unknown <code>url</code>, <code>capturedAt</code>, <code>publishedAt</code>, <code>responseSha256</code> or <code>declaredDelayMinutes</code> (how many minutes late the source says its data is). A known URL must use HTTPS and contain no credentials. A known <code>responseSha256</code> (a fingerprint of the exact file the source sent) is 64 lowercase hexadecimal characters (digits 0–9 and letters a–f). Do not invent a capture time or digest to clear a warning.</td></tr>
+<tr><th scope="row">Adjustments</th><td>Set <code>priceBasis</code> to <code>unadjusted</code>, <code>split_adjusted</code>, <code>total_return_adjusted</code> (also adjusted as if dividends were reinvested) or <code>unknown</code>. Use the basis your source establishes. If you have not confirmed every corporate action (an event like a split or dividend that changes shares) for these dates, use <code>actions.status: "unknown"</code> with <code>items: []</code>. An empty list does not certify that no actions occurred.</td></tr>
+</tbody></table>
+<p>Three fields are optional: <code>originalSymbol</code>, <code>entityId</code> and <code>exchange</code>. They keep the source’s identity for the company when you know it. Leave them out or set them to <code>null</code> when you do not.</p>
+<p>You do not need to write the <code>decimals</code> fields. The app creates them. If you re-import a normalized file (one that already has <code>decimals</code> fields), keep its numbers and decimal text consistent.</p>
+<p>The data table and the large closing price keep your exact digits. Trailing zeros that do not change the value may disappear, so <code>10.50</code> shows as <code>10.5</code>. The plot is approximate. So are the values under “Benchmark comparison”, where both series start at 100 on their first shared day.</p>
+<h2>Keep the clocks separate</h2>
+<p><code>capturedAt</code> is the time the data was actually retrieved from the source. <code>publishedAt</code> is a publication time you know separately. Write both as exact UTC timestamps (Coordinated Universal Time, ending in Z) with seconds, such as <code>2020-01-08T22:00:00Z</code>. You may add 1–3 fractional digits. Publication must not come after capture. Where a field allows <code>null</code>, keep unknown values <code>null</code>. When you import the same data later, keep its original clocks.</p>
+<p>If a bar (one trading day’s prices and volume) has an <code>availableAt</code> (when those prices became available), it must be a valid UTC timestamp. It must be no earlier than known publication and no later than known capture. Take care here, because an invalid value rejects the file. If it is omitted or <code>null</code>, the parser uses capture, then known publication, or leaves availability unknown. A session date alone is not the time a price was quoted.</p>
+<h2>Limits</h2>
+<ul>
+<li>The form accepts JSON files only. CSV is not accepted by this form.</li>
+<li>At most 2 MiB per file (2,097,152 bytes, about 2.1 MB).</li>
+<li>At most 16 series per file, 5,000 bars (one bar per trading day) per series and 40,000 bars in total.</li>
+<li>Session dates must be unique within each series. IDs and symbols must be unique within a batch.</li>
+<li>Duplicate JSON keys are rejected.</li>
+<li>Prices must be positive. They can have up to 12 decimal places, with a maximum value of <code>1000000000000</code> (one trillion).</li>
+<li>Decimal text cannot contain commas, currency signs or exponents (such as <code>1e6</code>).</li>
+</ul>
+<h2>Several companies in one file</h2>
+<p>To keep several companies together, put their complete series objects in the <code>series</code> list of a wrapper: <code>{"schemaVersion": "cribscore-price-import-v1", "series": []}</code>. The list holds 1–16 series. Each successful upload replaces the previous batch, so put every company you want to see in the same file.</p>
+<h2>What imported data does not prove</h2>
+<p>Imports do not provide a verified exchange calendar (the official list of trading days). A continuous line does not prove that holidays, early closes or missing sessions are covered. A recent capture does not mean prices are current. An unknown delay is not zero. An empty action list does not prove that no splits or dividends occurred.</p>
+<p>A successful import does not verify your source rights or account entitlement (what your data plan allows). It does not create a paper trade, supply journal marks (prices the journal uses to value decisions) or change rankings. TradingView (a separate charting site that the app can show) never shows your file.</p>
+<p>Raw provider responses, including Alpaca bars (Alpaca is a market-data provider), need conversion to this format with their original source metadata. Importing them does not connect or authenticate a provider account. Never put account keys or passwords in the file or in a source URL. To connect a price source, open Price-feed setup at the bottom of the Prices page. Its link “How to set up the price feed” opens the setup guide.</p>
+<h2>If the import is rejected</h2>
+<p>Your previous data stays in place. The message under the company picker lists each problem in words, such as “bar price invalid”. Open the list below and find those words.</p>
+<details id="rejection-messages"><summary>Show every message and its fix</summary>
+<h3>The whole file</h3>
+<dl class="pairs">
+<dt>“Choose a JSON price file under 2 MiB.”</dt><dd>No file was chosen, or the file is larger than 2 MiB.</dd>
+<dt>import size invalid</dt><dd>The text is larger than 2 MiB.</dd>
+<dt>import parse failed</dt><dd>The text is not valid JSON. Look for a missing comma, quote or bracket, or extra text after the end.</dd>
+<dt>import duplicate key</dt><dd>A field name appears twice in the same object.</dd>
+<dt>import nesting too deep</dt><dd>Lists and objects are nested more than 64 levels deep.</dd>
+<dt>import series count invalid</dt><dd>The file has no series, or more than 16.</dd>
+<dt>import bar count invalid</dt><dd>The file has more than 40,000 bars in total.</dd>
+<dt>import duplicate series</dt><dd>Two series share an <code>id</code> or a <code>symbol</code>.</dd>
+<dt>import validation failed</dt><dd>At least one series broke a rule. The words after it name the rule.</dd>
+</dl>
+<h3>Series fields</h3>
+<dl class="pairs">
+<dt>price series invalid, price series missing</dt><dd>An entry in the series list is empty or is not a JSON object.</dd>
+<dt>schema version unsupported</dt><dd>Each series needs <code>"cribscore-price-series-v1"</code>. A wrapper needs <code>"cribscore-price-import-v1"</code>. With a wrong wrapper version the app reads the whole file as one series, so many messages appear at once.</dd>
+<dt>security identity invalid</dt><dd>Check <code>id</code>, <code>symbol</code> and <code>currency</code>. A symbol uses capital letters, digits and a few marks such as a dot or dash, up to 20 characters. A currency is three capital letters.</dd>
+<dt>security mapping invalid</dt><dd><code>originalSymbol</code> is not written like a symbol, or <code>entityId</code> is empty.</dd>
+<dt>exchange invalid</dt><dd><code>exchange</code> is empty. Give a name or use <code>null</code>.</dd>
+<dt>session timezone invalid</dt><dd>Use an IANA time zone such as <code>America/New_York</code>.</dd>
+<dt>daily interval required</dt><dd><code>interval</code> must be <code>"1d"</code>.</dd>
+<dt>price basis invalid, volume basis invalid</dt><dd>Use one of the values listed in the table above.</dd>
+</dl>
+<h3>Source fields</h3>
+<dl class="pairs">
+<dt>source identity required</dt><dd>The <code>source</code> object is missing, or its <code>provider</code> or <code>dataset</code> is empty or longer than 500 characters.</dd>
+<dt>source url invalid</dt><dd>Use an HTTPS address without a user name, password or <code>#</code> part. Its query cannot carry a key, token or password. Or use <code>null</code>.</dd>
+<dt>source capturedAt invalid, source publishedAt invalid</dt><dd>Write exact UTC with seconds, such as <code>2020-01-08T22:00:00Z</code>.</dd>
+<dt>publication after capture</dt><dd><code>publishedAt</code> is later than <code>capturedAt</code>.</dd>
+<dt>source digest invalid</dt><dd><code>responseSha256</code> must be 64 lowercase hexadecimal characters, or <code>null</code>.</dd>
+<dt>source delay invalid</dt><dd><code>declaredDelayMinutes</code> must be zero or more, or <code>null</code>.</dd>
+<dt>source price session invalid</dt><dd><code>priceSession</code> must be <code>"regular_daily_aggregate"</code>, <code>"unknown"</code> or <code>null</code>.</dd>
+<dt>source pagination status invalid</dt><dd><code>paginationComplete</code> must be <code>true</code>, <code>false</code> or <code>null</code>.</dd>
+</dl>
+<h3>Bars</h3>
+<dl class="pairs">
+<dt>bars shape invalid</dt><dd><code>bars</code> is missing, is not a list, or has more than 5,000 entries.</dd>
+<dt>bar session invalid or duplicate</dt><dd>A <code>session</code> is not a real <code>YYYY-MM-DD</code> date, or the date repeats.</dd>
+<dt>bar price invalid</dt><dd>A price is zero or less, has more than 12 decimal places, is above <code>1000000000000</code>, or contains a comma, sign or exponent.</dd>
+<dt>bar ohlc inconsistent</dt><dd>A high is below the open or close, or a low is above them.</dd>
+<dt>bar volume invalid</dt><dd>A volume is negative, too large or not a number. A fraction is allowed only when <code>volumeBasis</code> is <code>split_adjusted_shares</code>.</dd>
+<dt>bar decimal projection invalid</dt><dd>In a re-imported file, a <code>decimals</code> entry does not match its number.</dd>
+<dt>bar availability invalid</dt><dd><code>availableAt</code> is not exact UTC, or it is earlier than known publication or later than known capture.</dd>
+</dl>
+<h3>Splits and dividends</h3>
+<dl class="pairs">
+<dt>actions shape invalid, action coverage invalid, action identity invalid, split ratio invalid, dividend invalid, action source invalid</dt><dd>Something in <code>actions</code> does not follow the format. If you have not checked splits and dividends, use <code>"status": "unknown"</code> with <code>"items": []</code>.</dd>
+</dl>
+</details>
 </main>
 </body>
 </html>

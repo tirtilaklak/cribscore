@@ -26,7 +26,7 @@ test('six case cards expose native company-specific price actions only when the 
     assert.equal(createDocument(legacy).querySelectorAll('[data-price-symbol]').length,0);
     const buttons=dom.querySelectorAll('[data-price-symbol]');assert.equal(buttons.length,6);
     assert.deepEqual(buttons.map(b=>b.dataset.priceSymbol).sort(),symbols.toSorted());
-    for(const button of buttons){assert.equal(button.tagName,'BUTTON');assert.equal(button.getAttribute('type'),'button');assert.match(button.textContent,new RegExp(`View price action.*for ${button.dataset.priceSymbol}`));assert.ok(button.closest('.stock-card'));assert.equal(button.closest('details'),null);}
+    for(const button of buttons){assert.equal(button.tagName,'BUTTON');assert.equal(button.getAttribute('type'),'button');assert.match(button.textContent,new RegExp(`Price chart.*for ${button.dataset.priceSymbol}`));assert.ok(button.closest('.stock-card'));assert.equal(button.closest('details'),null);}
     assert.equal(createDocument(renderStockView(snapshot,'TXN',{priceSymbols:symbols})).querySelector('[data-price-symbol]').dataset.priceSymbol,'TXN');
   }
   assert.equal(h.requests(),0);h.app.destroy();

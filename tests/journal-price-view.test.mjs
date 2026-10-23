@@ -21,7 +21,7 @@ test('empty and abstention states never create trades, zero returns or actual co
   const row=entry();row.status='abstain';row.symbol=null;row.company=null;row.paper=null;row.reason='No eligible published suggestion';
   model.entries=[row];model.summary.decisions=1;model.summary.abstentions=1;
   html=renderJournalView(model);
-  assert.match(html,/<h3>Context observation<\/h3>/);assert.match(html,/No eligible published suggestion/);
+  assert.match(html,/<h3>No eligible stock<\/h3>/);assert.match(html,/No eligible published suggestion/);
   assert.doesNotMatch(html,/data-journal-action="confirm-actual"|Realized P&amp;L/);
 });
 

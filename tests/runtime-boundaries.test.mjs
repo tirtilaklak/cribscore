@@ -59,7 +59,7 @@ test('a known future-effective revocation removes an open claim at its effective
 test('malformed stock JSON cannot prevent the independent evidence page from booting',async()=>{
   for(const stock of [{event_evidence:{},operating_evidence:{}},(()=>{const value=structuredClone(actualStock);value.operating_evidence.hypotheses[0].evidence_chain=null;return value;})()]){
     const app=await boot({stock});
-    assert.match(app.nodes.get('#view-content').innerHTML,/Original filing observations/);
+    assert.match(app.nodes.get('#view-content').innerHTML,/<h2>Filing facts/);
     app.api.state.view='research';app.api.render();
     assert.match(app.nodes.get('#view-content').innerHTML,/Stock research unavailable/);
   }
