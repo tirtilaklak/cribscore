@@ -237,38 +237,200 @@ test('Prices: import, picker and chart results show at their controls; a success
   assert.equal(h.app.selectPriceSymbol('TSLA'),true);noLine(h.html());
 });
 
-test('the pressed control keeps its place on screen when the view above it grows',{concurrency:false},async t=>{
-  // Offline geometry: the import form and the start button sit where the test says; an inline line at lineTop.
-  const original=Element.prototype.getBoundingClientRect,place={form:400,start:300,line:null};
-  Element.prototype.getBoundingClientRect=function(){
-    const top=this.getAttribute('data-price-form')==='import'?place.form:this.getAttribute('data-journal-action')==='start'?place.start:/\bdesk-feedback-inline\b/.test(this.getAttribute('class')||'')&&place.line!==null?place.line:2000;
-    return {top,bottom:top+60,left:0,right:500};
+test('a refusal of a form shows under that form',{concurrency:false},async t=>{
+  const remote=started('synthetic-feedback-refusal'),h=await desk(t,{remote});
+  h.file('#journal-import-file',(await J.exportJournal(remote)).text);await h.submit(h.query('[data-journal-form="import"]'));
+  await h.submit(h.query('[data-journal-form="settings"]'));
+  const found=inline(lineOf(h.html()));
+  assert.equal(plain(found.line),'Apply or cancel the reviewed backup before making another journal change.');assert.ok(isForm('settings')(found.previous));
+});
+
+// ---- The app's own render path: disclosures, dirty forms and focus as app.js keeps them ----
+// renderContent is sliced from app.js as the form tests slice it. render() below then mounts and applies
+// app.js's focus fallback (focus that sat in a replaced view goes to that view's fallback target).
+const appSource=await readFile(new URL('../dist/app.js',import.meta.url),'utf8');
+const renderSource=appSource.slice(appSource.indexOf('function disclosureKey('),appSource.indexOf('let rightsExpiryTimer;'));
+// renderContent moves dirty forms with remove() and replaceWith(), which the offline DOM lacks, and mount()
+// puts the chart frame in with replaceChildren(frame), whose offline version only empties the box. These
+// follow the DOM: replaceChildren(...nodes) empties the element, then appends the nodes.
+Element.prototype.remove??=function(){if(this.parentElement)this.parentElement.children.splice(this.parentElement.children.indexOf(this),1);this.parentElement=null;};
+Element.prototype.replaceWith??=function(previous){const parent=this.parentElement,index=parent.children.indexOf(this),oldParent=previous.parentElement;if(oldParent)oldParent.children.splice(oldParent.children.indexOf(previous),1);parent.children[index]=previous;previous.parentElement=parent;this.parentElement=null;};
+const emptyChildren=Element.prototype.replaceChildren;
+Element.prototype.replaceChildren=function(...nodes){emptyChildren.call(this);for(const node of nodes)this.append(node);};
+const deferred=()=>{let resolve;const promise=new Promise(done=>resolve=done);return {promise,resolve};};
+async function appDesk(t,{view='journal',remote=null,layout=null}={}){
+  const document=createDocument('<body><main id="main" tabindex="-1"><section id="view-content"></section></main></body>');
+  document.removeEventListener=(type,fn)=>{document.listeners.set(type,(document.listeners.get(type)||[]).filter(item=>item!==fn));};
+  document.createElement=tag=>tag==='iframe'?Object.assign(new Element('iframe',document),{style:{}}):({click(){},remove(){}});document.body.append=()=>{};
+  if(layout){document.defaultView=layout.window;document.documentElement={};}
+  const renderContent=new Function('document','state',`let renderedView,renderedContentHTML,lastFocus;const disclosureState=new Map();const $=s=>document.querySelector(s);${renderSource};return renderContent;`)(document,{view});
+  const content=document.querySelector('#view-content'),io={current:remote,commit:'ok',hold:null};let uid=0;
+  const app=createDeskTools({document,now:()=>at,uuid:()=>`synthetic-${++uid}`,onChange:()=>render(),fetch:async(url,options={})=>{
+    if(url.endsWith('/observe'))return reply({ok:true,journal:io.current,revision:io.current.revision,automation:{publisherState:'unconfigured',checkedAt:at,pendingReasons:['publisher_unconfigured']}});
+    if(url==='/api/journal'){
+      if(options.method!=='POST')return reply({ok:true,journal:io.current,revision:io.current?.revision??0});
+      if(io.hold)await io.hold.promise;
+      if(io.commit==='fail')return reply({ok:false,error:'synthetic_save_unavailable'},503);
+      io.current=JSON.parse(options.body).journal;return reply({ok:true,journal:io.current,revision:io.current.revision});
+    }
+    return reply({ok:false,error:'synthetic_unavailable'},503);
+  }});
+  function render(){
+    const hadFocus=content.contains(document.activeElement),markup=app.html(view);
+    layout?.beforeSwap?.();renderContent(markup);
+    for(const field of content.querySelectorAll('input,select,textarea'))if(!field.initialized){field.value=field.tagName==='SELECT'?(field.querySelector('option[selected]')||field.querySelector('option'))?.getAttribute('value')||'':field.getAttribute('value')||'';field.initialized=true;}
+    app.mount(view);
+    const active=document.activeElement;
+    if(hadFocus&&(!active||active.tagName==='BODY'||active.id==='main'||!active.isConnected))content.querySelector('[data-focus-fallback]')?.focus();
+  }
+  t.after(async()=>{io.hold?.resolve();await settle(app);app.destroy();});
+  await app.start();await settle(app);render();
+  const query=selector=>content.querySelector(selector);
+  return {app,io,query,content,document,html:()=>app.html(view),
+    async press(element){assert.ok(element,'the control is on the page');element.focus();element.dispatch({type:'click',target:element});await settle(app);},
+    async submit(form){assert.ok(form,'the form is on the page');form.querySelector('button[type="submit"]')?.focus();form.dispatch({type:'submit',target:form,preventDefault(){}});await settle(app);},
+    file(selector,text){const field=query(selector);assert.ok(field,selector);field.file={size:text.length,text:async()=>text};}};
+}
+// A scroll-aware layout for the offline DOM. Each role has a document top; the window scrolls and clamps at 0.
+// clear is the page's scroll padding, which marks the sticky phone menu band (106 px at 390 px wide).
+function layoutModel({height=800,clear=106,scrollY=600}={}){
+  const tops=new Map(),size={line:70,'chart-heading':28,'overview-heading':28},scrolls=[];let y=scrollY;
+  const role=element=>{
+    const kind=element.getAttribute?.('class')||'';if(/\bdesk-feedback-inline\b/.test(kind))return 'line';
+    if(element.id==='hosted-price-heading')return 'chart-heading';if(element.id==='journal-overview-heading')return 'overview-heading';
+    const action=element.getAttribute?.('data-journal-action')||element.getAttribute?.('data-price-action');if(action)return `action:${action}`;
+    if(['INPUT','SELECT','TEXTAREA'].includes(element.tagName)&&element.getAttribute('name'))return `field:${element.getAttribute('name')}`;
+    const form=element.tagName==='BUTTON'&&element.getAttribute('type')==='submit'?element.closest('[data-journal-form],[data-price-form]'):null;
+    return form?`submit:${form.getAttribute('data-journal-form')||form.getAttribute('data-price-form')}`:null;
   };
-  t.after(()=>{Element.prototype.getBoundingClientRect=original;});
-  const scrolls=[],window={innerHeight:800,scrollBy:(x,y)=>scrolls.push([x,y])};
-  const raw=await readFile(new URL('../docs/examples/synthetic-price-import.json',import.meta.url),'utf8');
-  const geometry={window,beforeSwap:null};
-  const h=await desk(t,{view:'prices',geometry});
-  assert.deepEqual(scrolls,[],'no scroll without an owner message');
-  // The import adds a chart above the form: 520 px more page above it.
-  geometry.beforeSwap=()=>{place.form=920;};
-  h.file('#price-import-file',raw);await h.submit(h.query('[data-price-form="import"]'));
-  assert.deepEqual(scrolls,[[0,520]],'the form and its line stay where the owner pressed');
-  // A change that clears the message keeps the page still.
-  geometry.beforeSwap=()=>{place.form=1400;};
-  h.set('#price-symbol','IBM');await h.submit(h.query('[data-price-form="selection"]'));
-  assert.deepEqual(scrolls,[[0,520]]);
-  // A control the owner scrolled away from is left alone.
-  place.form=900;geometry.beforeSwap=()=>{place.form=300;};
-  h.file('#price-import-file','{');await h.submit(h.query('[data-price-form="import"]'));
-  assert.deepEqual(scrolls,[[0,520]]);
-  // Start removes its own button: the line takes the spot where the button was.
-  const jGeometry={window,beforeSwap:()=>{place.line=100;}};
-  const j=await desk(t,{geometry:jGeometry});scrolls.length=0;
-  await j.press(j.query('[data-journal-action="start"]'));
-  assert.deepEqual(scrolls,[[0,-200]],'one move, then the line stays put through the assessment that follows');
-  // Without a window (the other tests) nothing is measured or scrolled.
-  assert.equal(typeof globalThis.scrollBy,'undefined');
+  const model={scrolls,beforeSwap:null,
+    window:{innerHeight:height,scrollBy:(dx,dy)=>{const before=y;y=Math.max(0,y+dy);scrolls.push(y-before);},getComputedStyle:()=>({scrollPaddingTop:`${clear}px`})},
+    at:name=>tops.get(name)-y,                                        // viewport top now
+    put:(name,viewportTop)=>tops.set(name,viewportTop+y),             // place at a viewport top now
+    move:(name,dy)=>tops.set(name,tops.get(name)+dy),                 // the page grew above it
+    below:(name,above,gap=12)=>tops.set(name,tops.get(above)+(size[above]??44)+gap),
+    rect(element){const name=role(element),top=name&&tops.has(name)?tops.get(name)-y:5000;return {top,bottom:top+(size[name]??44),left:0,right:500};}};
+  return model;
+}
+function useLayout(t,model){const original=Element.prototype.getBoundingClientRect;Element.prototype.getBoundingClientRect=function(){return model.rect(this);};t.after(()=>{Element.prototype.getBoundingClientRect=original;});return model;}
+const once=fn=>{let done=false;return ()=>{if(!done){done=true;fn();}};};
+const inView=(model,name,clear=106,height=800)=>model.at(name)>=clear&&model.at(name)+(name==='line'?70:name.endsWith('heading')?28:44)<=height;
+const exampleFile=await readFile(new URL('../docs/examples/synthetic-price-import.json',import.meta.url),'utf8');
+async function priceImport(t,buttonTop){
+  const model=useLayout(t,layoutModel()),h=await appDesk(t,{view:'prices',layout:model});
+  h.query('details[data-state-key="prices:import"]').open=true;h.file('#price-import-file',exampleFile);
+  model.put('submit:import',buttonTop);
+  // The import adds a chart, notices and tables above the form: 520 px more page above it.
+  model.beforeSwap=once(()=>{model.move('submit:import',520);model.below('line','submit:import');});
+  await h.submit(h.query('[data-price-form="import"]'));
+  assert.match(plain(lineOf(h.html()).line),/^Imported 1 daily series/);
+  return {model,h};
+}
+
+test('place keeping: a valid import keeps the pressed button where it was, with its line under it',{concurrency:false},async t=>{
+  const {model,h}=await priceImport(t,400);
+  assert.deepEqual(model.scrolls,[520],'one move that undoes the growth above the form');
+  assert.equal(model.at('submit:import'),400);assert.ok(inView(model,'line'));
+  // A change that clears the message keeps the page still, even when the page above the form changes.
+  h.query('#price-symbol').value='IBM';model.beforeSwap=once(()=>model.move('submit:import',-300));
+  await h.submit(h.query('[data-price-form="selection"]'));
+  noLine(h.html());assert.deepEqual(model.scrolls,[520]);
+});
+
+test('place keeping: a control pressed at the bottom edge still shows its whole line, and focus stays clear of the band',{concurrency:false},async t=>{
+  const {model}=await priceImport(t,750);// button bottom 6 px above the fold
+  assert.deepEqual(model.scrolls,[520,84],'keep the place, then bring the line up by its overflow plus 8 px');
+  assert.ok(inView(model,'line'),'the whole line is in view');assert.ok(model.at('submit:import')>=106,'the focused button is clear of the band');
+});
+
+test('place keeping: an automatic assessment that grows History afterwards moves nothing',{concurrency:false},async t=>{
+  const model=useLayout(t,layoutModel()),remote=started('synthetic-feedback-grow'),h=await appDesk(t,{remote,layout:model});
+  const form=h.query('[data-journal-form="settings"]');form.closest('details').open=true;form.querySelector('#paper-notional').value='300';
+  model.put('submit:settings',500);model.beforeSwap=once(()=>model.below('line','submit:settings'));
+  await h.submit(form);
+  assert.equal(plain(lineOf(h.html()).line),'Paper assumptions saved for future intents. Existing decisions retain their original settings.');
+  assert.deepEqual(model.scrolls,[],'the line fits under the button: nothing to move');
+  // Two new entries arrive with the next automatic assessment: History grows 218 px above the form.
+  let grown=h.io.current;for(const horizonId of ['next_day','next_week'])grown=(await J.recordAbstention(grown,{id:`synthetic-grow-${horizonId}`,at,date:'2026-10-17',horizonId,unrankedCount:6,reason:'Synthetic growth.',snapshot:{id:'synthetic-snapshot'}})).journal;
+  h.io.current=grown;model.beforeSwap=once(()=>{model.move('submit:settings',218);model.move('line',218);});
+  await h.app.observe();await settle(h.app);
+  assert.equal((h.html().match(/data-journal-entry=/g)||[]).length,2,'History grew');
+  assert.deepEqual(model.scrolls,[],'background renders never hold or scroll');assert.equal(model.at('submit:settings'),718);
+});
+
+test('place keeping: Load chart near the top puts its line where the button was and keeps the focused heading clear of the band',{concurrency:false},async t=>{
+  const model=useLayout(t,layoutModel()),h=await appDesk(t,{view:'prices',layout:model});
+  // 390 x 844 style: the button just below the 106 px clear zone, its heading already under the band.
+  model.put('action:load-hosted',110);model.put('chart-heading',15);
+  model.beforeSwap=once(()=>model.put('line',92));// the line now starts where the chart box began
+  await h.press(h.query('[data-price-action="load-hosted"]'));
+  assert.ok(!h.query('[data-price-action="load-hosted"]')&&h.query('#hosted-price-chart iframe'),'the chart frame replaced the button');
+  assert.equal(h.document.activeElement?.id,'hosted-price-heading','app.js moves focus to the chart heading');
+  assert.ok(model.at('chart-heading')>=106,`the focused heading is clear of the band (top ${model.at('chart-heading')})`);
+  assert.ok(inView(model,'line'),'the whole line is in view');
+  assert.deepEqual(model.scrolls,[-18,-73],'the line takes the button\'s place, then the heading clears the band');
+});
+
+test('place keeping: Start puts its line where the button was, and the assessment that follows moves nothing',{concurrency:false},async t=>{
+  const model=useLayout(t,layoutModel()),h=await appDesk(t,{layout:model});
+  model.put('action:start',300);
+  model.beforeSwap=once(()=>{model.put('line',250);model.below('overview-heading','line',36);});
+  await h.press(h.query('[data-journal-action="start"]'));
+  assert.equal(plain(lineOf(h.html()).line),'Automatic journaling is enabled. Assessments update while the app is open.');
+  assert.deepEqual(model.scrolls,[-50]);assert.equal(model.at('line'),300);assert.ok(inView(model,'overview-heading'));
+});
+
+test('place keeping: a rejected save whose first invalid field the browser scrolled to still brings its line into view',{concurrency:false},async t=>{
+  const model=useLayout(t,layoutModel()),remote=started('synthetic-feedback-invalid'),h=await appDesk(t,{remote,layout:model});
+  const form=h.query('[data-journal-form="settings"]');form.closest('details').open=true;form.querySelector('#paper-notional').value='abc';
+  // Focusing the first invalid field scrolled the page in the browser: the field is on screen, the button below the fold.
+  model.put('field:paperNotional',300);model.put('submit:settings',820);model.beforeSwap=once(()=>model.below('line','submit:settings'));
+  await h.submit(form);
+  assert.match(plain(lineOf(h.html()).line),/^Nothing saved: .*Check the highlighted paper assumptions\.$/);
+  assert.equal(h.document.activeElement?.id,'paper-notional','focus stays on the first invalid field');
+  assert.deepEqual(model.scrolls,[154],'the line comes up by its overflow plus 8 px');
+  assert.ok(inView(model,'line'));assert.ok(model.at('field:paperNotional')>=106,'the focused field stays clear of the band');
+});
+
+test('place keeping: a control the owner scrolled away from is left alone',{concurrency:false},async t=>{
+  const model=useLayout(t,layoutModel()),h=await appDesk(t,{view:'prices',layout:model});
+  h.query('details[data-state-key="prices:import"]').open=true;h.file('#price-import-file','{');
+  model.put('submit:import',1200);model.beforeSwap=once(()=>model.below('line','submit:import'));
+  await h.submit(h.query('[data-price-form="import"]'));
+  assert.match(plain(lineOf(h.html()).line),/import parse failed/);assert.deepEqual(model.scrolls,[]);
+});
+
+test('a result that would land in a closed disclosure opens it, and it stays open',{concurrency:false},async t=>{
+  const {journal,intentId}=await paperJournal(),h=await appDesk(t,{remote:journal});
+  const form=h.query(`[data-journal-form="save-fill"][data-journal-id="${intentId}"]`);form.closest('details').open=true;
+  for(const [name,value] of Object.entries({side:'buy',occurredAt:'2026-10-17T17:00',quantity:'1',price:'100',fee:'0'}))form.querySelector(`[name="${name}"]`).value=value;
+  h.io.hold=deferred();h.io.commit='fail';
+  form.querySelector('button[type="submit"]').focus();form.dispatch({type:'submit',target:form,preventDefault(){}});
+  await until(()=>h.app.status().busy,'the save is in flight');
+  form.closest('details').open=false;// the owner closes "Add actual fill" while it saves
+  h.io.hold.resolve();await settle(h.app);
+  const line=h.content.querySelector('.desk-feedback');
+  assert.equal(line?.textContent,'Journal save unavailable: synthetic save unavailable. No synced result is assumed.');
+  assert.ok(/\bdesk-feedback-inline\b/.test(line.getAttribute('class')));
+  const holder=line.closest('details');assert.ok(holder,'the line sits in the fill disclosure');assert.equal(holder.open,true,'the disclosure opened for the result');
+  await h.app.observe();await settle(h.app);
+  assert.equal(h.content.querySelector('.desk-feedback').closest('details').open,true,'app.js keeps it open on the next render');
+});
+
+test('a render during an owner action keeps the previous message at its own control',{concurrency:false},async t=>{
+  const remote=started('synthetic-feedback-midway'),h=await appDesk(t,{remote});
+  h.file('#journal-import-file',(await J.exportJournal(remote)).text);await h.submit(h.query('[data-journal-form="import"]'));
+  await h.press(h.query('[data-journal-action="export"]'));
+  await until(()=>h.html().includes('Journal backup exported'),'the export reports its result');
+  h.io.hold=deferred();
+  const apply=h.query('[data-journal-action="confirm-import"]');apply.focus();apply.dispatch({type:'click',target:apply});
+  await until(()=>h.app.status().busy,'the apply is in flight');
+  let found=inline(lineOf(h.html()));
+  assert.equal(plain(found.line),'Journal backup exported with its original events and revision history.');
+  assert.ok(holds(node=>node.attrs['data-journal-action']==='export')(found.previous),'still under the export button while Apply runs');
+  h.io.hold.resolve();await settle(h.app);
+  found=inline(lineOf(h.html()));
+  assert.equal(plain(found.line),'Reviewed backup saved. Existing records and original decision context remain intact.');assert.ok(isForm('import')(found.previous));
 });
 
 // Rules with their nesting at-rules, in file order (as tests/ui-A-shell.test.mjs reads them).
@@ -278,6 +440,33 @@ function cssRules(text){
   block([]);return rules;
 }
 const declaration=(rule,name)=>rule.body.match(new RegExp(`(?:^|;)\\s*${name}\\s*:\\s*([^;]+)`))?.[1]?.trim();
+// Can a selector's subject (its last compound) match an outcome line? The line is a <p> with the class
+// desk-feedback (plus desk-feedback-inline), no id, and no attribute other than class and tabindex.
+// Ancestors, pseudo-classes and :is()/:not() arguments are ignored, so the check never misses a rule.
+// A pseudo-element (::before) styles generated content, not the line.
+function canMatchLine(selector){
+  let depth=0,start=0;
+  for(let index=0;index<selector.length;index++){const char=selector[index];if('(['.includes(char))depth++;else if(')]'.includes(char))depth--;else if(!depth&&/[\s>+~]/.test(char))start=index+1;}
+  const subject=selector.slice(start).trim();if(!subject||subject.includes('::'))return false;
+  const bare=subject.replace(/:{1,2}[a-zA-Z-]+(?:\((?:[^()]|\([^()]*\))*\))?/g,''),outside=bare.replace(/\[[^\]]*\]/g,'');
+  const tag=(outside.match(/^(?:[a-zA-Z][a-zA-Z0-9-]*|\*)/)||[''])[0].toLowerCase();
+  const names=[...outside.matchAll(/\.([\w-]+)/g)].map(match=>match[1]),attributes=[...bare.matchAll(/\[\s*([\w-]+)/g)].map(match=>match[1]);
+  return ['','*','p'].includes(tag)&&!/#[\w-]/.test(outside)&&names.every(name=>['desk-feedback','desk-feedback-inline'].includes(name))&&attributes.every(name=>['class','tabindex'].includes(name));
+}
+const hides=/(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*(?:hidden|collapse)|content-visibility\s*:\s*hidden)/i;
+const hidingRules=text=>cssRules(text).filter(rule=>hides.test(rule.body)&&rule.selectors.some(canMatchLine)).map(rule=>`${rule.at.join(' ')} ${rule.selectors.join(',')}`.trim());
+
+test('G13: no rule anywhere, at any width or state, hides an outcome line',async()=>{
+  const css=await readFile(new URL('../dist/style.css',import.meta.url),'utf8');
+  assert.deepEqual(hidingRules(css),[],'a rule that can match .desk-feedback or .desk-feedback-inline hides it');
+  // The scan reads every media query and every selector form that can reach the line.
+  assert.deepEqual(hidingRules('@media(max-width:680px){.desk-feedback-inline{display:none}}'),['@media(max-width:680px) .desk-feedback-inline'],'the phone-only hide from the review (mutation M9)');
+  for(const selector of ['.desk-feedback','.price-desk .desk-feedback','.journal-desk>.desk-feedback-inline','p.desk-feedback.desk-feedback-inline:focus-visible','.utility-desk :is(.x) ~ .desk-feedback','.desk-feedback[tabindex]','*'])
+    assert.equal(hidingRules(`${selector}{visibility:hidden}`).length,1,selector);
+  for(const selector of ['[hidden]','.sr-only','.desk-notice','.desk-feedback::before','#workspace-status','.desk-feedback .x','div.desk-feedback','.desk-feedback[role]'])
+    assert.equal(hidingRules(`${selector}{display:none}`).length,0,selector);
+  assert.equal(hidingRules('@supports(display:grid){@media(min-width:681px){.desk-feedback{content-visibility:hidden}}}').length,1,'nested at-rules too');
+});
 
 test('CSS: the inline line is static and whole at every width; the top line keeps its sticky, capped rules',async()=>{
   const css=await readFile(new URL('../dist/style.css',import.meta.url),'utf8');

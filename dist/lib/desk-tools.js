@@ -30,8 +30,10 @@ export function actualFillTime(value) {
  * remain absent. Imported JSON never enters automatic paper enrollment. */
 export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,document:doc=globalThis.document,now=()=>new Date().toISOString(),uuid=()=>globalThis.crypto.randomUUID()}={}) {
   let saved=null,draft=null,unsyncedDraft=null,revision=0,busy=false,loadState='loading',pendingImport=null,feedback=null,uncertainRestore=null,pendingForm=null;
-  // Set where a user action or form submit begins; null when the message clears or comes from
-  // background work (automatic assessment, the initial load, reconcile and conflict states).
+  // The anchor of the message on screen. An owner action passes its own control's anchor to
+  // showResult() together with its message, so a render in between never shows the previous message
+  // next to the new control. Background work (automatic assessment, the initial load, reconcile and
+  // conflict states) sets null; so does a message that clears.
   let feedbackAnchor=null,priceFeedbackAnchor=null;
   const localPreview=doc.querySelector?.('meta[name="cribscore-local-preview"]')?.getAttribute('content')==='true';
   const savedState=localPreview?'local_only':'synced';
@@ -53,11 +55,11 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
   const changed=()=>onChange();
   const priceSetup=createPriceSetupClient({fetch:request,onChange:changed});
   function viewModel(){return draft?journalDomain.projectJournal(draft,{storage}):null;}
-  function safeAction(reviewAction=false){
-    if(pendingImport&&!reviewAction){feedback='Apply or cancel the reviewed backup before making another journal change.';changed();return false;}
-    if(busy){feedback='A journal operation is still in progress.';changed();return false;}
-    if(storage.state==='capacity'){feedback=capacityMessage;changed();return false;}
-    if(!draft||storage.state!==savedState){feedback='Reconnect or sync the saved journal before changing its records. You can export any unsynced draft.';changed();return false;}
+  function safeAction(reviewAction=false,anchor=null){
+    if(pendingImport&&!reviewAction){feedback='Apply or cancel the reviewed backup before making another journal change.';showResult('journal',anchor);return false;}
+    if(busy){feedback='A journal operation is still in progress.';showResult('journal',anchor);return false;}
+    if(storage.state==='capacity'){feedback=capacityMessage;showResult('journal',anchor);return false;}
+    if(!draft||storage.state!==savedState){feedback='Reconnect or sync the saved journal before changing its records. You can export any unsynced draft.';showResult('journal',anchor);return false;}
     return true;
   }
   function retireConfirmedForm(journal){
@@ -117,7 +119,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
   }
   async function load({reconcile=false}={}) {
     // Only Check journal sync reaches this refusal, so the message belongs to that button.
-    if(busy)return;if(pendingImport){feedback='Apply or cancel the reviewed backup before checking sync again.';feedbackAnchor=anchorOf('action','sync');changed();return;}busy=true;loadState='loading';changed();
+    if(busy)return;if(pendingImport){feedback='Apply or cancel the reviewed backup before checking sync again.';showResult('journal',anchorOf('action','sync'));return;}busy=true;loadState='loading';changed();
     try{
       const result=await store.load();
       if(!result.ok){loadState='unavailable';storage={state:'unavailable',message:`Private journal unavailable: ${errors(result)}.`};return;}
@@ -174,50 +176,100 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     for(const item of series)if(!options.some(option=>option.symbol===item.symbol))options.push({symbol:item.symbol,label:`${item.symbol} · imported`});
     return renderPriceView(model,{symbol,rangeSessions,symbolOptions:options,hosted:{status:requestedChart===symbol?'requested':'idle',url:hostedChartURL(symbol),symbol},feedback:priceFeedback,feedbackAnchor:priceFeedbackAnchor,priceSetup:priceSetup.state()});
   }
-  // app.js replaces the whole view on every render, which defeats the browser's scroll anchoring.
-  // While a message belongs to a control, keep the owner's place on screen: the pressed control stays
-  // where it was, and when its own action removed it, its outcome line takes that spot. Needs a real
-  // window; without one (tests) nothing is measured or scrolled.
-  let heldPlace=null;
+  // An owner's result shows where the owner is looking. app.js replaces the whole view on every render,
+  // which defeats the browser's scroll anchoring, so the one render that first shows an owner's result
+  // settles it. html() measures the pressed control before the swap; mount() then
+  //  1. opens a closed disclosure that holds the line,
+  //  2. keeps the pressed control where it was (if the action removed it, its line takes that spot),
+  //  3. brings the line into view together with whatever holds focus, which stays clear of the sticky band.
+  // Every other render (assessments, timers, sync, navigation) moves nothing. Measuring and scrolling need
+  // a real window; without one (tests) only the disclosure step runs.
+  let resultRequest=null,pendingResult=null;
+  function showResult(view,anchor){
+    if(view==='journal')feedbackAnchor=feedback?anchor:null;else priceFeedbackAnchor=priceFeedback?anchor:null;
+    resultRequest=view;try{changed();}finally{resultRequest=null;}
+  }
+  const resultLine=()=>doc.querySelector?.('#view-content .desk-feedback-inline')||null;
+  // The control (form or button) that owns the message, while it is on the page.
+  function ownerControl(view){
+    const anchor=view==='journal'?feedbackAnchor:priceFeedbackAnchor;if(!anchor)return null;
+    const controls=doc.querySelectorAll?.(view==='journal'?'#view-content [data-journal-form],#view-content [data-journal-action]':'#view-content [data-price-form],#view-content [data-price-action]')||[];
+    return [...controls].find(element=>controlAnchor(element)===anchor)||null;
+  }
+  // The pressed control (a form's submit button, or the button), else the line that took its place.
   function placeTarget(view){
-    const anchor=view==='journal'?feedbackAnchor:view==='prices'?priceFeedbackAnchor:null,message=view==='journal'?feedback:priceFeedback;
-    if(!anchor||!message||!(doc.defaultView?.innerHeight>0))return null;
-    const controls=doc.querySelectorAll?.(view==='journal'?'[data-journal-form],[data-journal-action]':'[data-price-form],[data-price-action]')||[];
-    return [...controls].find(element=>controlAnchor(element)===anchor)||doc.querySelector?.('.desk-feedback-inline')||null;
+    if(!(view==='journal'?feedbackAnchor:priceFeedbackAnchor))return null;
+    const control=ownerControl(view);
+    return control?control.querySelector?.('button[type="submit"]')||control:resultLine();
+  }
+  // Focus on screen inside the owner's form: the first invalid field, which the browser scrolled to
+  // when desk-tools focused it, even if that moved the submit button off screen.
+  function focusInControl(view){
+    const control=ownerControl(view),active=doc.activeElement;
+    if(!control||!active||active===control||!control.contains?.(active))return false;
+    const box=active.getBoundingClientRect?.();return !!box&&box.bottom>0&&box.top<doc.defaultView.innerHeight;
   }
   function holdPlace(view){
-    const box=placeTarget(view)?.getBoundingClientRect?.();
-    heldPlace=box&&box.bottom>0&&box.top<doc.defaultView.innerHeight?{view,top:box.top}:null;
+    if(resultRequest!==view)return;resultRequest=null;
+    const win=doc.defaultView,box=win?.innerHeight>0?placeTarget(view)?.getBoundingClientRect?.():null;
+    pendingResult={view,top:box&&box.bottom>0&&box.top<win.innerHeight?box.top:null};
   }
-  function keepPlace(view){
-    const held=heldPlace;heldPlace=null;if(held?.view!==view)return;
-    const box=placeTarget(view)?.getBoundingClientRect?.(),shift=box?box.top-held.top:0;
-    if(Math.abs(shift)>=1)doc.defaultView.scrollBy?.(0,shift);
+  function settleResult(view){
+    const result=pendingResult;pendingResult=null;
+    const line=result?.view===view?resultLine():null;if(!line)return;
+    let opened=false;
+    for(let node=line.parentElement;node;node=node.parentElement)if(node.tagName==='DETAILS'&&!node.open){node.open=true;opened=true;}
+    const win=doc.defaultView;if(!(win?.innerHeight>0))return;
+    if(result.top!==null){const box=placeTarget(view)?.getBoundingClientRect?.();if(box&&Math.abs(box.top-result.top)>=1)win.scrollBy?.(0,box.top-result.top);}
+    // A control that was off screen is left alone (the owner scrolled away), unless its disclosure just
+    // opened or focus sits on screen in its form.
+    else if(!opened&&!focusInControl(view))return;
+    revealResult(line);
   }
-  function mount(view){
-    keepPlace(view);
-    if(view!=='prices'||requestedChart!==symbol)return;
+  function revealResult(line){
+    const win=doc.defaultView,content=doc.querySelector('#view-content'),root=doc.documentElement;
+    // The page's own scroll padding marks the sticky band (0 where nothing is pinned); 8 px spare below.
+    const clear=root&&win.getComputedStyle?parseFloat(win.getComputedStyle(root).scrollPaddingTop)||0:0,floor=win.innerHeight-8;
+    // Focus stays on the pressed control, or on a field desk-tools moved it to. When the action removed
+    // the control, app.js moves focus to the view's fallback heading.
+    const active=doc.activeElement,focused=active&&active!==content&&content?.contains?.(active)?active:null;
+    const l=line.getBoundingClientRect();let f=(focused||content?.querySelector?.('[data-focus-fallback]'))?.getBoundingClientRect?.()||null;
+    const fits=box=>Math.max(l.bottom,box.bottom)-Math.min(l.top,box.top)<=floor-clear;
+    if(f&&!focused&&!fits(f))f=null;// a fallback heading far from the line is not moved into view
+    let shift=0;
+    if(!f||fits(f)){const top=f?Math.min(l.top,f.top):l.top,bottom=f?Math.max(l.bottom,f.bottom):l.bottom;shift=top<clear?top-clear:bottom>floor?Math.min(bottom-floor,top-clear):0;}
+    // Both cannot show: focus stays in view and clear of the band, and the line shows as much as fits.
+    else if(f.top<clear||f.bottom>floor)shift=f.top<clear?f.top-clear:f.bottom-floor;
+    else shift=l.bottom>floor?Math.min(l.bottom-floor,f.top-clear):l.top<clear?-Math.max(0,Math.min(clear-l.top,floor-f.bottom)):0;
+    if(Math.abs(shift)>=1)win.scrollBy?.(0,shift);
+  }
+  function mountChart(){
+    if(requestedChart!==symbol)return;
     const container=doc.querySelector('#hosted-price-chart');if(!container)return;
     // A removed iframe loses its browsing context. A newly rendered container
     // gets a fresh frame; unchanged views keep the connected frame untouched.
     try{if(!chartFrame||chartFrame.parentElement!==container){chartFrame=createHostedChartFrame(symbol,{document:doc});container.replaceChildren(chartFrame);}}
     catch{requestedChart=null;chartFrame=null;priceFeedback='The hosted chart could not open here. Use the TradingView link.';priceFeedbackAnchor=anchorOf('action','load-hosted');changed();}
   }
-  async function exportBackup(){
-    if(!draft){feedback='No journal is available to export.';changed();return;}
-    const result=await journalDomain.exportJournal(unsyncedDraft||draft);if(!result.ok){feedback=errors(result);changed();return;}
-    const url=URL.createObjectURL(new Blob([result.text],{type:'application/json'})),anchor=doc.createElement('a');anchor.href=url;anchor.download=result.filename;doc.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);feedback='Journal backup exported with its original events and revision history.';changed();
+  // The chart frame takes the load button's place first, so a result settles on the final layout.
+  function mount(view){
+    if(view==='prices')mountChart();
+    settleResult(view);
+  }
+  async function exportBackup(control=null){
+    if(!draft){feedback='No journal is available to export.';showResult('journal',control);return;}
+    const result=await journalDomain.exportJournal(unsyncedDraft||draft);if(!result.ok){feedback=errors(result);showResult('journal',control);return;}
+    const url=URL.createObjectURL(new Blob([result.text],{type:'application/json'})),anchor=doc.createElement('a');anchor.href=url;anchor.download=result.filename;doc.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);feedback='Journal backup exported with its original events and revision history.';showResult('journal',control);
   }
   async function action(name,target){
-    // The pressed control owns the next message. Sync anchors only its own refusal (in load()),
-    // cancel only the messages it writes, and show-all writes none.
+    // The pressed control owns the message its action shows (showResult). Sync shows only its own
+    // refusal that way (in load()), and show-all shows none.
     const anchor=controlAnchor(target);
     if(name==='sync'){await load({reconcile:true});return;}
-    if(name==='export'){feedbackAnchor=anchor;await exportBackup();return;}
-    if(name==='cancel-import'){if(busy||pendingImport)feedbackAnchor=anchor;if(busy){feedback='A journal operation is still in progress.';changed();return;}if(!pendingImport)return;if(pendingImport.kind==='reconcile'&&unsyncedDraft){draft=unsyncedDraft;storage={state:'conflict',message:'Your unsynced draft remains in this tab. Export it or retry reconciliation before closing.'};}pendingImport=null;feedback='Backup review cancelled.';changed();return;}
+    if(name==='export'){await exportBackup(anchor);return;}
+    if(name==='cancel-import'){if(busy){feedback='A journal operation is still in progress.';showResult('journal',anchor);return;}if(!pendingImport)return;if(pendingImport.kind==='reconcile'&&unsyncedDraft){draft=unsyncedDraft;storage={state:'conflict',message:'Your unsynced draft remains in this tab. Export it or retry reconciliation before closing.'};}pendingImport=null;feedback='Backup review cancelled.';showResult('journal',anchor);return;}
     if(name==='show-all'){changed();return;}
-    feedbackAnchor=anchor;
-    if(!safeAction(name==='confirm-import'))return;busy=true;
+    if(!safeAction(name==='confirm-import',anchor))return;busy=true;
     try{
       if(name==='start'){
         if(!needsSetup){feedback='Automatic journaling is already enabled.';return;}
@@ -233,7 +285,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
         if(!result.ok){feedback=errors(result);return;}
         if((await commit(result.journal)).ok)feedback='Your actual-trade confirmation was saved. Fill quantities and prices remain unknown until you supply them.';
       }
-    }catch{feedback='The action could not be completed. Existing records remain intact.';}finally{busy=false;changed();}
+    }catch{feedback='The action could not be completed. Existing records remain intact.';}finally{busy=false;showResult('journal',anchor);}
     if(!needsSetup&&!pendingImport)await assess();
   }
   function formSettings(form){
@@ -278,8 +330,9 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     // Keep rejected or pending input, and never discard newer edits on success.
     form.dataset.deskDirty='true';
     const accepted=()=>{if(form.dataset.deskEditVersion===editVersion)form.dataset.deskDirty='false';};
+    const anchor=controlAnchor(form);// this form owns the message its submit shows (showResult)
     if(form.dataset.priceForm){
-      const run=++priceImportRun;priceFeedbackAnchor=controlAnchor(form);
+      const run=++priceImportRun;
       try{
         if(kind==='selection'){
           const next=asText(data.get('symbol'));if(!companies.some(([ticker])=>ticker===next)&&!series.some(item=>item.symbol===next))throw Error('Choose an available company.');
@@ -292,11 +345,10 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
           if(!['ready','partial'].includes(result.status)||!result.series?.length)throw Error((result.issues||['Invalid price import.']).join(', ').replaceAll('_',' '));
           series=result.series;symbol=series[0].symbol;chartFrame=null;requestedChart=null;priceFeedback=`Imported ${series.length} daily series for chart context. These values are unreviewed and cannot supply paper marks.`;accepted();
         }
-      }catch(error){if(run!==priceImportRun)return;priceFeedback=error.message||'Price input could not be read. Previous data is retained.';}changed();return;
+      }catch(error){if(run!==priceImportRun)return;priceFeedback=error.message||'Price input could not be read. Previous data is retained.';}showResult('prices',anchor);return;
     }
-    feedbackAnchor=controlAnchor(form);
-    if(!safeAction())return;
-    if(needsSetup&&kind!=='import'){feedback='Start automatic journaling or restore a backup before changing assumptions.';changed();return;}
+    if(!safeAction(false,anchor))return;
+    if(needsSetup&&kind!=='import'){feedback='Start automatic journaling or restore a backup before changing assumptions.';showResult('journal',anchor);return;}
     busy=true;
     try{
       if(kind==='import'){
@@ -327,13 +379,13 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
       if(!result.ok){feedback=`Nothing saved: ${errors(result)}.`;return;}
       pendingForm={journalId:result.journal.journalId,createdAt:result.journal.createdAt,events:result.journal.events.slice(draft.events.length),accepted};
       if((await commit(result.journal)).ok){pendingImport=null;feedback=kind==='settings'?'Paper assumptions saved for future intents. Existing decisions retain their original settings.':'Reported fill saved as an append-only record. Valuation still requires verified action coverage and prices.';}
-    }catch(error){feedback=error.message||'The form could not be saved.';}finally{busy=false;changed();}
+    }catch(error){feedback=error.message||'The form could not be saved.';}finally{busy=false;showResult('journal',anchor);}
   }
   const click=event=>{
     const setupTarget=event.target.closest?.('[data-price-action="check-setup"]');
     if(setupTarget?.dataset.priceAction==='check-setup'){priceFeedback='';priceFeedbackAnchor=null;void priceSetup.refresh();return;}
     const target=event.target.closest?.('[data-journal-action]');if(target){void action(target.dataset.journalAction,target);return;}
-    if(event.target.closest?.('[data-price-action="load-hosted"]')){priceFeedbackAnchor=anchorOf('action','load-hosted');if(!hostedChartURL(symbol)){priceFeedback='A hosted chart is not configured for this imported symbol.';}else{requestedChart=symbol;chartFrame=null;priceFeedback='Chart requested. If it stays blank, open the chart at TradingView using the link below. Displayed prices come from TradingView.';}changed();}
+    if(event.target.closest?.('[data-price-action="load-hosted"]')){if(!hostedChartURL(symbol)){priceFeedback='A hosted chart is not configured for this imported symbol.';}else{requestedChart=symbol;chartFrame=null;priceFeedback='Chart requested. If it stays blank, open the chart at TradingView using the link below. Displayed prices come from TradingView.';}showResult('prices',anchorOf('action','load-hosted'));}
   };
   const submitEvent=event=>{const form=event.target.closest?.('[data-journal-form],[data-price-form]');if(form){event.preventDefault();void submit(form);}};
   doc.addEventListener('click',click);doc.addEventListener('submit',submitEvent);doc.addEventListener('input',settingsInput);doc.addEventListener('change',settingsInput);
