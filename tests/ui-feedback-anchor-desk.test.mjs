@@ -263,9 +263,11 @@ async function appDesk(t,{view='journal',remote=null,layout=null}={}){
   document.removeEventListener=(type,fn)=>{document.listeners.set(type,(document.listeners.get(type)||[]).filter(item=>item!==fn));};
   document.createElement=tag=>tag==='iframe'?Object.assign(new Element('iframe',document),{style:{}}):({click(){},remove(){}});document.body.append=()=>{};
   if(layout){document.defaultView=layout.window;document.documentElement={};}
-  const renderContent=new Function('document','state',`let renderedView,renderedContentHTML,lastFocus;const disclosureState=new Map();const $=s=>document.querySelector(s);${renderSource};return renderContent;`)(document,{view});
+  // state.view is the page on screen, as in app.js; show() opens another page the way navigate() does.
+  const state={view},desks=['journal','prices'];
+  const renderContent=new Function('document','state',`let renderedView,renderedContentHTML,lastFocus;const disclosureState=new Map();const $=s=>document.querySelector(s);${renderSource};return renderContent;`)(document,state);
   const content=document.querySelector('#view-content'),io={current:remote,commit:'ok',hold:null};let uid=0;
-  const app=createDeskTools({document,now:()=>at,uuid:()=>`synthetic-${++uid}`,onChange:()=>render(),fetch:async(url,options={})=>{
+  const app=createDeskTools({document,now:()=>at,uuid:()=>`synthetic-${++uid}`,onChange:()=>{if(desks.includes(state.view))render();},fetch:async(url,options={})=>{
     if(url.endsWith('/observe'))return reply({ok:true,journal:io.current,revision:io.current.revision,automation:{publisherState:'unconfigured',checkedAt:at,pendingReasons:['publisher_unconfigured']}});
     if(url==='/api/journal'){
       if(options.method!=='POST')return reply({ok:true,journal:io.current,revision:io.current?.revision??0});
@@ -276,10 +278,10 @@ async function appDesk(t,{view='journal',remote=null,layout=null}={}){
     return reply({ok:false,error:'synthetic_unavailable'},503);
   }});
   function render(){
-    const hadFocus=content.contains(document.activeElement),markup=app.html(view);
+    const hadFocus=content.contains(document.activeElement),markup=desks.includes(state.view)?app.html(state.view):'<section class="card"><h2 tabindex="-1" data-focus-fallback>Another page</h2></section>';
     layout?.beforeSwap?.();renderContent(markup);
     for(const field of content.querySelectorAll('input,select,textarea'))if(!field.initialized){field.value=field.tagName==='SELECT'?(field.querySelector('option[selected]')||field.querySelector('option'))?.getAttribute('value')||'':field.getAttribute('value')||'';field.initialized=true;}
-    app.mount(view);
+    app.mount(state.view);
     const active=document.activeElement;
     if(hadFocus&&(!active||active.tagName==='BODY'||active.id==='main'||!active.isConnected))content.querySelector('[data-focus-fallback]')?.focus();
   }
@@ -287,12 +289,14 @@ async function appDesk(t,{view='journal',remote=null,layout=null}={}){
   await app.start();await settle(app);render();
   const query=selector=>content.querySelector(selector);
   return {app,io,query,content,document,html:()=>app.html(view),
+    show(next){state.view=next;render();document.querySelector('#main').focus();layout?.window.scrollTo(0,0);},
     async press(element){assert.ok(element,'the control is on the page');element.focus();element.dispatch({type:'click',target:element});await settle(app);},
     async submit(form){assert.ok(form,'the form is on the page');form.querySelector('button[type="submit"]')?.focus();form.dispatch({type:'submit',target:form,preventDefault(){}});await settle(app);},
     file(selector,text){const field=query(selector);assert.ok(field,selector);field.file={size:text.length,text:async()=>text};}};
 }
 // A scroll-aware layout for the offline DOM. Each role has a document top; the window scrolls and clamps at 0.
 // clear is the page's scroll padding, which marks the sticky phone menu band (106 px at 390 px wide).
+// scrolls records desk-tools' own scrollBy calls; scrollTo is the owner's or navigate()'s move, not recorded.
 function layoutModel({height=800,clear=106,scrollY=600}={}){
   const tops=new Map(),size={line:70,'chart-heading':28,'overview-heading':28},scrolls=[];let y=scrollY;
   const role=element=>{
@@ -300,11 +304,13 @@ function layoutModel({height=800,clear=106,scrollY=600}={}){
     if(element.id==='hosted-price-heading')return 'chart-heading';if(element.id==='journal-overview-heading')return 'overview-heading';
     const action=element.getAttribute?.('data-journal-action')||element.getAttribute?.('data-price-action');if(action)return `action:${action}`;
     if(['INPUT','SELECT','TEXTAREA'].includes(element.tagName)&&element.getAttribute('name'))return `field:${element.getAttribute('name')}`;
+    if(element.tagName==='SUMMARY')return 'summary';
+    const own=element.tagName==='FORM'?element.getAttribute('data-journal-form')||element.getAttribute('data-price-form'):null;if(own)return `form:${own}`;
     const form=element.tagName==='BUTTON'&&element.getAttribute('type')==='submit'?element.closest('[data-journal-form],[data-price-form]'):null;
     return form?`submit:${form.getAttribute('data-journal-form')||form.getAttribute('data-price-form')}`:null;
   };
   const model={scrolls,beforeSwap:null,
-    window:{innerHeight:height,scrollBy:(dx,dy)=>{const before=y;y=Math.max(0,y+dy);scrolls.push(y-before);},getComputedStyle:()=>({scrollPaddingTop:`${clear}px`})},
+    window:{innerHeight:height,scrollBy:(dx,dy)=>{const before=y;y=Math.max(0,y+dy);scrolls.push(y-before);},scrollTo:(dx,dy)=>{y=Math.max(0,dy);},getComputedStyle:()=>({scrollPaddingTop:`${clear}px`})},
     at:name=>tops.get(name)-y,                                        // viewport top now
     put:(name,viewportTop)=>tops.set(name,viewportTop+y),             // place at a viewport top now
     move:(name,dy)=>tops.set(name,tops.get(name)+dy),                 // the page grew above it
@@ -346,13 +352,14 @@ test('place keeping: a control pressed at the bottom edge still shows its whole 
 test('place keeping: an automatic assessment that grows History afterwards moves nothing',{concurrency:false},async t=>{
   const model=useLayout(t,layoutModel()),remote=started('synthetic-feedback-grow'),h=await appDesk(t,{remote,layout:model});
   const form=h.query('[data-journal-form="settings"]');form.closest('details').open=true;form.querySelector('#paper-notional').value='300';
-  model.put('submit:settings',500);model.beforeSwap=once(()=>model.below('line','submit:settings'));
+  // The form and its button both have boxes, so a hold on either one would show up as a scroll.
+  model.put('form:settings',250);model.put('submit:settings',500);model.beforeSwap=once(()=>model.below('line','submit:settings'));
   await h.submit(form);
-  assert.equal(plain(lineOf(h.html()).line),'Paper assumptions saved for future intents. Existing decisions retain their original settings.');
+  assert.equal(plain(inline(lineOf(h.html())).line),'Paper assumptions saved for future intents. Existing decisions retain their original settings.');
   assert.deepEqual(model.scrolls,[],'the line fits under the button: nothing to move');
   // Two new entries arrive with the next automatic assessment: History grows 218 px above the form.
   let grown=h.io.current;for(const horizonId of ['next_day','next_week'])grown=(await J.recordAbstention(grown,{id:`synthetic-grow-${horizonId}`,at,date:'2026-10-17',horizonId,unrankedCount:6,reason:'Synthetic growth.',snapshot:{id:'synthetic-snapshot'}})).journal;
-  h.io.current=grown;model.beforeSwap=once(()=>{model.move('submit:settings',218);model.move('line',218);});
+  h.io.current=grown;model.beforeSwap=once(()=>{for(const name of ['form:settings','submit:settings','line'])model.move(name,218);});
   await h.app.observe();await settle(h.app);
   assert.equal((h.html().match(/data-journal-entry=/g)||[]).length,2,'History grew');
   assert.deepEqual(model.scrolls,[],'background renders never hold or scroll');assert.equal(model.at('submit:settings'),718);
@@ -392,12 +399,65 @@ test('place keeping: a rejected save whose first invalid field the browser scrol
   assert.ok(inView(model,'line'));assert.ok(model.at('field:paperNotional')>=106,'the focused field stays clear of the band');
 });
 
-test('place keeping: a control the owner scrolled away from is left alone',{concurrency:false},async t=>{
+test('placement: a control off screen when its result renders shows that result at the top, and nothing scrolls',{concurrency:false},async t=>{
   const model=useLayout(t,layoutModel()),h=await appDesk(t,{view:'prices',layout:model});
   h.query('details[data-state-key="prices:import"]').open=true;h.file('#price-import-file','{');
   model.put('submit:import',1200);model.beforeSwap=once(()=>model.below('line','submit:import'));
   await h.submit(h.query('[data-price-form="import"]'));
-  assert.match(plain(lineOf(h.html()).line),/import parse failed/);assert.deepEqual(model.scrolls,[]);
+  assert.match(plain(top(lineOf(h.html())).line),/import parse failed/);assert.deepEqual(model.scrolls,[]);
+});
+
+// A valid fill save that is still in flight: the paper journal, the fill form open and filled, its button at 500.
+async function slowFill(t,model){
+  const {journal,intentId}=await paperJournal(),h=await appDesk(t,{remote:journal,layout:model});
+  const form=h.query(`[data-journal-form="save-fill"][data-journal-id="${intentId}"]`);form.closest('details').open=true;
+  for(const [name,value] of Object.entries({side:'buy',occurredAt:'2026-10-17T17:00',quantity:'1',price:'100',fee:'0'}))form.querySelector(`[name="${name}"]`).value=value;
+  model?.put('submit:save-fill',500);model&&(model.beforeSwap=()=>model.below('line','submit:save-fill'));
+  h.io.hold=deferred();h.io.commit='fail';
+  form.querySelector('button[type="submit"]').focus();form.dispatch({type:'submit',target:form,preventDefault(){}});
+  await until(()=>h.app.status().busy,'the save is in flight');
+  return {h,form};
+}
+const saveFailed='Journal save unavailable: synthetic save unavailable. No synced result is assumed.';
+
+test('placement: a result that arrives while the owner is on another page shows at the top when they come back',{concurrency:false},async t=>{
+  const model=useLayout(t,layoutModel()),{h}=await slowFill(t,model);
+  h.show('prices');// the owner opens Prices from the menu while the save runs
+  h.io.hold.resolve();await settle(h.app);
+  h.show('journal');// and comes back after it failed
+  const found=top(lineOf(h.html()));assert.equal(plain(found.line),saveFailed);
+  assert.equal(h.content.querySelectorAll('.desk-feedback').length,1);assert.deepEqual(model.scrolls,[],'nothing scrolls');
+});
+
+test('placement: a result that arrives after the owner scrolled away from its control shows at the top',{concurrency:false},async t=>{
+  const model=useLayout(t,layoutModel()),{h,form}=await slowFill(t,model);
+  model.window.scrollTo(0,0);// the owner scrolls to the top of the page: the pressed button is now 1100 px down
+  h.io.hold.resolve();await settle(h.app);
+  assert.equal(plain(top(lineOf(h.html())).line),saveFailed);assert.deepEqual(model.scrolls,[],'nothing scrolls');
+  assert.equal(form.closest('details').open,true,'the fill form is untouched');
+});
+
+for(const [summaryTop,expected] of [[400,'opens it and shows the line there'],[-900,'shows the line at the top and leaves it closed']])test(`placement: a result for a disclosure the owner closed ${expected} when its summary is ${summaryTop>0?'on':'off'} screen`,{concurrency:false},async t=>{
+  const model=useLayout(t,layoutModel()),{h,form}=await slowFill(t,model),details=form.closest('details');
+  // The owner closes "Add actual fill" while it saves; its summary keeps focus.
+  details.open=false;details.querySelector('summary').focus();model.put('summary',summaryTop);model.put('submit:save-fill',-1000);
+  model.beforeSwap=()=>model.put('line',summaryTop+60);
+  h.io.hold.resolve();await settle(h.app);
+  const found=lineOf(h.html());assert.equal(plain(found.line),saveFailed);
+  const open=h.content.querySelector('[data-journal-form="save-fill"]').closest('details').open;
+  if(summaryTop>0){inline(found);assert.equal(open,true,'the disclosure opened');}else{top(found);assert.equal(open,false,'the disclosure stays closed');}
+  assert.deepEqual(model.scrolls,[],'nothing to move: the line and the focused summary already show, or the line is at the top');
+});
+
+for(const [lineTop,expected] of [[300,'stays where it lands on screen'],[1500,'moves to the top when it lands off screen']])test(`placement: Apply removes its own button before its result; its line ${expected}`,{concurrency:false},async t=>{
+  const model=useLayout(t,layoutModel()),remote=started('synthetic-feedback-apply'),h=await appDesk(t,{remote,layout:model});
+  h.query('[data-journal-form="import"]').closest('details').open=true;// the owner opened Backup and restore
+  h.file('#journal-import-file',await syntheticBackup());await h.submit(h.query('[data-journal-form="import"]'));
+  model.put('action:confirm-import',400);model.beforeSwap=()=>model.put('line',lineTop);
+  await h.press(h.query('[data-journal-action="confirm-import"]'));
+  const found=lineOf(h.html());assert.equal(plain(found.line),'Reviewed backup saved. Existing records and original decision context remain intact.');
+  if(lineTop<800){inline(found);assert.ok(isForm('import')(found.previous));}else top(found);
+  assert.deepEqual(model.scrolls,[],'nothing scrolls');
 });
 
 test('a result that would land in a closed disclosure opens it, and it stays open',{concurrency:false},async t=>{
@@ -453,19 +513,48 @@ function canMatchLine(selector){
   const names=[...outside.matchAll(/\.([\w-]+)/g)].map(match=>match[1]),attributes=[...bare.matchAll(/\[\s*([\w-]+)/g)].map(match=>match[1]);
   return ['','*','p'].includes(tag)&&!/#[\w-]/.test(outside)&&names.every(name=>['desk-feedback','desk-feedback-inline'].includes(name))&&attributes.every(name=>['class','tabindex'].includes(name));
 }
-const hides=/(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*(?:hidden|collapse)|content-visibility\s*:\s*hidden)/i;
-const hidingRules=text=>cssRules(text).filter(rule=>hides.test(rule.body)&&rule.selectors.some(canMatchLine)).map(rule=>`${rule.at.join(' ')} ${rule.selectors.join(',')}`.trim());
+// Every way one rule can make the line disappear: removed, invisible, see-through, collapsed or shrunk to
+// nothing, clipped away, or pushed off screen. Sizes are flagged even without overflow:hidden, because
+// another rule (or the top line's own overflow-y:auto) can supply the clipping. var() values are not read.
+function hidingDeclarations(body){
+  const declarations=new Map();
+  for(const part of body.split(';')){const colon=part.indexOf(':');if(colon>0)declarations.set(part.slice(0,colon).trim().toLowerCase(),part.slice(colon+1).replace(/!important/i,'').trim().toLowerCase());}
+  const lengths=value=>[...value.matchAll(/(-?\d*\.?\d+)(px|r?em|%|vw|vh|vmin|vmax|ch|ex|pt)?(?![\w.])/g)].map(([,number,unit])=>({n:Number(number),unit:unit||''}));
+  const nothing=value=>/^-?\d*\.?\d+(px|r?em|%|vw|vh|ch|ex|pt)?$/.test(value)&&lengths(value).every(({n,unit})=>n<=0||(unit==='px'&&n<=1));
+  const far=value=>lengths(value).some(({n,unit})=>['px'].includes(unit)?Math.abs(n)>=1000:['em','rem'].includes(unit)?Math.abs(n)>=60:['%','vw','vh','vmin','vmax'].includes(unit)?Math.abs(n)>=100:false);
+  const clear=value=>/^transparent$/.test(value)||/^(?:rgba?|hsla?)\(.*(?:[,/]\s*0(?:\.0+)?%?\s*)\)$/.test(value)||/^#(?:[0-9a-f]{3}0|[0-9a-f]{6}00)$/.test(value);
+  const found=[];
+  for(const [name,value] of declarations){
+    if((name==='display'&&value==='none')||(name==='visibility'&&/^(hidden|collapse)$/.test(value))||(name==='content-visibility'&&value==='hidden'))found.push(`${name}:${value}`);
+    if(name==='opacity'&&lengths(value).length===1&&(value.endsWith('%')?lengths(value)[0].n<=10:lengths(value)[0].n<=0.1))found.push(`${name}:${value}`);
+    if(/^(?:max-)?(?:height|width|block-size|inline-size)$|^font-size$/.test(name)&&nothing(value))found.push(`${name}:${value}`);
+    if((name==='clip'&&value!=='auto')||(name==='clip-path'&&value!=='none'))found.push(`${name}:${value}`);
+    if(/^(?:top|right|bottom|left|inset(?:-[a-z-]+)?|margin(?:-[a-z-]+)?|text-indent|translate)$/.test(name)&&far(value))found.push(`${name}:${value}`);
+    if(name==='transform'&&(far(value)||[...value.matchAll(/scale(?:x|y|z|3d)?\(([^)]*)\)/g)].some(([,args])=>lengths(args).some(({n})=>n<=0.05))))found.push(`${name}:${value}`);
+    if(name==='scale'&&lengths(value).some(({n})=>n<=0.05))found.push(`${name}:${value}`);
+    if(['color','-webkit-text-fill-color'].includes(name)&&clear(value))found.push(`${name}:${value}`);
+  }
+  return found;
+}
+const hidingRules=text=>cssRules(text).filter(rule=>rule.selectors.some(canMatchLine)&&hidingDeclarations(rule.body).length).map(rule=>`${rule.at.join(' ')} ${rule.selectors.join(',')}`.trim());
 
 test('G13: no rule anywhere, at any width or state, hides an outcome line',async()=>{
   const css=await readFile(new URL('../dist/style.css',import.meta.url),'utf8');
   assert.deepEqual(hidingRules(css),[],'a rule that can match .desk-feedback or .desk-feedback-inline hides it');
   // The scan reads every media query and every selector form that can reach the line.
   assert.deepEqual(hidingRules('@media(max-width:680px){.desk-feedback-inline{display:none}}'),['@media(max-width:680px) .desk-feedback-inline'],'the phone-only hide from the review (mutation M9)');
+  assert.deepEqual(hidingRules('@media(min-width:681px){.desk-feedback{visibility:hidden}}'),['@media(min-width:681px) .desk-feedback'],'the review\'s F13');
+  assert.deepEqual(hidingRules('@media(max-width:680px){.desk-feedback-inline{height:0;padding:0;border:0;overflow:hidden}}'),['@media(max-width:680px) .desk-feedback-inline'],'collapse: the review\'s F14');
   for(const selector of ['.desk-feedback','.price-desk .desk-feedback','.journal-desk>.desk-feedback-inline','p.desk-feedback.desk-feedback-inline:focus-visible','.utility-desk :is(.x) ~ .desk-feedback','.desk-feedback[tabindex]','*'])
     assert.equal(hidingRules(`${selector}{visibility:hidden}`).length,1,selector);
   for(const selector of ['[hidden]','.sr-only','.desk-notice','.desk-feedback::before','#workspace-status','.desk-feedback .x','div.desk-feedback','.desk-feedback[role]'])
     assert.equal(hidingRules(`${selector}{display:none}`).length,0,selector);
   assert.equal(hidingRules('@supports(display:grid){@media(min-width:681px){.desk-feedback{content-visibility:hidden}}}').length,1,'nested at-rules too');
+  // Every way to hide is caught; ordinary styling is not.
+  for(const body of ['display:none','visibility:collapse','content-visibility:hidden','opacity:0','opacity:5%','max-height:0;overflow:hidden','height:1px;overflow:hidden','max-block-size:0','width:0','font-size:0','clip:rect(0 0 0 0)','clip-path:inset(50%)','clip-path:circle(0)','position:absolute;left:-9999px','inset-inline-start:-100vw','margin-top:-1200px','text-indent:-9999px','transform:scale(0)','transform:translateX(-100vw)','translate:-150% 0','scale:0','color:transparent','color:rgba(0,0,0,0)','-webkit-text-fill-color:transparent','display: none !important'])
+    assert.equal(hidingRules(`.desk-feedback-inline{${body}}`).length,1,body);
+  for(const body of ['max-height:96px;overflow-y:auto','max-height:none;overflow:visible','position:sticky;top:0','margin-top:-4px','opacity:.9','height:auto','clip-path:none','clip:auto','transform:none','transform:scale(1.02)','color:var(--text)','font-size:.875rem','display:block','visibility:visible','top:calc(var(--band) + 8px)'])
+    assert.equal(hidingRules(`.desk-feedback-inline{${body}}`).length,0,body);
 });
 
 test('CSS: the inline line is static and whole at every width; the top line keeps its sticky, capped rules',async()=>{

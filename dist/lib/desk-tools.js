@@ -178,16 +178,26 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
   }
   // An owner's result shows where the owner is looking. app.js replaces the whole view on every render,
   // which defeats the browser's scroll anchoring, so the one render that first shows an owner's result
-  // settles it. html() measures the pressed control before the swap; mount() then
-  //  1. opens a closed disclosure that holds the line,
-  //  2. keeps the pressed control where it was (if the action removed it, its line takes that spot),
-  //  3. brings the line into view together with whatever holds focus, which stays clear of the sticky band.
+  // places and settles it.
+  //  - A result for a page that is not on screen (the owner opened another page) shows at the top, as before.
+  //  - html() measures the owner's place before the swap: the pressed control, or the summary of the closed
+  //    disclosure that hides it. Off screen, with no focus in its form, the owner is looking elsewhere:
+  //    the line shows at the top, as before.
+  //  - Otherwise the line stands at its control, and mount()
+  //    1. keeps the owner's place where it was (if the action removed the control, its line takes that spot),
+  //    2. opens a closed disclosure that holds the line,
+  //    3. brings the line into view together with whatever holds focus, which stays clear of the sticky band.
+  //    A control that the action took off the page before its result (Apply hides its notice while it saves)
+  //    cannot be measured; its line moves to the top when it lands off screen.
   // Every other render (assessments, timers, sync, navigation) moves nothing. Measuring and scrolling need
-  // a real window; without one (tests) only the disclosure step runs.
+  // a real window; without one (tests) the line stays at its control and only the disclosure step runs.
   let resultRequest=null,pendingResult=null;
+  const setAnchor=(view,anchor)=>{if(view==='journal')feedbackAnchor=anchor;else priceFeedbackAnchor=anchor;};
+  const viewShown=view=>!!doc.querySelector?.(view==='journal'?'#view-content .journal-desk':'#view-content .price-desk');
   function showResult(view,anchor){
-    if(view==='journal')feedbackAnchor=feedback?anchor:null;else priceFeedbackAnchor=priceFeedback?anchor:null;
-    resultRequest=view;try{changed();}finally{resultRequest=null;}
+    const kept=(view==='journal'?feedback:priceFeedback)&&viewShown(view)?anchor:null;
+    setAnchor(view,kept);
+    resultRequest=kept?view:null;try{changed();}finally{resultRequest=null;}
   }
   const resultLine=()=>doc.querySelector?.('#view-content .desk-feedback-inline')||null;
   // The control (form or button) that owns the message, while it is on the page.
@@ -196,34 +206,44 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     const controls=doc.querySelectorAll?.(view==='journal'?'#view-content [data-journal-form],#view-content [data-journal-action]':'#view-content [data-price-form],#view-content [data-price-action]')||[];
     return [...controls].find(element=>controlAnchor(element)===anchor)||null;
   }
-  // The pressed control (a form's submit button, or the button), else the line that took its place.
+  // The owner's place: the pressed control (a form's submit button, or the button), or the summary of the
+  // closed disclosure that hides it. When the action removed the control, the line that took its place.
   function placeTarget(view){
     if(!(view==='journal'?feedbackAnchor:priceFeedbackAnchor))return null;
-    const control=ownerControl(view);
-    return control?control.querySelector?.('button[type="submit"]')||control:resultLine();
+    const control=ownerControl(view);if(!control)return resultLine();
+    let target=control.querySelector?.('button[type="submit"]')||control;
+    for(let node=control.parentElement;node;node=node.parentElement)if(node.tagName==='DETAILS'&&!node.open)target=node.querySelector?.('summary')||target;
+    return target;
   }
   // Focus on screen inside the owner's form: the first invalid field, which the browser scrolled to
   // when desk-tools focused it, even if that moved the submit button off screen.
   function focusInControl(view){
     const control=ownerControl(view),active=doc.activeElement;
-    if(!control||!active||active===control||!control.contains?.(active))return false;
-    const box=active.getBoundingClientRect?.();return !!box&&box.bottom>0&&box.top<doc.defaultView.innerHeight;
+    return !!control&&!!active&&active!==control&&!!control.contains?.(active)&&seen(active.getBoundingClientRect?.());
   }
+  // Any part of the box inside the viewport.
+  const seen=box=>!!box&&box.bottom>0&&box.top<doc.defaultView.innerHeight;
   function holdPlace(view){
     if(resultRequest!==view)return;resultRequest=null;
-    const win=doc.defaultView,box=win?.innerHeight>0?placeTarget(view)?.getBoundingClientRect?.():null;
-    pendingResult={view,top:box&&box.bottom>0&&box.top<win.innerHeight?box.top:null};
+    if(!(doc.defaultView?.innerHeight>0)){pendingResult={view,top:null};return;}
+    if(!ownerControl(view)){pendingResult={view,top:null,unmeasured:true};return;}
+    const box=placeTarget(view)?.getBoundingClientRect?.();
+    if(!seen(box)&&!focusInControl(view)){setAnchor(view,null);pendingResult=null;return;}
+    pendingResult={view,top:seen(box)?box.top:null};
   }
   function settleResult(view){
     const result=pendingResult;pendingResult=null;
     const line=result?.view===view?resultLine():null;if(!line)return;
+    const win=doc.defaultView,measured=win?.innerHeight>0;
+    // A control the action removed before its result could not be measured: its line stays where it landed
+    // when that is on screen, and otherwise moves to the top.
+    if(measured&&result.unmeasured&&!seen(line.getBoundingClientRect())){setAnchor(view,null);changed();return;}
+    // The owner's place is measured before a disclosure below it opens.
+    if(measured&&result.top!==null){const box=placeTarget(view)?.getBoundingClientRect?.();if(box&&Math.abs(box.top-result.top)>=1)win.scrollBy?.(0,box.top-result.top);}
     let opened=false;
     for(let node=line.parentElement;node;node=node.parentElement)if(node.tagName==='DETAILS'&&!node.open){node.open=true;opened=true;}
-    const win=doc.defaultView;if(!(win?.innerHeight>0))return;
-    if(result.top!==null){const box=placeTarget(view)?.getBoundingClientRect?.();if(box&&Math.abs(box.top-result.top)>=1)win.scrollBy?.(0,box.top-result.top);}
-    // A control that was off screen is left alone (the owner scrolled away), unless its disclosure just
-    // opened or focus sits on screen in its form.
-    else if(!opened&&!focusInControl(view))return;
+    // Placed at an unseen control only when its disclosure just opened or focus sits on screen in its form.
+    if(!measured||result.unmeasured||(result.top===null&&!opened&&!focusInControl(view)))return;
     revealResult(line);
   }
   function revealResult(line){
