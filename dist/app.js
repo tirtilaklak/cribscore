@@ -253,7 +253,6 @@ async function loadStocks(run) {
 }
 const matches = value => !state.query || JSON.stringify(value).toLowerCase().includes(state.query.toLowerCase());
 const sectionHead = (name,count,extra='') => `<div class="section-label-row"><h2>${text(name)}${count !== undefined ? `<span class="section-count">${text(count)}</span>`:''}</h2>${extra}</div>`;
-function statusBanner() { return `<section class="state-banner" aria-label="Current research status"><div><div class="state-heading"><span class="status-dot"></span> CURRENT RESEARCH STATE</div><h2>No current ${text(horizon().label.toLowerCase())} view.</h2><p>${text(horizon().description)} Source observations are historical evidence. An investment edge remains unproven.</p></div><span class="state-badge">Unvalidated research</span></section>`; }
 function sourceNoteCard() {
   const note=state.secPayload?.sourceNote;
   if(!note)return '';

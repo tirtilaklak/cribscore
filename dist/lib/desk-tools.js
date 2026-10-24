@@ -10,6 +10,15 @@ const companies=[['IBM','International Business Machines'],['JNJ','Johnson & Joh
 const asText=value=>typeof value==='string'?value.trim():'';
 const errors=result=>(result?.errors||[result?.error||'operation_unavailable']).join(', ').replaceAll('_',' ');
 const canonical=value=>JSON.stringify(value,(_,item)=>item&&typeof item==='object'&&!Array.isArray(item)?Object.fromEntries(Object.keys(item).sort().map(key=>[key,item[key]])):item);
+// UI state only: the control that produced the current message, so the view can show the
+// message right after it ("form:settings", "form:save-fill:<entryId>", "action:export").
+// Ids are URI-encoded, so an id holding a colon cannot name another control.
+const anchorOf=(...parts)=>parts.map(part=>encodeURIComponent(String(part))).join(':');
+const controlAnchor=element=>{
+  const data=element?.dataset||{},kind=data.journalForm||data.priceForm,name=data.journalAction||data.priceAction;
+  if(kind)return kind==='save-fill'?anchorOf('form',kind,data.journalId):kind==='revise-fill'?anchorOf('form',kind,data.journalId,data.journalFillId):anchorOf('form',kind);
+  return name?name==='confirm-actual'?anchorOf('action',name,data.journalId):anchorOf('action',name):null;
+};
 export function actualFillTime(value) {
   if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/.test(value))throw new Error('Enter an exact UTC date and time.');
   const normalized=value.length===16?`${value}:00Z`:`${value}Z`,date=new Date(normalized);
@@ -21,6 +30,9 @@ export function actualFillTime(value) {
  * remain absent. Imported JSON never enters automatic paper enrollment. */
 export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,document:doc=globalThis.document,now=()=>new Date().toISOString(),uuid=()=>globalThis.crypto.randomUUID()}={}) {
   let saved=null,draft=null,unsyncedDraft=null,revision=0,busy=false,loadState='loading',pendingImport=null,feedback=null,uncertainRestore=null,pendingForm=null;
+  // Set where a user action or form submit begins; null when the message clears or comes from
+  // background work (automatic assessment, the initial load, reconcile and conflict states).
+  let feedbackAnchor=null,priceFeedbackAnchor=null;
   const localPreview=doc.querySelector?.('meta[name="cribscore-local-preview"]')?.getAttribute('content')==='true';
   const savedState=localPreview?'local_only':'synced';
   const savedMessage=revision=>localPreview?`Saved in temporary local preview memory · revision ${revision}. It resets when the preview server stops.`:`Saved to this private Site · revision ${revision}. Available on your other signed-in devices.`;
@@ -80,12 +92,12 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
       const result=await response.json();
       if(response.status===409&&result?.ok===false&&result.error==='journal_capacity_exceeded'){
         if(result.revision!==revision||result.capacity?.limit!==journalDomain.JOURNAL_LIMITS.events||result.capacity.remaining!==journalDomain.JOURNAL_LIMITS.events-revision)throw Error('Invalid capacity response.');
-        pauseForCapacity();return;
+        pauseForCapacity();feedbackAnchor=null;return;
       }
       if(response.status===409){
         storage={state:'conflict',message:'Another session updated the saved journal. Check journal sync to load its history before continuing.'};
         automation={publisherState:'unavailable',checkedAt:null,pendingReasons:['journal_revision_conflict']};
-        feedback='The automatic update encountered a newer saved revision. No local history was replaced.';return;
+        feedback='The automatic update encountered a newer saved revision. No local history was replaced.';feedbackAnchor=null;return;
       }
       if(!response.ok||result?.ok!==true)throw Error(errors(result));
       const checked=await journalDomain.validateJournal(result.journal),status=result.automation;
@@ -96,15 +108,16 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
       saved=checked.journal;draft=checked.journal;unsyncedDraft=null;revision=result.revision;
       automation={publisherState:status.publisherState,checkedAt:status.checkedAt,pendingReasons:[...status.pendingReasons]};
       storage={state:savedState,message:savedMessage(revision)};
-      if(revision===journalDomain.JOURNAL_LIMITS.events)pauseForCapacity();
+      if(revision===journalDomain.JOURNAL_LIMITS.events){pauseForCapacity();feedbackAnchor=null;}
     }catch{
       automation={publisherState:'unavailable',checkedAt:null,pendingReasons:['observation_not_confirmed']};
       storage={state:'unavailable',message:'The automatic update was not confirmed. The last confirmed history is shown; check journal sync before making changes.'};
-      feedback='Automatic journal update unavailable. No publication, fill or price is assumed.';
+      feedback='Automatic journal update unavailable. No publication, fill or price is assumed.';feedbackAnchor=null;
     }finally{busy=false;changed();}
   }
   async function load({reconcile=false}={}) {
-    if(busy)return;if(pendingImport){feedback='Apply or cancel the reviewed backup before checking sync again.';changed();return;}busy=true;loadState='loading';changed();
+    // Only Check journal sync reaches this refusal, so the message belongs to that button.
+    if(busy)return;if(pendingImport){feedback='Apply or cancel the reviewed backup before checking sync again.';feedbackAnchor=anchorOf('action','sync');changed();return;}busy=true;loadState='loading';changed();
     try{
       const result=await store.load();
       if(!result.ok){loadState='unavailable';storage={state:'unavailable',message:`Private journal unavailable: ${errors(result)}.`};return;}
@@ -116,7 +129,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
         loadState='ready';
         storage={state:'conflict',message:'The server history does not extend the last confirmed journal. Your local history is still available to export; check sync again before making changes.'};
         automation={publisherState:'unavailable',checkedAt:null,pendingReasons:['journal_history_conflict']};
-        feedback='Saved history changed unexpectedly. No local history was replaced.';return;
+        feedback='Saved history changed unexpectedly. No local history was replaced.';feedbackAnchor=null;return;
       }
       if(recoveredRestore){uncertainRestore=null;unsyncedDraft=null;}
       if(!unsyncedDraft)needsSetup=remote===null;
@@ -127,12 +140,12 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
         const reviewed=exported.ok?await journalDomain.previewImport(base,exported.text):exported;
         saved=remote;revision=result.revision;
         if(reviewed.ok&&reviewed.preview.canApply){
-          draft=base;pendingImport={kind:'reconcile',preview:reviewed.preview,message:`Reconcile ${reviewed.preview.additions.length} unsynced event(s) with revision ${revision}. Existing history stays intact.`};feedback='Review the reconciliation before applying it.';
-        }else{loadState='ready';storage={state:'conflict',message:'The remote history conflicts with this draft. Export the draft; existing records will not be overwritten.'};feedback=errors(reviewed);return;}
+          draft=base;pendingImport={kind:'reconcile',preview:reviewed.preview,message:`Reconcile ${reviewed.preview.additions.length} unsynced event(s) with revision ${revision}. Existing history stays intact.`};feedback='Review the reconciliation before applying it.';feedbackAnchor=null;
+        }else{loadState='ready';storage={state:'conflict',message:'The remote history conflicts with this draft. Export the draft; existing records will not be overwritten.'};feedback=errors(reviewed);feedbackAnchor=null;return;}
       }else{saved=remote;draft=remote||journalDomain.createJournal({journalId:id('journal'),at:now()});revision=result.revision;}
-      if(!pendingImport)feedback=null;
+      if(!pendingImport){feedback=null;feedbackAnchor=null;}
       storage={state:savedState,message:remote?savedMessage(revision):'Connected. Choose automatic journaling or restore a backup before the first record is created.'};loadState='ready';
-      if(!pendingImport&&!unsyncedDraft&&(revision===journalDomain.JOURNAL_LIMITS.events||capacityRevision===revision))pauseForCapacity();
+      if(!pendingImport&&!unsyncedDraft&&(revision===journalDomain.JOURNAL_LIMITS.events||capacityRevision===revision)){pauseForCapacity();feedbackAnchor=null;}
     }catch{loadState='unavailable';storage={state:'unavailable',message:'The saved journal could not be read. No records are assumed.'};}
     finally{busy=false;changed();}
     if(!pendingImport)await assess();
@@ -143,13 +156,13 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     // A retry shows the neutral loading line. The last failure message returns only if this attempt fails too.
     if(!draft)return loadState==='loading'?`<section class="card desk-panel desk-empty journal-state" data-desk-state="loading"><h2>Loading the journal</h2><p>Connecting to the private journal…</p><div class="desk-actions">${sync('Check journal sync')}</div></section>`:`<section class="card desk-panel desk-empty journal-state" data-desk-state="unavailable"><h2>The journal did not load</h2><p>No records are shown, and nothing was changed.</p><p>Press Try again. If you were signed out, sign in, then reload this page.</p><p class="desk-muted">Details: ${escape(storage.message)}</p><div class="desk-actions">${sync('Try again')}</div></section>`;
     const setup=needsSetup?`<section class="card desk-panel journal-setup" aria-labelledby="journal-setup-heading"><div class="desk-panel-heading"><h2 id="journal-setup-heading">Start your private journal</h2></div><p>Nothing is recorded yet. Once you start, the journal records each assessment while this app is open. An assessment that finds no eligible stock is saved as an abstention (a record that the desk had nothing eligible). A stock is eligible when it passes every check needed before it can be ranked.</p><p>Paper trades (practice trades with no real money) stay off until reviewed research and checked prices are connected. Cribscore never places orders.</p><div class="desk-actions"><button type="button" class="desk-button" data-journal-action="start">Start automatic journal</button>${sync('Check journal sync')}</div><p class="desk-muted">Have a backup? Restore it first in Backup and restore below. You see this step only while the journal is empty.</p></section>`:'';
-    return `${setup}${renderJournalView(viewModel(),{feedback,automation,importPreview:pendingImport&&!busy?{message:pendingImport.message}:null,setupPending:needsSetup,syncControl:needsSetup?'':sync('Check journal sync')})}`;
+    return `${setup}${renderJournalView(viewModel(),{feedback,feedbackAnchor,automation,importPreview:pendingImport&&!busy?{message:pendingImport.message}:null,setupPending:needsSetup,syncControl:needsSetup?'':sync('Check journal sync')})}`;
   }
   // Stock-card navigation uses the same company roster as the Prices selector.
   // It selects local view state only; loading the vendor chart remains explicit.
   function selectPriceSymbol(next){
     if(typeof next!=='string'||!companies.some(([ticker])=>ticker===next))return false;
-    priceImportRun++;symbol=next;chartFrame=null;requestedChart=null;priceFeedback=null;
+    priceImportRun++;symbol=next;chartFrame=null;requestedChart=null;priceFeedback=null;priceFeedbackAnchor=null;
     return true;
   }
   function priceModel(){const selected=series.find(item=>item.symbol===symbol)||null;return selected?buildPriceView(selected,{at:now(),rangeSessions,benchmark:symbol==='SPY'?undefined:series.find(item=>item.symbol==='SPY')}):null;}
@@ -159,15 +172,36 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     const model=priceModel();lastPriceStatus=priceStatus(model);
     const options=companies.map(([symbol,label])=>({symbol,label:`${symbol} · ${label}`}));
     for(const item of series)if(!options.some(option=>option.symbol===item.symbol))options.push({symbol:item.symbol,label:`${item.symbol} · imported`});
-    return renderPriceView(model,{symbol,rangeSessions,symbolOptions:options,hosted:{status:requestedChart===symbol?'requested':'idle',url:hostedChartURL(symbol),symbol},feedback:priceFeedback,priceSetup:priceSetup.state()});
+    return renderPriceView(model,{symbol,rangeSessions,symbolOptions:options,hosted:{status:requestedChart===symbol?'requested':'idle',url:hostedChartURL(symbol),symbol},feedback:priceFeedback,feedbackAnchor:priceFeedbackAnchor,priceSetup:priceSetup.state()});
+  }
+  // app.js replaces the whole view on every render, which defeats the browser's scroll anchoring.
+  // While a message belongs to a control, keep the owner's place on screen: the pressed control stays
+  // where it was, and when its own action removed it, its outcome line takes that spot. Needs a real
+  // window; without one (tests) nothing is measured or scrolled.
+  let heldPlace=null;
+  function placeTarget(view){
+    const anchor=view==='journal'?feedbackAnchor:view==='prices'?priceFeedbackAnchor:null,message=view==='journal'?feedback:priceFeedback;
+    if(!anchor||!message||!(doc.defaultView?.innerHeight>0))return null;
+    const controls=doc.querySelectorAll?.(view==='journal'?'[data-journal-form],[data-journal-action]':'[data-price-form],[data-price-action]')||[];
+    return [...controls].find(element=>controlAnchor(element)===anchor)||doc.querySelector?.('.desk-feedback-inline')||null;
+  }
+  function holdPlace(view){
+    const box=placeTarget(view)?.getBoundingClientRect?.();
+    heldPlace=box&&box.bottom>0&&box.top<doc.defaultView.innerHeight?{view,top:box.top}:null;
+  }
+  function keepPlace(view){
+    const held=heldPlace;heldPlace=null;if(held?.view!==view)return;
+    const box=placeTarget(view)?.getBoundingClientRect?.(),shift=box?box.top-held.top:0;
+    if(Math.abs(shift)>=1)doc.defaultView.scrollBy?.(0,shift);
   }
   function mount(view){
+    keepPlace(view);
     if(view!=='prices'||requestedChart!==symbol)return;
     const container=doc.querySelector('#hosted-price-chart');if(!container)return;
     // A removed iframe loses its browsing context. A newly rendered container
     // gets a fresh frame; unchanged views keep the connected frame untouched.
     try{if(!chartFrame||chartFrame.parentElement!==container){chartFrame=createHostedChartFrame(symbol,{document:doc});container.replaceChildren(chartFrame);}}
-    catch{requestedChart=null;chartFrame=null;priceFeedback='The hosted chart could not open here. Use the TradingView link.';changed();}
+    catch{requestedChart=null;chartFrame=null;priceFeedback='The hosted chart could not open here. Use the TradingView link.';priceFeedbackAnchor=anchorOf('action','load-hosted');changed();}
   }
   async function exportBackup(){
     if(!draft){feedback='No journal is available to export.';changed();return;}
@@ -175,10 +209,14 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     const url=URL.createObjectURL(new Blob([result.text],{type:'application/json'})),anchor=doc.createElement('a');anchor.href=url;anchor.download=result.filename;doc.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);feedback='Journal backup exported with its original events and revision history.';changed();
   }
   async function action(name,target){
+    // The pressed control owns the next message. Sync anchors only its own refusal (in load()),
+    // cancel only the messages it writes, and show-all writes none.
+    const anchor=controlAnchor(target);
     if(name==='sync'){await load({reconcile:true});return;}
-    if(name==='export'){await exportBackup();return;}
-    if(name==='cancel-import'){if(busy){feedback='A journal operation is still in progress.';changed();return;}if(!pendingImport)return;if(pendingImport.kind==='reconcile'&&unsyncedDraft){draft=unsyncedDraft;storage={state:'conflict',message:'Your unsynced draft remains in this tab. Export it or retry reconciliation before closing.'};}pendingImport=null;feedback='Backup review cancelled.';changed();return;}
+    if(name==='export'){feedbackAnchor=anchor;await exportBackup();return;}
+    if(name==='cancel-import'){if(busy||pendingImport)feedbackAnchor=anchor;if(busy){feedback='A journal operation is still in progress.';changed();return;}if(!pendingImport)return;if(pendingImport.kind==='reconcile'&&unsyncedDraft){draft=unsyncedDraft;storage={state:'conflict',message:'Your unsynced draft remains in this tab. Export it or retry reconciliation before closing.'};}pendingImport=null;feedback='Backup review cancelled.';changed();return;}
     if(name==='show-all'){changed();return;}
+    feedbackAnchor=anchor;
     if(!safeAction(name==='confirm-import'))return;busy=true;
     try{
       if(name==='start'){
@@ -241,12 +279,12 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     form.dataset.deskDirty='true';
     const accepted=()=>{if(form.dataset.deskEditVersion===editVersion)form.dataset.deskDirty='false';};
     if(form.dataset.priceForm){
-      const run=++priceImportRun;
+      const run=++priceImportRun;priceFeedbackAnchor=controlAnchor(form);
       try{
         if(kind==='selection'){
           const next=asText(data.get('symbol'));if(!companies.some(([ticker])=>ticker===next)&&!series.some(item=>item.symbol===next))throw Error('Choose an available company.');
           const range=data.get('rangeSessions');if(!['20','60','120','all'].includes(range))throw Error('Choose an available history range.');
-          if(next!==symbol){chartFrame=null;requestedChart=null;}symbol=next;rangeSessions=range==='all'?'all':Number(range);priceFeedback=null;accepted();
+          if(next!==symbol){chartFrame=null;requestedChart=null;}symbol=next;rangeSessions=range==='all'?'all':Number(range);priceFeedback=null;priceFeedbackAnchor=null;accepted();
         }else if(kind==='import'){
           const file=data.get('file');if(!file||file.size>2_097_152||typeof file.text!=='function')throw Error('Choose a JSON price file under 2 MiB.');
           const raw=await file.text();if(run!==priceImportRun)return;
@@ -256,6 +294,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
         }
       }catch(error){if(run!==priceImportRun)return;priceFeedback=error.message||'Price input could not be read. Previous data is retained.';}changed();return;
     }
+    feedbackAnchor=controlAnchor(form);
     if(!safeAction())return;
     if(needsSetup&&kind!=='import'){feedback='Start automatic journaling or restore a backup before changing assumptions.';changed();return;}
     busy=true;
@@ -265,7 +304,7 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
         const raw=await file.text();let result=await journalDomain.previewImport(draft,raw);
         if(!result.ok&&draft.revision===0)result=await journalDomain.previewImport(draft,raw,{mode:'restore'});
         if(!result.ok||!result.preview.canApply){feedback=`Backup cannot be applied: ${errors(result.ok?{errors:result.preview.conflicts}:result)}.`;return;}
-        pendingImport={kind:'backup',preview:result.preview,message:`${result.preview.additions.length} new event(s), ${result.preview.duplicates.length} unchanged duplicate(s), ${result.preview.conflicts.length} conflicts.${result.preview.adoptsJournalIdentity?' This restores the backup’s journal identity into the empty journal.':''} Original publication records need server authority before they can be accepted.`};feedback=null;accepted();return;
+        pendingImport={kind:'backup',preview:result.preview,message:`${result.preview.additions.length} new event(s), ${result.preview.duplicates.length} unchanged duplicate(s), ${result.preview.conflicts.length} conflicts.${result.preview.adoptsJournalIdentity?' This restores the backup’s journal identity into the empty journal.':''} Original publication records need server authority before they can be accepted.`};feedback=null;feedbackAnchor=null;accepted();return;
       }
       let result;
       if(kind==='settings'){
@@ -292,11 +331,11 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
   }
   const click=event=>{
     const setupTarget=event.target.closest?.('[data-price-action="check-setup"]');
-    if(setupTarget?.dataset.priceAction==='check-setup'){priceFeedback='';void priceSetup.refresh();return;}
+    if(setupTarget?.dataset.priceAction==='check-setup'){priceFeedback='';priceFeedbackAnchor=null;void priceSetup.refresh();return;}
     const target=event.target.closest?.('[data-journal-action]');if(target){void action(target.dataset.journalAction,target);return;}
-    if(event.target.closest?.('[data-price-action="load-hosted"]')){if(!hostedChartURL(symbol)){priceFeedback='A hosted chart is not configured for this imported symbol.';}else{requestedChart=symbol;chartFrame=null;priceFeedback='Chart requested. If it stays blank, open the chart at TradingView using the link below. Displayed prices come from TradingView.';}changed();}
+    if(event.target.closest?.('[data-price-action="load-hosted"]')){priceFeedbackAnchor=anchorOf('action','load-hosted');if(!hostedChartURL(symbol)){priceFeedback='A hosted chart is not configured for this imported symbol.';}else{requestedChart=symbol;chartFrame=null;priceFeedback='Chart requested. If it stays blank, open the chart at TradingView using the link below. Displayed prices come from TradingView.';}changed();}
   };
   const submitEvent=event=>{const form=event.target.closest?.('[data-journal-form],[data-price-form]');if(form){event.preventDefault();void submit(form);}};
   doc.addEventListener('click',click);doc.addEventListener('submit',submitEvent);doc.addEventListener('input',settingsInput);doc.addEventListener('change',settingsInput);
-  return {html:view=>view==='journal'?journalHTML():pricesHTML(),priceSymbols:()=>companies.map(([ticker])=>ticker),selectPriceSymbol,mount,observe,start:load,status:()=>({loadState,busy,storage:{...storage},automation:{...automation,pendingReasons:[...automation.pendingReasons]}}),destroy(){priceSetup.dispose();doc.removeEventListener?.('click',click);doc.removeEventListener?.('submit',submitEvent);doc.removeEventListener?.('input',settingsInput);doc.removeEventListener?.('change',settingsInput);chartFrame=null;}};
+  return {html:view=>{holdPlace(view);return view==='journal'?journalHTML():pricesHTML();},priceSymbols:()=>companies.map(([ticker])=>ticker),selectPriceSymbol,mount,observe,start:load,status:()=>({loadState,busy,storage:{...storage},automation:{...automation,pendingReasons:[...automation.pendingReasons]}}),destroy(){priceSetup.dispose();doc.removeEventListener?.('click',click);doc.removeEventListener?.('submit',submitEvent);doc.removeEventListener?.('input',settingsInput);doc.removeEventListener?.('change',settingsInput);chartFrame=null;}};
 }
