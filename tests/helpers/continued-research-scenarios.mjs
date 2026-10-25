@@ -22,7 +22,7 @@ const scenarios={
       app.input('2013');expectUnavailable(app);await retry(app);
       assert.equal(app.query('#research-search').value,'2013');assert.equal(app.queryAll('.library-card').length,1);
       assert.equal(app.query('[data-horizon="next_week"]').getAttribute('aria-pressed'),'true');
-      app.click(app.query('.library-card [data-detail]'));assert.equal(app.query('#detail-dialog').open,true);assert.match(app.query('#detail-content').textContent,/The mechanism/);
+      app.click(app.query('.library-card [data-detail]'));assert.equal(app.query('#detail-dialog').open,true);assert.match(app.query('#detail-content').textContent,/The idea/);
       assert.ok([...app.modules.keys()].some(url=>url.endsWith('/data/nobel-corpus.js?retry=2')),'retry bypasses cached corrupt module');
       app.click(app.query('#close-detail'));app.input('');assert.equal(app.queryAll('.library-card').length,16);
     }

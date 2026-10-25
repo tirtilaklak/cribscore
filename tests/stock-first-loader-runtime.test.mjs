@@ -15,7 +15,7 @@ const source=appSource.replace(/^import .*;\n/gm,'')
   .replace("import('./data/research.js')",'researchImport')
   .replace("import('./data/nobel-corpus.js')",'Promise.resolve(corpusModule)')
   .replace("import('./lib/evidence.js')",'Promise.resolve(contract)')
-  .replace("$('#workspace-date').textContent='Private working preview';", "$('#workspace-date').textContent='Private working preview';globalThis.api={state,render,navigate,stockSnapshot};");
+  .replace("$('#workspace-date').textContent='Private preview of unvalidated research. Nothing here is a forecast or a recommendation.';", "$('#workspace-date').textContent='Private preview of unvalidated research. Nothing here is a forecast or a recommendation.';globalThis.api={state,render,navigate,stockSnapshot};");
 function deferred(){let resolve;const promise=new Promise(r=>{resolve=r;});return {promise,resolve};}
 
 function boot({at='2026-10-17T04:00:00Z',stockDeferred=false,stockFailed=false,secPending=false,researchPending=false}={}){
@@ -70,7 +70,7 @@ test('failed stock load does not block independently ready secondary views or in
   assert.equal(app.api.state.stockState,'unavailable');assert.equal(app.api.state.stockPayload,null);
   assert.equal(app.api.state.evidenceState,'ready');assert.equal(app.api.state.dataState,'ready');
   assert.match(app.html(),/Stock research unavailable/);assert.doesNotMatch(app.html(),/class="card stock-card"/);
-  app.api.navigate('evidence');assert.match(app.html(),/Original filing observations/);
+  app.api.navigate('evidence');assert.match(app.html(),/<h2>Filing facts/);
   app.api.navigate('library');assert.equal((app.html().match(/class="card library-card"/g)||[]).length,16);
   assert.equal(app.api.state.approvedSlateSlot,null);
 });
@@ -125,7 +125,7 @@ test('a genuinely hung stock request does not block independently completing evi
     assert.equal(app.settled(),false,'stock promise is never resolved in this test');assert.equal(app.api.state.stockState,'loading');
     assert.equal(app.api.state.view,view);
     if(view==='library')assert.equal((app.html().match(/class="card library-card"/g)||[]).length,16);
-    else {assert.match(app.html(),/Original filing observations/);assert.ok((app.html().match(/class="card registry-card"/g)||[]).length>0);}
+    else {assert.match(app.html(),/<h2>Filing facts/);assert.ok((app.html().match(/class="card registry-card"/g)||[]).length>0);}
     assert.equal(app.api.state.approvedSlateSlot,null);
   }
 });

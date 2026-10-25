@@ -37,7 +37,7 @@ test('Apply removes actionable review controls immediately and stale Cancel cann
   const h=await client(t);await h.review();const held=h.holdCommit();h.click('confirm-import');
   assert.equal(h.app.status().busy,true);
   assert.doesNotMatch(h.html(),/data-journal-action="(?:confirm-import|cancel-import)"/,'The rendered controls must retire when Apply begins, before awaiting validation or response');
-  assert.match(h.html(),/data-journal-action="sync" disabled>Working/);
+  assert.match(h.html(),/data-journal-action="sync" aria-disabled="true" aria-busy="true">Working/);
   for(let n=0;n<500&&!h.writes.length;n++)await tick();assert.equal(h.writes.length,1);assert.equal(h.remote().revision,1);
   h.click('cancel-import');assert.doesNotMatch(h.html(),/Backup review cancelled/);assert.match(h.html(),/operation is still in progress/);
   held.resolve();await h.settle();assert.equal(h.writes.length,1);assert.equal(h.app.status().storage.state,'synced');assert.match(h.html(),/Reviewed backup saved/);

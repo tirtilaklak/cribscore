@@ -19,12 +19,12 @@ test('actual app boots, loads retained stocks, switches horizon and opens second
  const source=(await readFile(new URL('../dist/app.js',import.meta.url),'utf8')).replace(/^import .*;\n/gm,'').replace("import('./data/research.js')",'Promise.resolve(research)').replace("import('./data/nobel-corpus.js')",'Promise.resolve(corpusModule)').replace("import('./lib/evidence.js')",'Promise.resolve(contract)');
  await runInNewContext(`(async()=>{${source}})()`,sandbox);
  assert.match(node('#view-content').innerHTML,/JNJ/);
- assert.match(node('#view-content').innerHTML,/Outside the day window/);
+ assert.match(node('#view-content').innerHTML,/All of these calls fall after this window\./);
  assert.equal(horizons[0].attributes['aria-pressed'],'true');
  const click=element=>listeners.get('click')({target:{closest(selector){if(selector==='[data-horizon]'&&element.dataset.horizon)return element;if(selector==='[data-view],[data-go]'&&element.dataset.view)return element;return null;}}});
- click(horizons[1]);assert.equal(horizons[1].attributes['aria-pressed'],'true');assert.match(node('#view-content').innerHTML,/Within the selected window/);assert.match(node('#view-content').innerHTML,/2026-10-23 20:00 UTC/);
+ click(horizons[1]);assert.equal(horizons[1].attributes['aria-pressed'],'true');assert.match(node('#view-content').innerHTML,/All of these calls fall inside this window\./);assert.match(node('#view-content').innerHTML,/2026-10-23 20:00 UTC/);
  node('#research-search').input({target:{value:'TXN'}});assert.match(node('#view-content').innerHTML,/>TXN</);assert.doesNotMatch(node('#view-content').innerHTML,/>NFLX</);
- click(navigation[3]);assert.match(node('#view-content').innerHTML,/From the economy to each share/);assert.match(node('#view-content').innerHTML,/Mechanisms, not return coefficients/);
+ click(navigation[3]);assert.match(node('#view-content').innerHTML,/From the economy to each share/);assert.match(node('#view-content').innerHTML,/How we use Nobel ideas/);assert.match(node('#view-content').innerHTML,/No prize proves an investment edge in either window\./);
  node('#research-search').input({target:{value:''}});click(navigation[2]);assert.equal((node('#view-content').innerHTML.match(/class="card library-card"/g)||[]).length,16);
  assert.ok(windowListeners.has('hashchange'));
 });

@@ -40,7 +40,7 @@ test('actual abstention projection shows only saved date, horizon and snapshot c
   const result=await recordAbstention(journal,{id:'observed',at:'2026-10-17T12:00:00Z',date:'2026-10-17',horizonId:'next_week',unrankedCount:6,snapshot});assert.equal(result.ok,true);
   snapshot.id='changed-current-payload';snapshot.window.exit_at='2026-10-30T20:00:00Z';
   const html=renderJournalView(projectJournal(result.journal)),dom=parse(html),context=all(dom,node=>node.attrs['data-state-key']===JSON.stringify(['journal','context','observed',null]))[0],copy=plain(context);
-  assert.ok(copy.includes('Saved abstention context'));assert.ok(copy.includes('Observation date (UTC)2026-10-17'));assert.ok(copy.includes('Selected horizonFive-session target'));assert.ok(copy.includes('Unranked cases6'));
+  assert.ok(copy.includes('Why nothing was eligible'));assert.ok(copy.includes('Date checked (UTC)2026-10-17'));assert.ok(copy.includes('Window5 trading days'));assert.ok(copy.includes('Stocks reviewed (not ranked)6'));
   assert.ok(copy.includes('recorded-snapshot'));assert.ok(copy.includes('2026-10-23 20:00:00 UTC'));assert.ok(copy.includes('2026-10-17 10:00:00.123 UTC'));
   assert.ok(!copy.includes('Published at'));assert.ok(!copy.includes('reviewed case and planned window stay attached'));assert.doesNotMatch(html,/changed-current-payload|2026-10-30|DO-NOT-RENDER|confirm-actual/);
 });

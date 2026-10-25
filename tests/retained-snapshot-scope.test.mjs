@@ -64,7 +64,7 @@ test('retained manual timing, unavailable forecasts and unconfigured collection 
   assert.match(week.timing.content,/<dt>Exit and expiry<\/dt><dd>2026-10-23 20:00:00\.000 UTC/);
   for(const p of [day,week]){
     assert.match(p.timing.content,/no close-to-open gap is earned/);
-    assert.match(p.timing.content,/A new entry needs a new snapshot/);
+    assert.match(p.timing.content,/A new window needs a new snapshot/);
     assert.match(p.timing.content,/does not establish a collector or refresh schedule/);
     assert.match(p.rail,/<dt>Refresh schedule<\/dt><dd>Not configured<\/dd>/);
   }

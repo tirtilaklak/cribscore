@@ -25,8 +25,8 @@ for(const horizon of ['next_day','next_week'])test(`${horizon}: invalidation and
     const expanded=all(details,node=>hasClass(node,'expanded-stock'))[0];
     const headings=all(expanded,node=>node.tag==='h4').map(plain);
     assert.deepEqual(headings.slice(0,6),[
-      'What changed','Why this window','Favorable test · analyst interpretation',
-      'DOWNSIDE / COUNTER-CASE','What would invalidate the thesis?','Inputs blocking ranking',
+      'What changed','Event timing','The case for · analyst interpretation',
+      'The case against · analyst interpretation','What would prove this case wrong?','What blocks ranking',
     ],ticker);
     const content=plain(expanded);
     assert.ok(content.includes(item.invalidation_trigger),`${ticker} retains exact invalidation`);
@@ -34,8 +34,8 @@ for(const horizon of ['next_day','next_week'])test(`${horizon}: invalidation and
     const missing=all(expanded,node=>hasClass(node,'missing-inputs'));
     assert.equal(missing.length,1,`${ticker} has one concrete blocker list`);
     assert.equal(all(missing[0],node=>node.tag==='li').length,item.gate_reasons.length);
-    assert.equal(headings.filter(h=>h==='What would invalidate the thesis?').length,1);
-    assert.ok(headings.indexOf('Inputs blocking ranking')<headings.findIndex(h=>h.startsWith('Macro →')));
-    assert.ok(headings.indexOf('Inputs blocking ranking')<headings.indexOf('How the retained research affects this case'));
+    assert.equal(headings.filter(h=>h==='What would prove this case wrong?').length,1);
+    assert.ok(headings.indexOf('What blocks ranking')<headings.findIndex(h=>h.startsWith('Macro →')));
+    assert.ok(headings.indexOf('What blocks ranking')<headings.indexOf('How the research notes shape this case'));
   }
 });

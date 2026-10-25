@@ -41,7 +41,7 @@ test('canonical serialized bytes render only after the trusted reader is explici
   assert.equal(articles.length,3);assert.match(content(dom),/Research rank 1 · tied/);assert.match(content(dom),/Research rank 3/);
   assert.match(content(dom),/Research evidence score 75\/100 · Unvalidated/);
   assert.match(content(dom),/Unvalidated research priorities; not a return forecast\./);
-  assert.doesNotMatch(content(dom),/Forecast unavailable|No eligible|return estimate|gain probability|Price:/);
+  assert.doesNotMatch(content(dom),/Forecast unavailable|No eligible|return estimate|gain probability|Chance of gain|Expected return|Price:/);
   for(const article of articles){
     assert.match(content(article),/Entry · open:/);assert.match(content(article),/Exit · close:/);assert.match(content(article),/Downside:/);
     assert.match(content(article),/Synthetic earnings webcast/);assert.equal(all(article,'time').length,3);
@@ -142,7 +142,7 @@ test('empty slates fall back; canonical withheld rank gaps do not force five row
 });
 test('one-day canonical slate preserves its exact exit and labels its later catalyst',async()=>{
   const {slot}=await installed(proposal([75],'next_day').serialized),dom=parseHTML(view(slot,'next_day'));
-  assert.match(content(dom),/ONE SESSION/);assert.match(content(dom),/After this holding window/);
+  assert.match(content(dom),/1 trading day/);assert.match(content(dom),/After this holding window/);
   assert.ok(all(dom,'time').some(n=>n.attrs.datetime==='2026-10-19T20:00:00Z'));
 });
 test('plain text ampersands and quotes are escaped while preserving their accessible text',async()=>{

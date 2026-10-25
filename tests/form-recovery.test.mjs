@@ -176,10 +176,10 @@ for(const newerEdits of [false,true])test(`successful save while away ${newerEdi
 test('automatic updates disable sync visibly until the request completes',{concurrency:false},async t=>{
   const h=await harness(t),hold=h.holdObservation(),observing=h.tools.observe();await flush();
   assert.equal(h.tools.status().busy,true);
-  assert.notEqual(h.query('[data-journal-action="sync"]').getAttribute('disabled'),null);
+  assert.equal(h.query('[data-journal-action="sync"]').getAttribute('aria-disabled'),'true');
   assert.equal(h.query('[data-journal-action="sync"]').textContent,'Working…');
   hold.resolve();await observing;
-  assert.equal(h.query('[data-journal-action="sync"]').getAttribute('disabled'),null);
+  assert.equal(h.query('[data-journal-action="sync"]').getAttribute('aria-disabled'),null);
   assert.equal(h.query('[data-journal-action="sync"]').textContent,'Check journal sync');
 });
 

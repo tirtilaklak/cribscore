@@ -5,9 +5,10 @@ import {renderPriceView} from '../dist/lib/price-view.js';
 
 test('journal overview describes current app-open observations and unavailable automatic tracking inputs',()=>{
   const html=renderJournalView({entries:[],summary:{},assumptions:[]});
-  assert.match(html,/Assessments are recorded while this app is open\./);
-  assert.match(html,/An observed assessment with no eligible suggestion is recorded as an abstention\./);
-  assert.match(html,/Automatic paper tracking requires a connected, reviewed publisher and price feed; those inputs are currently unavailable\./);
+  assert.match(html,/The journal records each assessment while this app is open\./);
+  assert.match(html,/An assessment that finds no eligible stock is saved as an abstention \(a record that the desk had nothing eligible\)\./);
+  assert.doesNotMatch(html,/\b(?:(?:a|each|every|any) (?:calendar |trading )?day|(?:calendar |trading )?days)\b[^.<>]{0,60}?\b(?:no|without an?) eligible\b|\b(?:each|every) (?:calendar |trading )?day[’']s\b|\bevery (?:calendar |trading )?day\b|\bdaily assessments?\b|\bwhile (?:the|this) app is closed\b|decision not to trade/i);
+  assert.match(html,/Automatic paper trades \(practice trades with no real money\) need a reviewed research source and a reviewed price feed\. Neither is connected yet\./);
   assert.match(html,/Missing prices stay pending\./);
   assert.doesNotMatch(html,/Eligible published suggestions become paper decisions|Paper by default/);
 });
