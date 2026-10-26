@@ -15,6 +15,7 @@ The hosted chart uses a fixed TradingView HTTPS iframe on the vendor's own origi
 | `dist/`, excluding `server/` and hidden metadata | Deliberately public UI source: HTML, scripts, styles and bounded research JSON. |
 | `worker/index.js` | Deployment entry; serves embedded assets and injects the server-owned observation coordinator into the journal API. |
 | `worker/generated-assets.js` | Generated public asset map. Rebuild rather than editing it. |
+| `worker/cloudflare.js`, `worker/cloudflare-access.js` | Cloudflare deployment entry (`wrangler.jsonc`). Verifies the Cloudflare Access token on every request, deletes client `oai-` headers and sets the owner from the token. See `docs/cloudflare-hosting.md`. |
 | `server/journal-api.js` | Authenticated journal reads, explicit appends/imports and server observations. |
 | `server/journal/observe.mjs` | Server-only publication/calendar/price coordination; returns a validated append-only proposal and status. |
 | `dist/lib/journal.js`, `dist/lib/prices.js` | Shared journal, accounting, calendar and reviewed-price validation. |
@@ -68,6 +69,8 @@ After deployment succeeds, verify the journal in the existing signed-in Site ses
 ## Identity and API consistency
 
 The platform's `oai-authenticated-user-id` is the owner key. It is stable within this Site, not portable across newly created Sites. Email is not used as ownership. Request JSON never selects an owner. Preserve the platform's private audience and authentication integration.
+
+On Cloudflare the header is never trusted from the client. `worker/cloudflare.js` deletes every client `oai-` header, verifies the Cloudflare Access token and sets the owner key to `cf-access:` plus the token's `sub`. Email only gates entry through Access and the `OWNER_EMAILS` secret, which is always required: a missing or blank list admits nobody. Any failed check answers 403 for every path, and no response may be framed by another site. See `docs/cloudflare-hosting.md`.
 
 | Route | Purpose and accepted input |
 | --- | --- |
