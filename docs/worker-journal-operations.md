@@ -60,7 +60,7 @@ dist/.openai/drizzle/meta/0000_snapshot.json
 dist/.openai/drizzle/meta/_journal.json
 ```
 
-The packager copies root `drizzle/` into that metadata location. Public assets remain in the archive while the Worker serves embedded copies. Sites applies migrations before Worker upload. A missing Worker, binding declaration, SQL or migration metadata makes the package incomplete. Source and built manifests must both omit `static`; preserve the project ID and `DB` binding.
+The packager copies root `drizzle/` into that metadata location. Public assets remain in the archive while the Worker serves embedded copies. Sites applies migrations before Worker upload. On Cloudflare, `wrangler deploy` does not; `docs/cloudflare-hosting.md` applies them with `wrangler d1 migrations apply cribscore --remote` before every deploy. A missing Worker, binding declaration, SQL or migration metadata makes the package incomplete. Source and built manifests must both omit `static`; preserve the project ID and `DB` binding.
 
 Verify every release archive against its own tested build manifest and migration hashes, including exclusion of private inputs and synthetic fixtures. Retain the source commit, archive hash, version/deployment IDs, terminal deployment status and verification times. A source push or local build is not deployment confirmation.
 

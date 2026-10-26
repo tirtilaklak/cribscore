@@ -156,7 +156,8 @@ Wait until both certificates are active (a few minutes), then:
 
 ## Rollback
 
-Within about 7 days of step 5:
+Within about 7 days of step 5. First, while the new site still answers, the owner signs in, opens
+**Journal**, then **Backup and restore**, and chooses **Export journal**. Only then remove the domains.
 
 ```
 GET    /accounts/87b72170ec7db792c10e7ad1b8a72066/workers/domains?hostname=cribscore.co        (note the id)

@@ -375,6 +375,60 @@ test('a burst of requests shares one key download, even from forged tokens with 
     /share one download[^\n]*at most one download every 30 seconds, however many arrive at once/);
 });
 
+test('with no key set cached, a failed download holds off the next one for 5 seconds, so a failing endpoint is not flooded', async () => {
+  const runbook = readFileSync(new URL('../docs/cloudflare-hosting.md', import.meta.url), 'utf8');
+  const forged = Array.from({ length: 25 }, (_, i) =>
+    `${json64({ alg: 'RS256', kid: `stray-${i}`, typ: 'JWT' })}.${json64(claims())}.${b64url(encoder.encode('not a signature'))}`);
+  // Cold cache and a failing endpoint. Forged tokens arrive one after another and no time passes between them.
+  for (const mode of ['status', 'throw', 'json']) {
+    const { gate, jwks, clock, seen, reasons } = harness();
+    jwks.state.mode = mode;
+    for (const token of forged) await assertDenied(await gate.fetch(request('/api/journal', { token }), accessEnv()));
+    assert.equal(jwks.state.calls.length, 1, `${mode}: one download for 25 requests`);
+    // The owner's own token waits out the back-off too.
+    clock.now += 4_999;
+    await assertDenied(await gate.fetch(request('/', { token: await sign(claims({}, clock.now)) }), accessEnv()));
+    assert.equal(jwks.state.calls.length, 1, `${mode}: no download within 5 seconds of the failed one`);
+    // 5 seconds after the failed download began, the next request tries again. It fails too, so the wait starts over.
+    clock.now += 1;
+    for (const token of forged) await assertDenied(await gate.fetch(request('/api/journal', { token }), accessEnv()));
+    assert.equal(jwks.state.calls.length, 2, `${mode}: one more download`);
+    // Once the endpoint recovers, the first request after the wait gets in and fills the cache.
+    jwks.state.mode = 'ok';
+    clock.now += 5_000;
+    assert.equal((await gate.fetch(request('/', { token: await sign(claims({}, clock.now)) }), accessEnv())).status, 200);
+    assert.equal((await gate.fetch(request('/', { token: await sign(claims({}, clock.now)) }), accessEnv())).status, 200);
+    assert.equal(jwks.state.calls.length, 3); assert.equal(seen.length, 2);
+    assert.deepEqual(reasons, Array(51).fill('jwks_unavailable'), mode);
+  }
+  // A full minute of failure, one request every 100 ms: one download every 5 seconds, never more.
+  {
+    const { gate, jwks, clock } = harness();
+    jwks.state.mode = 'status';
+    const token = await sign(claims());
+    for (let elapsed = 0; elapsed < 60_000; elapsed += 100) {
+      clock.now = NOW + elapsed;
+      await assertDenied(await gate.fetch(request('/', { token }), accessEnv()));
+    }
+    assert.equal(jwks.state.calls.length, 12);
+  }
+  // The back-off applies only when no key set is cached. A failed refetch for an unknown kid leaves the cached keys in use.
+  {
+    const { gate, jwks, clock, seen, reasons } = harness();
+    assert.equal((await gate.fetch(request('/', { token: await sign(claims()) }), accessEnv())).status, 200);
+    clock.now += 31_000;
+    jwks.state.mode = 'status';
+    await assertDenied(await gate.fetch(request('/', { token: forged[0] }), accessEnv()));
+    assert.equal(jwks.state.calls.length, 2);
+    assert.equal((await gate.fetch(request('/', { token: await sign(claims({}, clock.now)) }), accessEnv())).status, 200);
+    assert.equal(jwks.state.calls.length, 2); assert.equal(seen.length, 2); assert.deepEqual(reasons, ['jwks_unavailable']);
+  }
+  // The runbook states both limits: with a cached key set and without one.
+  assert.match(runbook, /while a key set is cached, tokens with unknown keys cause at most one download every 30 seconds/);
+  assert.match(runbook, /starts no other download until 5 seconds after the failed one began/);
+  assert.match(runbook, /at most one download every 5 seconds/);
+});
+
 test('a key download that never answers fails closed on each request\'s own timer, and a later request starts afresh', async () => {
   const jwks = jwksEndpoint();
   const { gate, clock, seen, reasons } = harness({ jwks, options: { jwksTimeoutMs: 40 } });
@@ -386,9 +440,13 @@ test('a key download that never answers fails closed on each request\'s own time
   for (const response of responses) await assertDenied(response);
   assert.ok(performance.now() - startedAt < 2_000, 'no request waits past its own time limit');
   assert.equal(jwks.state.calls.length, 1); assert.deepEqual(reasons, Array(5).fill('jwks_unavailable')); assert.equal(seen.length, 0);
-  // Once the stuck download has run past the time limit, it no longer counts as under way.
+  // Once the stuck download has run past the time limit, it no longer counts as under way. It counts as failed, so the
+  // next download waits until 5 seconds after the stuck one began. Then a later request starts afresh.
   jwks.state.hold = null;
   clock.now += 41;
+  await assertDenied(await gate.fetch(request('/', { token }), accessEnv()));
+  assert.equal(jwks.state.calls.length, 1);
+  clock.now = NOW + 5_000;
   assert.equal((await gate.fetch(request('/', { token }), accessEnv())).status, 200);
   assert.equal(jwks.state.calls.length, 2); assert.equal(seen.length, 1);
 });
@@ -436,12 +494,16 @@ test('without OWNER_EMAILS the deployed entry refuses even a valid token and nev
 test('a JWKS fetch failure fails closed and is not cached; expired key sets are never reused', async () => {
   const token = await sign(claims());
   for (const mode of ['throw', 'status', 'redirect', 'json']) {
-    const { gate, jwks, seen, reasons } = harness();
+    const { gate, jwks, clock, seen, reasons } = harness();
     jwks.state.mode = mode;
     await assertDenied(await gate.fetch(request('/api/journal', { token }), accessEnv()));
     assert.equal(seen.length, 0); assert.deepEqual(reasons, ['jwks_unavailable'], mode);
     jwks.state.mode = 'ok';
-    assert.equal((await gate.fetch(request('/api/journal', { token }), accessEnv())).status, 200, `${mode}: recovers on the next request`);
+    // The failure is not cached as a key set. The next download waits out the 5-second back-off, then succeeds.
+    await assertDenied(await gate.fetch(request('/api/journal', { token }), accessEnv()));
+    assert.equal(jwks.state.calls.length, 1, `${mode}: no download during the back-off`);
+    clock.now += 5_000;
+    assert.equal((await gate.fetch(request('/api/journal', { token }), accessEnv())).status, 200, `${mode}: recovers on the next request after the back-off`);
     assert.equal(jwks.state.calls.length, 2);
   }
   for (const keys of [[], [{ ...keyA.jwk, kty: 'EC' }], [{ ...keyA.jwk, alg: 'RS512' }], [{ ...keyA.jwk, use: 'enc' }], [{ ...keyA.jwk, n: 'not*base64' }], [weak.jwk]]) {
@@ -699,11 +761,17 @@ test('every later deploy installs, builds, tests and dry-runs before it uploads'
   assert.ok(step6.includes('**Every later deploy.**'));
   const later = step6.slice(step6.indexOf('**Every later deploy.**'));
   let at = -1;
-  for (const command of ['\nnpm ci\n', '\nnpm run build\n', '\nnpm test\n', '\nnpm run validate:worker\n', '\nnpx wrangler@4 deploy --dry-run --outdir /tmp/cribscore-dry-run\n', '\nnpx wrangler@4 deploy\n']) {
+  // `wrangler deploy` never applies D1 migrations, so a new file in drizzle/ is applied to the remote database before the upload.
+  for (const command of ['\nnpm ci\n', '\nnpm run build\n', '\nnpm test\n', '\nnpm run validate:worker\n', '\nnpx wrangler@4 deploy --dry-run --outdir /tmp/cribscore-dry-run\n',
+    '\nnpx wrangler@4 d1 migrations list cribscore --remote\n', '\nnpx wrangler@4 d1 migrations apply cribscore --remote\n', '\nnpx wrangler@4 deploy\n']) {
     const next = later.indexOf(command, at + 1);
     assert.ok(next > at, `${command.trim()} comes next`); at = next;
   }
   assert.match(later, /only the known failures from item 1 above\. Any other failure stops the deploy\./);
+  assert.match(later, /`npx wrangler@4 deploy` does not apply database migrations\./);
+  // The old code serves requests while a migration runs, and a rollback does not undo one.
+  assert.match(later, /must keep working with the code that runs now/);
+  assert.match(later, /A rollback does not undo a migration\./);
 });
 
 test('the runbook says when the journal owner ID changes, how to keep it, and how to move the journal in a rebuild', () => {
@@ -744,6 +812,12 @@ test('the way back to the old host is marked as lasting only days', () => {
   assert.match(leave, /Keep the export file from step 7 Part A until the new site has worked for more than 7 days/);
   // The warning comes before the DNS steps it limits.
   assert.ok(leave.indexOf('7 days') < leave.indexOf('add back the old records'));
+  // The journal export is the first step, before either custom domain goes.
+  const exportStep = leave.indexOf('1. **Export the journal from the new site first.**');
+  assert.ok(exportStep > -1, 'the way back starts with a journal export');
+  assert.match(leave, /Do this before you remove either custom domain\./);
+  assert.ok(exportStep < leave.indexOf('Remove the custom domains'), 'export comes before removing the domains');
+  assert.ok(leave.indexOf('Remove the custom domains') < leave.indexOf('add back the old records'));
 });
 
 test('the rollback step reads the log first, sends allowlist refusals to secret put and covers the first deploy', () => {
@@ -761,10 +835,33 @@ test('the rollback step reads the log first, sends allowlist refusals to secret 
   const rollback = step9.slice(step9.indexOf('**If only the latest deploy is bad**'), step9.indexOf('**To leave Cloudflare'));
   assert.match(rollback, /If a secret changed after the version you pick, Wrangler names it and asks first\./);
   assert.match(rollback, /After a rollback, Wrangler refuses `secret put` until you deploy again/);
-  assert.match(rollback, /fix `OWNER_EMAILS` first, before any rollback/);
+  assert.match(rollback, /To change `OWNER_EMAILS` after a rollback, first deploy the last good commit as in step 6\. Then run `npx wrangler@4 secret put OWNER_EMAILS`\./);
   // The first deploy has no earlier version to go back to.
   assert.match(rollback, /After the first deploy there is no earlier version, so a rollback cannot help\. Fix the problem and deploy again \(step 6\)\./);
   assert.match(rollback, /use "To leave Cloudflare" below/);
+});
+
+test('a rollback always names the version to go back to, because a secret change is a deployment too', () => {
+  const runbook = readFileSync(new URL('../docs/cloudflare-hosting.md', import.meta.url), 'utf8');
+  const step9 = runbookSection(runbook, 'Step 9.').body;
+  const rollback = step9.slice(step9.indexOf('**If only the latest deploy is bad**'), step9.indexOf('**To leave Cloudflare'));
+  // Without an id, Wrangler goes back to the previous deployment. After a `secret put` that is the bad code again, with the
+  // old secret. So every rollback command in the runbook names a version id.
+  const commands = runbook.match(/npx wrangler@4 rollback[^\n`]*/g) ?? [];
+  assert.ok(commands.length > 0, 'the runbook shows a rollback command');
+  for (const command of commands) assert.equal(command, 'npx wrangler@4 rollback <version-id>');
+  assert.doesNotMatch(runbook, /picks the version uploaded before the latest one/);
+  assert.match(rollback, /`secret put` makes a deployment too/);
+  // The id comes from the deployment list, and a secret change after the bad deploy still runs the bad code.
+  const listAt = rollback.search(/\n *npx wrangler@4 deployments list\n/), rollbackAt = rollback.search(/\n *npx wrangler@4 rollback <version-id>\n/);
+  assert.ok(listAt > -1 && rollbackAt > listAt, 'list the deployments, then roll back to a named version');
+  assert.match(rollback, /\*\*Source\*\* is \*\*Secret Change\*\*[^\n]*still runs the code of the deployment before it/);
+  // A rollback across a changed OWNER_EMAILS would bring back the old list. The runbook says to refuse it and deploy the good
+  // commit instead, which keeps the secrets you have now.
+  const noAt = rollback.indexOf('answer **no**'), deployAt = rollback.indexOf('check out the last good commit and deploy it as in step 6');
+  assert.ok(noAt > rollbackAt && deployAt > noAt, 'refuse the secret prompt, then deploy the good commit');
+  assert.match(rollback, /A deploy keeps the secrets you have now\./);
+  assert.doesNotMatch(runbook, /fix `OWNER_EMAILS` first, before any rollback/);
 });
 
 test('the runbook uses no em dashes', () => {
