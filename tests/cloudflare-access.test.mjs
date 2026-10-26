@@ -812,6 +812,12 @@ test('the way back to the old host is marked as lasting only days', () => {
   assert.match(leave, /Keep the export file from step 7 Part A until the new site has worked for more than 7 days/);
   // The warning comes before the DNS steps it limits.
   assert.ok(leave.indexOf('7 days') < leave.indexOf('add back the old records'));
+  // The journal export is the first step, before either custom domain goes.
+  const exportStep = leave.indexOf('1. **Export the journal from the new site first.**');
+  assert.ok(exportStep > -1, 'the way back starts with a journal export');
+  assert.match(leave, /Do this before you remove either custom domain\./);
+  assert.ok(exportStep < leave.indexOf('Remove the custom domains'), 'export comes before removing the domains');
+  assert.ok(leave.indexOf('Remove the custom domains') < leave.indexOf('add back the old records'));
 });
 
 test('the rollback step reads the log first, sends allowlist refusals to secret put and covers the first deploy', () => {

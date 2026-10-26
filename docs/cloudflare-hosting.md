@@ -293,14 +293,15 @@ This way back works only for a short time. The old addresses `172.66.3.26` and `
 - Keep the export file from step 7 Part A until the new site has worked for more than 7 days.
 - Keep the TXT records, as step 7 Part B says.
 
-1. In **Workers & Pages**, open the `cribscore` Worker, then **Settings**, then **Domains & Routes**. Remove the custom domains `cribscore.co` and `www.cribscore.co`. This also removes the DNS records Cloudflare made for them.
-2. In the cribscore.co zone, open **DNS**, then **Records**, and add back the old records with the proxy status and TTL you wrote down in step 7 Part B:
+1. **Export the journal from the new site first.** Do this before you remove either custom domain. Once a domain is gone, the new site no longer answers there. Open https://cribscore.co, go to **Journal**, write down the counts as in step 7 Part A, open **Backup and restore** and choose **Export journal**. Keep the file outside this repository. You can restore it on the old site the same way as in step 8, check 3. If the new site does not load at all, skip this step. Its records stay in the D1 database.
+2. In **Workers & Pages**, open the `cribscore` Worker, then **Settings**, then **Domains & Routes**. Remove the custom domains `cribscore.co` and `www.cribscore.co`. This also removes the DNS records Cloudflare made for them.
+3. In the cribscore.co zone, open **DNS**, then **Records**, and add back the old records with the proxy status and TTL you wrote down in step 7 Part B:
    - `A` `cribscore.co` → `172.66.3.26`
    - `A` `cribscore.co` → `162.159.143.30`
    - `CNAME` `www` → `cname.vercel-dns.com`
-3. If the Access application gets in the way of the old host, turn it off or delete it in Zero Trust.
+4. If the Access application gets in the way of the old host, turn it off or delete it in Zero Trust.
 
-Records you saved on the new host stay in the D1 database. Export them from the new site first if you want to keep them.
+Records saved on the new host stay in the D1 database even after you leave. Removing the domains does not delete them.
 
 ## Notes
 
