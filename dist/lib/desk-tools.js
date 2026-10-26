@@ -6,7 +6,10 @@ import { createPriceSetupClient } from './price-setup.js';
 import { createHostedChartFrame, hostedChartURL } from './hosted-chart.js';
 
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const companies=[['IBM','International Business Machines'],['JNJ','Johnson & Johnson'],['NFLX','Netflix'],['PG','Procter & Gamble'],['TSLA','Tesla'],['TXN','Texas Instruments']];
+// Chart picker: the current stock desk's companies first (the October 26 review), then the October 16
+// review's companies, kept so older journal entries can still be charted.
+const companies=[['AMZN','Amazon'],['CAT','Caterpillar'],['GOOGL','Alphabet (Class A)'],['KO','Coca-Cola'],['MA','Mastercard'],['MRK','Merck'],['MSFT','Microsoft'],['V','Visa'],['XOM','ExxonMobil'],
+  ['IBM','International Business Machines'],['JNJ','Johnson & Johnson'],['NFLX','Netflix'],['PG','Procter & Gamble'],['TSLA','Tesla'],['TXN','Texas Instruments']];
 const asText=value=>typeof value==='string'?value.trim():'';
 const errors=result=>(result?.errors||[result?.error||'operation_unavailable']).join(', ').replaceAll('_',' ');
 const canonical=value=>JSON.stringify(value,(_,item)=>item&&typeof item==='object'&&!Array.isArray(item)?Object.fromEntries(Object.keys(item).sort().map(key=>[key,item[key]])):item);
@@ -43,7 +46,8 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
   function pauseForCapacity(){capacityRevision=revision;storage={state:'capacity',message:capacityMessage};automation={publisherState:'unavailable',checkedAt:null,pendingReasons:['journal_capacity_exceeded']};feedback=capacityMessage;}
   let storage={state:'unavailable',message:'Connecting to the private journal…'};
   let automation={publisherState:'unavailable',checkedAt:null,pendingReasons:['observation_not_checked']};
-  let symbol='IBM',rangeSessions=20,series=[],priceFeedback=null,requestedChart=null,chartFrame=null,lastPriceStatus=null;
+  // Prices opens on the first company of the current stock desk.
+  let symbol=companies[0][0],rangeSessions=20,series=[],priceFeedback=null,requestedChart=null,chartFrame=null,lastPriceStatus=null;
   const id=prefix=>`${prefix}-${uuid()}`;
   const boundedRequest=async(url,options)=>{
     const controller=new AbortController();let timer;
@@ -174,7 +178,9 @@ export function createDeskTools({onChange=()=>{},fetch:request=globalThis.fetch,
     const model=priceModel();lastPriceStatus=priceStatus(model);
     const options=companies.map(([symbol,label])=>({symbol,label:`${symbol} · ${label}`}));
     for(const item of series)if(!options.some(option=>option.symbol===item.symbol))options.push({symbol:item.symbol,label:`${item.symbol} · imported`});
-    return renderPriceView(model,{symbol,rangeSessions,symbolOptions:options,hosted:{status:requestedChart===symbol?'requested':'idle',url:hostedChartURL(symbol),symbol},feedback:priceFeedback,feedbackAnchor:priceFeedbackAnchor,priceSetup:priceSetup.state()});
+    // Page copy: says how the company list above is ordered. Update it when the list changes.
+    const rosterNote='The list starts with the companies on the current stock desk. Companies from the October 16 review come after them.';
+    return renderPriceView(model,{symbol,rangeSessions,symbolOptions:options,hosted:{status:requestedChart===symbol?'requested':'idle',url:hostedChartURL(symbol),symbol},feedback:priceFeedback,feedbackAnchor:priceFeedbackAnchor,priceSetup:priceSetup.state(),rosterNote});
   }
   // An owner's result shows where the owner is looking. app.js replaces the whole view on every render,
   // which defeats the browser's scroll anchoring, so the one render that first shows an owner's result

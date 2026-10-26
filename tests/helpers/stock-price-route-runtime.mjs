@@ -7,7 +7,7 @@ const project=process.env.CRIBSCORE_PROJECT_ROOT||fileURLToPath(new URL('../../'
 const appPath=process.env.APP_SOURCE||`${project}/dist/app.js`;
 const sourceHelper=process.env.SOURCE_FRESHNESS_MODULE||`${project}/dist/lib/source-freshness.js`;
 const readJSON=async path=>JSON.parse(await readFile(`${project}/${path}`,'utf8'));
-const stock=await readJSON('dist/data/stock-evidence.json');
+const stock=await readJSON('tests/fixtures/stock-evidence-2026-10-16.json');
 const evidence=await readJSON('dist/data/sec-evidence.json');
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
 const tick=()=>new Promise(resolve=>setImmediate(resolve));

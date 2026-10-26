@@ -548,6 +548,25 @@ html:has(#detail-dialog[open]){overflow:hidden;scrollbar-gutter:stable}
 .stock-desk .stock-status{font-size:12px}
 /* Narrow phones: the coverage strip wraps; gaps replace the dots so no line starts with one. */
 @media (max-width:480px){.stock-desk .coverage-strip{display:flex;flex-wrap:wrap;column-gap:var(--space-3,12px)}.stock-desk .coverage-strip>.coverage-part>span[aria-hidden]{display:none}}
+/* Company guidance figures: the earlier and later ranges and the basis, from the case's guidance record. */
+.stock-desk .guidance-figures{display:grid;gap:var(--space-2,8px);margin:var(--space-3,12px) 0 0}
+.stock-desk .guidance-figures>div{display:grid;grid-template-columns:minmax(0,8rem) minmax(0,1fr);gap:var(--space-3,12px)}
+.stock-desk .guidance-figures dt{color:var(--muted);font-size:12px}
+.stock-desk .guidance-figures dd{margin:0;font-size:13px;color:var(--ink);overflow-wrap:anywhere}
+@media (max-width:480px){.stock-desk .guidance-figures>div{grid-template-columns:minmax(0,1fr);gap:2px}}
+/* Phones: a five-letter ticker such as GOOGL stays on one line in the earnings-call list. */
+.stock-desk .event-ticker{white-space:nowrap}
+@media (max-width:680px){.stock-desk .event-details>summary.event-row{grid-template-columns:minmax(52px,max-content) minmax(0,1fr) auto}}
+/* One line when the Prices page has no chart for the cases shown. */
+.stock-desk .chart-gap-note{margin:0 0 var(--space-3,12px);max-width:75ch;font-size:13px;line-height:1.6;color:var(--muted)}
+/* Guidance: a note when the same update moved another figure the other way. */
+.stock-desk .guidance-scope{margin:var(--space-2,8px) 0 0;max-width:75ch;font-size:13px;line-height:1.6;color:var(--ink)}
+/* Original review notes: a small closed disclosure right after each plain line, like "Original wording". */
+.stock-desk .original-note{margin:0}
+.stock-desk .original-note>summary{display:list-item;width:max-content;max-width:100%;min-height:44px;padding:var(--space-2,8px) 0;font-size:12px;line-height:1.5;font-weight:500;color:var(--green,#315d49)}
+.stock-desk .original-note>summary:hover{color:#183f2c}
+.stock-desk .original-note[open]{padding-bottom:var(--space-1,4px)}
+.stock-desk .original-note>p{max-width:68ch;margin:0 0 var(--space-2,8px);padding-left:var(--space-3,12px);border-left:2px solid var(--line,#d9dfd5);font-size:13px;line-height:1.6;color:var(--muted,#56655e);overflow-wrap:anywhere}
 /* == end area:B == */
 /* == area:C prices == */
 /* Prices: the lede states the limit first; eyebrows are written in sentence case. */
@@ -599,6 +618,8 @@ html:has(#detail-dialog[open]){overflow:hidden;scrollbar-gutter:stable}
   .price-desk .desk-selection{grid-template-columns:minmax(0,1fr)}
   .price-desk .desk-selection>.desk-button{grid-column:1/-1}
 }
+/* The picker's own limit: which companies it covers. */
+.price-desk .desk-roster-note{margin:var(--space-3,12px) 0 0;max-width:75ch;font-size:var(--t-small,13px);line-height:1.6;color:var(--muted)}
 /* == end area:C == */
 /* == area:D journal == */
 /* Journal: one mint lead panel. Before start it is the setup card; after start it is the daily record. */

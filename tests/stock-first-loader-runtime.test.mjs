@@ -10,6 +10,8 @@ const load=name=>import(pathToFileURL(`${root}/${name}`));
 const [{buildStockSnapshot},{renderStockView},contract,research,corpusModule]=await Promise.all([
   load('dist/lib/candidates.js'),load('dist/lib/stock-view.js'),load('dist/lib/evidence.js'),load('dist/data/research.js'),load('dist/data/nobel-corpus.js')]);
 const stock=JSON.parse(await readFile(`${root}/dist/data/stock-evidence.json`,'utf8'));
+// The 2026-10-16 snapshot, kept as a fixture for tests that pin its cases, searches and window.
+const retained=JSON.parse(await readFile(`${root}/tests/fixtures/stock-evidence-2026-10-16.json`,'utf8'));
 const appSource=await readFile(process.env.APP_SOURCE||`${root}/dist/app.js`,'utf8');
 const source=appSource.replace(/^import .*;\n/gm,'')
   .replace("import('./data/research.js')",'researchImport')
@@ -18,7 +20,7 @@ const source=appSource.replace(/^import .*;\n/gm,'')
   .replace("$('#workspace-date').textContent='Private preview of unvalidated research. Nothing here is a forecast or a recommendation.';", "$('#workspace-date').textContent='Private preview of unvalidated research. Nothing here is a forecast or a recommendation.';globalThis.api={state,render,navigate,stockSnapshot};");
 function deferred(){let resolve;const promise=new Promise(r=>{resolve=r;});return {promise,resolve};}
 
-function boot({at='2026-10-17T04:00:00Z',stockDeferred=false,stockFailed=false,secPending=false,researchPending=false}={}){
+function boot({at='2026-10-17T04:00:00Z',stockDeferred=false,stockFailed=false,secPending=false,researchPending=false,data=stock}={}){
   let now=Date.parse(at),timerId=0,settled=false,error=null;
   const stockResponse=deferred(),secResponse=deferred(),researchModule=deferred(),nodes=new Map(),listeners=new Map(),timers=new Map(),intervals=[];
   const node=key=>{
@@ -30,7 +32,7 @@ function boot({at='2026-10-17T04:00:00Z',stockDeferred=false,stockFailed=false,s
   };
   const document={hidden:false,activeElement:{tagName:'BODY'},querySelector:node,querySelectorAll(){return [];},addEventListener(name,fn){listeners.set(name,fn);}};
   class Clock extends Date{constructor(...args){super(...(args.length?args:[now]));}static now(){return now;}}
-  const response=()=>({ok:!stockFailed,json:async()=>structuredClone(stock)});
+  const response=()=>({ok:!stockFailed,json:async()=>structuredClone(data)});
   if(!stockDeferred)stockResponse.resolve(response());
   if(!secPending)secResponse.resolve({ok:true,json:async()=>({records:[]})});
   if(!researchPending)researchModule.resolve(research);
@@ -56,11 +58,11 @@ function boot({at='2026-10-17T04:00:00Z',stockDeferred=false,stockFailed=false,s
 test('stock desk becomes visible while SEC fetch or research import remains unresolved',async()=>{
   const outcomes=[];
   for(const pending of ['sec','research']){
-    const app=boot({secPending:pending==='sec',researchPending:pending==='research'});await app.stocksSettled();
+    const app=boot({secPending:pending==='sec',researchPending:pending==='research',data:retained});await app.stocksSettled();
     assert.equal(app.api.state.stockState,'ready');assert.equal(app.settled(),false,'do not resolve the held secondary promise');
     outcomes.push({pending,cards:(app.html().match(/class="card stock-card"/g)||[]).length,unavailable:app.html().includes('Stock research unavailable')});
     assert.equal(app.api.state.approvedSlateSlot,null);
-    assert.equal(JSON.stringify(app.api.state.stockPayload.operating_evidence.source_checks),JSON.stringify(stock.operating_evidence.source_checks));
+    assert.equal(JSON.stringify(app.api.state.stockPayload.operating_evidence.source_checks),JSON.stringify(retained.operating_evidence.source_checks));
   }
   assert.ok(outcomes.every(x=>x.cards===6&&!x.unavailable),JSON.stringify(outcomes));
 });
@@ -76,14 +78,14 @@ test('failed stock load does not block independently ready secondary views or in
 });
 
 test('late stock completion keeps the selected view, query, horizon and source focus',async()=>{
-  const search=boot({stockDeferred:true,secPending:true});search.api.state.horizon='next_week';search.query(' pg ');
+  const search=boot({stockDeferred:true,secPending:true,data:retained});search.api.state.horizon='next_week';search.query(' pg ');
   const field=search.node('#research-search');search.document.activeElement=field;
   search.releaseStocks();await search.stocksSettled();
   assert.equal(search.settled(),false);assert.equal(search.api.state.query,'pg');assert.equal(field.value,' pg ');
   assert.equal(search.api.state.horizon,'next_week');assert.equal(search.document.activeElement,field);
   assert.match(search.html(),/>PG</);assert.doesNotMatch(search.html(),/>NFLX</);assert.match(search.html(),/2026-10-23 20:00 UTC/);
 
-  const evidence=boot({stockDeferred:true,secPending:true});await evidence.flushUntil(()=>evidence.api.state.dataState==='ready','independent source registry ready');
+  const evidence=boot({stockDeferred:true,secPending:true,data:retained});await evidence.flushUntil(()=>evidence.api.state.dataState==='ready','independent source registry ready');
   evidence.api.navigate('evidence');const focus={tagName:'A'};evidence.document.activeElement=focus;
   const before=evidence.html(),writes=evidence.node('#view-content').writes;
   evidence.releaseStocks();await evidence.stocksSettled();
@@ -94,19 +96,19 @@ test('late stock completion keeps the selected view, query, horizon and source f
 });
 
 test('stock arriving after entry uses actual clock and retains deadline/visibility recovery despite a hung secondary',async()=>{
-  const app=boot({at:'2026-10-19T13:29:59Z',stockDeferred:true,secPending:true});
+  const app=boot({at:'2026-10-19T13:29:59Z',stockDeferred:true,secPending:true,data:retained});
   app.setTime('2026-10-19T13:30:01Z');app.releaseStocks();await app.stocksSettled();
   assert.equal(app.settled(),false);assert.match(app.html(),/>Window in progress</);assert.doesNotMatch(app.html(),/>Upcoming</);
   assert.ok([...app.timers.values()].some(t=>t.due===Date.parse('2026-10-19T20:00:00Z')));
   assert.ok(app.intervals.some(t=>t.delay===60000),'periodic recovery must not wait for unrelated loads');
-  assert.equal(app.api.state.stockPayload.operating_evidence.checked_at_utc,stock.operating_evidence.checked_at_utc);
+  assert.equal(app.api.state.stockPayload.operating_evidence.checked_at_utc,retained.operating_evidence.checked_at_utc);
   app.visibility(true);app.setTime('2026-10-19T20:00:01Z');app.visibility(false);
   assert.match(app.html(),/>Archived snapshot</);assert.equal(app.settled(),false);
   assert.equal(app.api.state.approvedSlateSlot,null);
 });
 
 test('late completion of both secondary loaders preserves already shown stock disclosures and source focus',async()=>{
-  const app=boot({secPending:true,researchPending:true});await app.stocksSettled();
+  const app=boot({secPending:true,researchPending:true,data:retained});await app.stocksSettled();
   assert.equal(app.settled(),false);assert.equal((app.html().match(/class="card stock-card"/g)||[]).length,6);
   app.query('PG');const visible=app.html(),writes=app.node('#view-content').writes,focus={tagName:'A'};
   app.document.activeElement=focus;

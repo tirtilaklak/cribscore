@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {boot} from './continued-research-harness.mjs';
+import {boot,retained} from './continued-research-harness.mjs';
 // Area A shell scenarios on the actual ESM app in the offline DOM. A click here
 // carries a mouse button and preventDefault, like a browser click on a link.
 const press=(app,element,extra={})=>{assert.ok(element,'control exists');let prevented=false;element.focus();element.dispatch({type:'click',target:element,button:0,preventDefault(){prevented=true;},...extra});return prevented;};
@@ -28,7 +28,7 @@ const scenarios={
     assert.equal(app.document.title,'Stock desk · Cribscore');
   },
   async 'each-view-keeps-its-own-search'(){
-    const app=await boot();
+    const app=await boot({stockPayload:retained});
     app.input('TXN');assert.equal(app.queryAll('.stock-card').length,1);
     assert.equal(app.live(),'Stock desk ready for “TXN”. 2 results shown.','the count covers the company case and its earnings call');
     app.click(app.query('[data-view="library"]'));

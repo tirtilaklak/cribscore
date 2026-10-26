@@ -8,6 +8,7 @@ const appPath=process.env.APP_SOURCE||`${project}/dist/app.js`;
 const sourceHelper=process.env.SOURCE_FRESHNESS_MODULE||`${project}/dist/lib/source-freshness.js`;
 const readJSON=async path=>JSON.parse(await readFile(`${project}/${path}`,'utf8'));
 const stock=await readJSON('dist/data/stock-evidence.json');
+const retained=await readJSON('tests/fixtures/stock-evidence-2026-10-16.json');
 const evidence=await readJSON('dist/data/sec-evidence.json');
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
@@ -45,4 +46,4 @@ async function boot({at='2026-10-17T04:00:00Z',requests={},failImport,stockPaylo
   return {namespace:async relative=>{const child=await load(new URL(relative,pathToFileURL(`${project}/dist/app.js`)).href);if(child.status==='linked')await child.evaluate();return child.namespace;},query,queryAll,document,click,key,input,flush,advance,visibility,requestsSeen,modules,settled:()=>settled,setTime:value=>{now=Date.parse(value);},location,route(url,event='popstate'){setLocation(url);windowListeners.get(event)?.();},html:()=>query('#view-content').innerHTML,text:()=>query('#view-content').textContent,live:()=>query('#workspace-status').textContent};
 }
 
-export {boot,stock};
+export {boot,stock,retained};

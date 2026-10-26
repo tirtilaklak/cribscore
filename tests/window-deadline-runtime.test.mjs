@@ -10,14 +10,16 @@ const moduleAt=name=>import(pathToFileURL(`${root}/${name}`));
 const [{buildStockSnapshot},{renderStockView},{createApprovedSlateSlot},{proposal},contract,research,corpusModule]=await Promise.all([
   moduleAt('dist/lib/candidates.js'),moduleAt('dist/lib/stock-view.js'),moduleAt('dist/lib/research-slate-view.js'),
   moduleAt('tests/fixtures/research-slate-fixtures.mjs'),moduleAt('dist/lib/evidence.js'),moduleAt('dist/data/research.js'),moduleAt('dist/data/nobel-corpus.js')]);
-const payload=JSON.parse(await readFile(`${root}/dist/data/stock-evidence.json`,'utf8'));
+const payload=JSON.parse(await readFile(`${root}/tests/fixtures/stock-evidence-2026-10-16.json`,'utf8'));
+// The served snapshot, for twins that read their boundaries from its own horizons.
+const current=JSON.parse(await readFile(`${root}/dist/data/stock-evidence.json`,'utf8'));
 const sourcePath=process.env.APP_SOURCE||`${root}/dist/app.js`;
 const source=(await readFile(sourcePath,'utf8')).replace(/^import .*;\n/gm,'')
   .replace("import('./data/research.js')",'Promise.resolve(research)')
   .replace("import('./data/nobel-corpus.js')",'Promise.resolve(corpusModule)')
   .replace("import('./lib/evidence.js')",'Promise.resolve(contract)');
 
-async function boot(at,horizon='next_day'){
+async function boot(at,horizon='next_day',stock=payload){
   let wall=Date.parse(at),mono=0,nextId=0;
   const nodes=new Map(),tasks=new Map(),listeners=new Map();
   const node=key=>{
@@ -33,7 +35,7 @@ async function boot(at,horizon='next_day'){
   const sandbox={document,location:{hash:'',search:`?horizon=${horizon}`,pathname:'/',href:`https://example.invalid/?horizon=${horizon}`},history:{replaceState(){}},window:{addEventListener(){}},
     URL,URLSearchParams,Intl,Date:Clock,buildStockSnapshot,renderStockView,contract,research,corpusModule,
     setTimeout:(fn,ms)=>add(fn,ms),clearTimeout:id=>tasks.delete(id),setInterval:(fn,ms)=>add(fn,ms,ms),clearInterval:id=>tasks.delete(id),
-    fetch:async url=>({ok:true,json:async()=>url.includes('stock-evidence')?structuredClone(payload):{records:[]}})};
+    fetch:async url=>({ok:true,json:async()=>url.includes('stock-evidence')?structuredClone(stock):{records:[]}})};
   await runInNewContext(`(async()=>{${source}\nglobalThis.api={state,render,refreshTimeSensitiveView};})()`,sandbox);
   function due(){return [...tasks.entries()].filter(([,v])=>v.due<=mono).sort((a,b)=>a[1].due-b[1].due||a[0]-b[0]);}
   function flush(){let n=0;while(due().length){assert.ok(++n<1000,'timer callback loop');const [id,t]=due()[0];if(t.period)t.due=mono+t.period;else tasks.delete(id);t.fn();}}
@@ -67,6 +69,17 @@ test('actual retained badges change at entry/day-exit/week-exit without firing a
     observed.push({horizon,boundary,before:before.badge,actual:app.state().badge,want,elapsed:app.state().mono});
   }
   assert.ok(observed.every(x=>x.actual===x.want),JSON.stringify(observed));
+});
+
+test('current snapshot badges change at its own entry, day exit and week exit without firing an early interval',async()=>{
+  const h=current.event_evidence.horizons,observed=[];
+  assert.notEqual(h.entry_at_utc,'2026-10-19T13:30:00Z','a different window from the retained one');
+  for(const [horizon,boundary,want] of [['next_day',h.entry_at_utc,'in_progress'],['next_week',h.entry_at_utc,'in_progress'],['next_day',h.day_exit_at_utc,'archived'],['next_week',h.week_exit_at_utc,'archived']]){
+    const app=await boot(new Date(Date.parse(boundary)-1000).toISOString(),horizon,current);
+    app.advance(999);const before=app.state();app.advance(1);
+    observed.push({horizon,boundary,before:before.badge,actual:app.state().badge,want,elapsed:app.state().mono});
+  }
+  assert.ok(observed.every(x=>x.before===(x.want==='in_progress'?'upcoming':'in_progress')&&x.actual===x.want),JSON.stringify(observed));
 });
 
 test('approved slate expiry and entry already have exact deadlines and do not revive after observed expiry',async()=>{
@@ -108,5 +121,13 @@ test('changing day to week cancels the day-exit deadline and schedules the selec
   const start='2026-10-19T19:59:59Z',app=await boot(start);
   app.horizon('next_week');const deadlines=app.timers().filter(t=>!t.period).map(t=>t.due);
   assert.ok(deadlines.includes(Date.parse('2026-10-23T20:00:00Z')-Date.parse(start)),JSON.stringify(deadlines));
+  assert.ok(!deadlines.includes(1000));app.advance(1000);assert.equal(app.state().badge,'in_progress');
+});
+
+test('current snapshot: changing day to week cancels the day-exit deadline and schedules its own week exit',async()=>{
+  const h=current.event_evidence.horizons,start=new Date(Date.parse(h.day_exit_at_utc)-1000).toISOString(),app=await boot(start,'next_day',current);
+  assert.equal(app.state().badge,'in_progress');
+  app.horizon('next_week');const deadlines=app.timers().filter(t=>!t.period).map(t=>t.due);
+  assert.ok(deadlines.includes(Date.parse(h.week_exit_at_utc)-Date.parse(start)),JSON.stringify(deadlines));
   assert.ok(!deadlines.includes(1000));app.advance(1000);assert.equal(app.state().badge,'in_progress');
 });

@@ -9,6 +9,8 @@ import {buildStockSnapshot} from '../dist/lib/candidates.js';
 import {renderStockView} from '../dist/lib/stock-view.js';
 
 const actualStock=JSON.parse(await readFile(new URL('../dist/data/stock-evidence.json',import.meta.url),'utf8'));
+// The 2026-10-16 snapshot, kept as a fixture for the test that crosses its October 19 entry.
+const retainedStock=JSON.parse(await readFile(new URL('./fixtures/stock-evidence-2026-10-16.json',import.meta.url),'utf8'));
 const source=(await readFile(new URL('../dist/app.js',import.meta.url),'utf8'))
   .replace(/^import .*;\n/gm,'')
   .replace("import('./data/research.js')",'Promise.resolve(research)')
@@ -78,7 +80,7 @@ test('unchanged visibility and minute checks avoid replacing content or moving s
 });
 
 test('a visible tab still rerenders once when its holding window changes state',async()=>{
-  const app=await boot({at:'2026-10-19T13:29:59Z'});
+  const app=await boot({at:'2026-10-19T13:29:59Z',stock:retainedStock});
   app.api.state.view='research';app.api.render();
   const content=app.nodes.get('#view-content'),writes=content.writes;
   assert.match(content.innerHTML,/>Upcoming</);

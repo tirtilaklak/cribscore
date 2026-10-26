@@ -5,13 +5,15 @@ import {buildStockSnapshot} from '../dist/lib/candidates.js';
 import {renderStockView} from '../dist/lib/stock-view.js';
 import {summarizeSourceChecks} from '../dist/lib/source-freshness.js';
 const payload=JSON.parse(await readFile(new URL('../dist/data/stock-evidence.json',import.meta.url),'utf8'));
+// The 2026-10-16 snapshot, kept as a fixture: tests that pin its dates, events or six cases read it.
+const retained=JSON.parse(await readFile(new URL('./fixtures/stock-evidence-2026-10-16.json',import.meta.url),'utf8'));
 const at='2026-10-17T17:00:00Z';
-const make=(horizon='next_day')=>buildStockSnapshot(payload,horizon,at);
+const make=(horizon='next_day',data=payload)=>buildStockSnapshot(data,horizon,at);
 const render=snapshot=>renderStockView(snapshot,'',{sourceFreshness:summarizeSourceChecks(snapshot.source_checks,{at})});
 
 test('current precise windows and no-gap policy stay unchanged; session count needs explicit sessions',()=>{
   for(const horizon of ['next_day','next_week']){
-    const snapshot=make(horizon),html=render(snapshot);
+    const snapshot=make(horizon,retained),html=render(snapshot);
     assert.match(html,/<small>2026-10-19 13:30 UTC<\/small>/);
     assert.ok(html.includes(`<small>2026-10-${horizon==='next_day'?'19':'23'} 20:00 UTC</small>`));
     assert.match(html,/No prior-close or weekend opening gap is earned/);
@@ -25,7 +27,7 @@ test('current precise windows and no-gap policy stay unchanged; session count ne
 });
 
 test('shifted window labels and event positions follow selected endpoints without calendar identity gate',()=>{
-  const snapshot=make('next_week');
+  const snapshot=make('next_week',retained);
   snapshot.window.entry_at='2026-10-26T09:30:00-04:00';
   snapshot.window.exit_at='2026-10-30T16:00:30-04:00';
   snapshot.price_session='2026-10-23';
@@ -58,7 +60,7 @@ test('unavailable timing has its own alert and malformed source dates never norm
 
 test('corrupt optional source metadata remains explicit without dropping the six cases or promoting latest checks',()=>{
   for(const corruption of [null,{related_sources:{}},{related_sources:[null]},{related_sources:[{label:'Bad link',url:'javascript:alert(1)'}]}]){
-    const snapshot=make();
+    const snapshot=make('next_day',retained);
     snapshot.source_checks[0]=corruption===null?null:{...snapshot.source_checks[0],...corruption};
     const html=render(snapshot);
     assert.equal((html.match(/class="card stock-card"/g)||[]).length,6);

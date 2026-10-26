@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {boot,stock} from './continued-stock-harness.mjs';
+import {boot,retained as stock} from './continued-stock-harness.mjs';
 function freeze(value){if(value&&typeof value==='object'){for(const child of Object.values(value))freeze(child);Object.freeze(value);}return value;}
 const response=payload=>({ok:true,json:async()=>payload});
 const broken=edit=>{const payload=structuredClone(stock);edit(payload);return freeze(payload);};

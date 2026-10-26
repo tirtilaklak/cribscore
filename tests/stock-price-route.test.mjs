@@ -10,6 +10,8 @@ import {createApprovedSlateSlot,renderApprovedResearchView} from '../dist/lib/re
 import {proposal,at} from './fixtures/research-slate-fixtures.mjs';
 import {createDocument} from './helpers/interaction-dom.mjs';
 const stock=JSON.parse(await readFile(new URL('../dist/data/stock-evidence.json',import.meta.url),'utf8'));
+// The 2026-10-16 snapshot, kept as a fixture: its six cases match the desk-tools price roster.
+const retained=JSON.parse(await readFile(new URL('./fixtures/stock-evidence-2026-10-16.json',import.meta.url),'utf8'));
 
 function controller(){
   const handlers={};let frames=0,requests=0;
@@ -22,10 +24,11 @@ const selected=html=>createDocument(html).querySelector('#price-symbol option[se
 test('six case cards expose native company-specific price actions only when the host enables its roster',()=>{
   const h=controller(),symbols=h.app.priceSymbols();
   for(const horizon of ['next_day','next_week']){
-    const snapshot=buildStockSnapshot(stock,horizon,at),legacy=renderStockView(snapshot),dom=createDocument(renderStockView(snapshot,'',{priceSymbols:symbols}));
+    const snapshot=buildStockSnapshot(retained,horizon,at),legacy=renderStockView(snapshot),dom=createDocument(renderStockView(snapshot,'',{priceSymbols:symbols}));
     assert.equal(createDocument(legacy).querySelectorAll('[data-price-symbol]').length,0);
     const buttons=dom.querySelectorAll('[data-price-symbol]');assert.equal(buttons.length,6);
-    assert.deepEqual(buttons.map(b=>b.dataset.priceSymbol).sort(),symbols.toSorted());
+    assert.deepEqual(buttons.map(b=>b.dataset.priceSymbol).sort(),[...retained.operating_evidence.hypotheses,...retained.operating_evidence.caution_watch].map(c=>c.ticker).toSorted());
+    for(const button of buttons)assert.ok(symbols.includes(button.dataset.priceSymbol),button.dataset.priceSymbol);
     for(const button of buttons){assert.equal(button.tagName,'BUTTON');assert.equal(button.getAttribute('type'),'button');assert.match(button.textContent,new RegExp(`Price chart.*for ${button.dataset.priceSymbol}`));assert.ok(button.closest('.stock-card'));assert.equal(button.closest('details'),null);}
     assert.equal(createDocument(renderStockView(snapshot,'TXN',{priceSymbols:symbols})).querySelector('[data-price-symbol]').dataset.priceSymbol,'TXN');
   }

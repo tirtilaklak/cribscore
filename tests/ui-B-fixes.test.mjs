@@ -18,10 +18,27 @@ const hasClass=(node,name)=>(node.attrs?.class||'').split(/\s+/).includes(name);
 const byClass=(root,name)=>all(root,node=>hasClass(node,name));
 // What a reader sees with every disclosure closed: everything outside <details>, plus each summary.
 const visible=node=>typeof node==='string'?node:node.tag==='details'?node.children.filter(child=>typeof child!=='string'&&child.tag==='summary').map(visible).join(' '):node.children.map(visible).join('');
-const clocks={upcoming:'2026-10-17T04:00:00Z',in_progress:'2026-10-19T15:00:00Z',archived:'2026-10-24T00:00:00Z'};
+// The served snapshot's three states, from its own horizons: an hour before entry, a minute after
+// entry and a minute after the week exit. The retained snapshot keeps its own clocks below.
+const shiftClock=(value,ms)=>new Date(Date.parse(value)+ms).toISOString(),horizons=payload.event_evidence.horizons;
+const clocks={upcoming:shiftClock(horizons.entry_at_utc,-3600000),in_progress:shiftClock(horizons.entry_at_utc,60000),archived:shiftClock(horizons.week_exit_at_utc,60000)};
+const retainedClocks={upcoming:'2026-10-17T04:00:00Z',in_progress:'2026-10-19T15:00:00Z',archived:'2026-10-24T00:00:00Z'};
 const symbols=['IBM','JNJ','NFLX','PG','TSLA','TXN'];
 const snap=(horizon,state='archived')=>buildStockSnapshot(payload,horizon,clocks[state]);
+// The 2026-10-16 snapshot, kept as a fixture for tests that pin its JNJ figures, Oct 16 prices,
+// CPI fact, six cases and preview questions.
+const retained=JSON.parse(await readFile(new URL('./fixtures/stock-evidence-2026-10-16.json',import.meta.url),'utf8'));
+const snapRetained=(horizon,state='archived')=>buildStockSnapshot(retained,horizon,retainedClocks[state]);
 const rankingWords=/\b(?:top pick|picks?|ranked|upside|buy|sell|winner|outperform|price target)\b/i;
+
+test('the test clocks give each named state on both snapshots, and the served source checks are valid at the upcoming clock',()=>{
+  for(const horizon of ['next_day','next_week'])for(const state of Object.keys(clocks)){
+    assert.equal(snap(horizon,state).status,state,`${horizon}/${state}`);
+    assert.equal(snapRetained(horizon,state).status,state,`retained ${horizon}/${state}`);
+  }
+  const summary=summarizeSourceChecks(payload.operating_evidence.source_checks,{at:clocks.upcoming});
+  assert.equal(summary.invalidCount,0);assert.equal(summary.missingCount,0);
+});
 
 test('R-12: the visible desk carries no ranking or pick word, and the whole render has no "Ranked upside" or "Top pick"',()=>{
   for(const horizon of ['next_day','next_week'])for(const state of Object.keys(clocks))for(const priceSymbols of [[],symbols])for(const query of ['','PG','upgrade','zzzz']){
@@ -54,7 +71,7 @@ for(const scenario of ['desk-wrapper-adds-no-ranking-language','empty-desk-searc
 
 test('R-4: the eligibility line and the review date sit directly under the date, before the state sentence and the times',()=>{
   for(const horizon of ['next_day','next_week'])for(const state of Object.keys(clocks)){
-    const card=byClass(parse(renderStockView(snap(horizon,state))),'window-card')[0];
+    const card=byClass(parse(renderStockView(snapRetained(horizon,state))),'window-card')[0];
     const blocks=card.children.filter(child=>typeof child!=='string');
     const at=blocks.findIndex(node=>node.tag==='h2');
     assert.deepEqual(blocks.slice(at+1,at+3).map(node=>node.attrs.class),['window-eligibility','window-reviewed'],`${horizon}/${state}`);
@@ -65,11 +82,11 @@ test('R-4: the eligibility line and the review date sit directly under the date,
 });
 
 test('R-2: the JNJ figures are the data fields, and the rounding qualifier gives the data range midpoint',()=>{
-  const guidance=payload.operating_evidence.hypotheses.concat(payload.operating_evidence.caution_watch).find(row=>row.ticker==='JNJ').guidance;
+  const guidance=retained.operating_evidence.hypotheses.concat(retained.operating_evidence.caution_watch).find(row=>row.ticker==='JNJ').guidance;
   const money=value=>`$${value.toFixed(2)}`;
   assert.equal(guidance.unrounded_range_midpoint_before,11.035);
   for(const horizon of ['next_day','next_week']){
-    const jnj=byClass(parse(renderStockView(snap(horizon))),'stock-card').find(card=>text(byClass(card,'ticker')[0])==='JNJ');
+    const jnj=byClass(parse(renderStockView(snapRetained(horizon))),'stock-card').find(card=>text(byClass(card,'ticker')[0])==='JNJ');
     const paragraph=text(all(jnj,node=>node.tag==='p'&&text(node).startsWith('Adjusted diluted EPS'))[0]);
     assert.ok(paragraph.includes(`The stated midpoint moved from ${money(guidance.issuer_stated_before_midpoint)} to ${money(guidance.issuer_stated_after_midpoint)}, up ${money(guidance.issuer_stated_delta)}. The company rounded its earlier midpoint. The range itself gives $${guidance.unrounded_range_midpoint_before}, so the ${money(guidance.issuer_stated_delta)} rise is rounded. Source:`),paragraph);
     assert.match(paragraph,/^Adjusted diluted EPS \(earnings per share, profit divided by the number of shares\) for FY2026/,'EPS carries the glossary explanation');
@@ -94,12 +111,12 @@ test('R-11: the window details name a paper trade with its gloss, the Nobel limi
 });
 
 test('verifier SHOULDs: the in-progress sentence says the opening price has passed, and the gate rows use plain names',()=>{
-  const sentence=text(byClass(parse(renderStockView(snap('next_week','in_progress'))),'window-alert')[0]);
+  const sentence=text(byClass(parse(renderStockView(snapRetained('next_week','in_progress'))),'window-alert')[0]);
   assert.match(sentence,/The cases below were written before it opened\. The time to use that opening price has passed\. A new window needs a new snapshot/);
   assert.doesNotMatch(sentence,/starting point/);
-  const gates=payload.operating_evidence.publication_gates;
+  const gates=retained.operating_evidence.publication_gates;
   for(const horizon of ['next_day','next_week']){
-    const html=renderStockView(snap(horizon)),dom=parse(html);
+    const html=renderStockView(snapRetained(horizon)),dom=parse(html);
     for(const card of byClass(dom,'stock-card')){
       const rows=all(byClass(card,'missing-inputs')[0],node=>node.tag==='li').map(text);
       assert.ok(rows.includes(`Oct 16 daily prices (OHLCV): ${gates.latest_completed_session_OHLCV}`),rows.join(' | '));
@@ -131,7 +148,7 @@ test('verifier NITs: the data conclusion is framed, the review-and-order limit i
 
 test('the BLS notice sits beside the CPI fact in the macro strip, and nowhere else in that strip',()=>{
   for(const horizon of ['next_day','next_week']){
-    const snapshot=snap(horizon),strip=byClass(parse(renderStockView(snapshot)),'macro-strip')[0];
+    const snapshot=snapRetained(horizon),strip=byClass(parse(renderStockView(snapshot)),'macro-strip')[0];
     const notice='BLS.gov cannot vouch for the data or analyses derived from these data after the data have been retrieved from BLS.gov.';
     const facts=all(strip,node=>node.tag==='p');assert.equal(facts.length,snapshot.macro_context.length);
     facts.forEach((fact,index)=>{
@@ -159,7 +176,7 @@ test('every desk link hides its new-tab glyph from the accessible name, on both 
 
 test('an empty desk search shows the shared empty state with Clear search, and no empty events card',()=>{
   for(const horizon of ['next_day','next_week'])for(const query of ['no-such-company-or-phrase','no-results','zzzz']){
-    const html=renderStockView(snap(horizon),query),dom=parse(html);
+    const html=renderStockView(snapRetained(horizon),query),dom=parse(html);
     const empty=byClass(byClass(dom,'stock-list')[0],'search-empty');assert.equal(empty.length,1,`${horizon} ${query}`);
     assert.deepEqual(empty[0].children.filter(child=>typeof child!=='string').map(node=>[node.tag,text(node)]),[['h3','No matches for this search.'],['p','Try a shorter search, or clear it.'],['button','Clear search']]);
     assert.equal(Object.hasOwn(all(empty[0],node=>node.tag==='button')[0].attrs,'data-clear-search'),true);
@@ -167,11 +184,11 @@ test('an empty desk search shows the shared empty state with Clear search, and n
     assert.doesNotMatch(html,/No matching stocks|No matching events\./);
   }
   // Cases match but no call does: no events card and no search-empty block.
-  let dom=parse(renderStockView(snap('next_week'),'JNJ'));
+  let dom=parse(renderStockView(snapRetained('next_week'),'JNJ'));
   assert.equal(byClass(dom,'stock-card').length,1);assert.equal(byClass(dom,'search-empty').length,0);assert.equal(byClass(dom,'event-list').length,0);
   // Calls match but no case does (reachable with the retained data, for example "nasdaq"): the block
   // says no case matches and points to the calls below, so it never claims that nothing matched.
-  const partial=[[snap('next_week'),'nasdaq'],[(()=>{const s=snap('next_week');s.hypotheses=s.hypotheses.filter(row=>row.ticker!=='PG');return s;})(),'PG']];
+  const partial=[[snapRetained('next_week'),'nasdaq'],[(()=>{const s=snapRetained('next_week');s.hypotheses=s.hypotheses.filter(row=>row.ticker!=='PG');return s;})(),'PG']];
   for(const [snapshot,query] of partial){
     dom=parse(renderStockView(snapshot,query));
     assert.equal(byClass(dom,'stock-card').length,0,query);assert.ok(byClass(dom,'event-item').length>=1,query);
@@ -180,19 +197,19 @@ test('an empty desk search shows the shared empty state with Clear search, and n
     assert.doesNotMatch(text(dom),/No matches for this search/,query);
   }
   // No search and no cases: the list says so plainly and offers no Clear search.
-  const none=snap('next_week');none.hypotheses=[];
+  const none=snapRetained('next_week');none.hypotheses=[];
   const html=renderStockView(none);
   assert.match(html,/<div class="stock-list"><p>No company cases are listed\.<\/p><\/div>/);assert.doesNotMatch(html,/data-clear-search|No matches for this search/);
 });
 
 test('case previews apply only to the review they were written for; another review gets the neutral fallback',()=>{
-  const snapshot=snap('next_week');snapshot.reviewed_at='2026-11-20T02:40:41.433Z';
+  const snapshot=snapRetained('next_week');snapshot.reviewed_at='2026-11-20T02:40:41.433Z';
   const cards=byClass(parse(renderStockView(snapshot)),'stock-card');assert.equal(cards.length,6);
   for(const card of cards){
     assert.equal(text(byClass(card,'stock-thesis')[0]),'Question: What evidence would move this case?');
     assert.equal(text(byClass(card,'stock-risk')[0]),'Risk: Operating outlook uncertain.');
   }
-  const ibm=byClass(parse(renderStockView(snap('next_week'))),'stock-card').find(card=>text(byClass(card,'ticker')[0])==='IBM');
+  const ibm=byClass(parse(renderStockView(snapRetained('next_week'))),'stock-card').find(card=>text(byClass(card,'ticker')[0])==='IBM');
   assert.match(text(byClass(ibm,'stock-thesis')[0]),/July guidance cut/,'the retained review keeps its questions');
 });
 

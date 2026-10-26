@@ -16,7 +16,7 @@ import {buildStockSnapshot} from '../dist/lib/candidates.js';
 const parseHTML=html=>JSON.parse(execFileSync('python3',[fileURLToPath(new URL('./fixtures/html-tree.py',import.meta.url))],{input:html,encoding:'utf8'}));
 const all=(node,tag)=>[...(node.tag===tag?[node]:[]),...(node.children||[]).flatMap(child=>typeof child==='string'?[]:all(child,tag))];
 const content=node=>typeof node==='string'?node:node.attrs?.['aria-hidden']==='true'?'':node.children.map(content).join('');
-const snapshotData=JSON.parse(await readFile(new URL('../dist/data/stock-evidence.json',import.meta.url),'utf8'));
+const snapshotData=JSON.parse(await readFile(new URL('./fixtures/stock-evidence-2026-10-16.json',import.meta.url),'utf8'));
 const snapshot=id=>buildStockSnapshot(snapshotData,id,at);
 async function installed(bytes=proposal().serialized){
   let now=Date.parse(at);const slot=createApprovedSlateSlot({readApprovedBytes:async()=>bytes,clock:()=>now});await slot.refresh();
@@ -169,7 +169,7 @@ test('dormant actual-app hook preserves initial fallback, unchanged visibility a
   const sandbox={document,location:{href:'https://example.invalid/',hash:'',search:'',pathname:'/'},history:{replaceState(){}},window:{addEventListener(){}},
     URL,URLSearchParams,Intl,Date:ClockDate,buildStockSnapshot,renderStockView,research,corpusModule:corpus,contract,
     setTimeout(callback,delay){const id=nextTimer++;timers.set(id,{callback,at:now+delay});return id;},clearTimeout(id){timers.delete(id);},setInterval(){return 1;},
-    fetch:async url=>({ok:true,json:async()=>JSON.parse(await readFile(new URL('../dist/'+url.replace('./',''),import.meta.url),'utf8'))})};
+    fetch:async url=>({ok:true,json:async()=>JSON.parse(await readFile(url.includes('stock-evidence')?new URL('./fixtures/stock-evidence-2026-10-16.json',import.meta.url):new URL('../dist/'+url.replace('./',''),import.meta.url),'utf8'))})};
   const source=(await readFile(new URL('../dist/app.js',import.meta.url),'utf8')).replace(/^import .*;\n/gm,'')
     .replace("import('./data/research.js')",'Promise.resolve(research)').replace("import('./data/nobel-corpus.js')",'Promise.resolve(corpusModule)')
     .replace("import('./lib/evidence.js')",'Promise.resolve(contract)');

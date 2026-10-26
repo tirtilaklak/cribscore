@@ -4,19 +4,45 @@ const shortDate=value=>value?new Intl.DateTimeFormat('en-US',{month:'short',day:
 const link=(url,label)=>{try{const u=new URL(url);return u.protocol==='https:'?`<a class="source-link" href="${text(u.href)}" target="_blank" rel="noopener noreferrer">${text(label)} <span aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span></a>`:'';}catch{return '';}};
 const labels={identity:'Security identity',prices_actions:'Prices and corporate actions',company_evidence:'Latest company evidence',latest_completed_session_OHLCV:'Oct 16 daily prices (OHLCV)','60_session_consolidated_liquidity':'Liquidity over the last 60 trading days',corporate_actions_security_master:'Security identity and corporate actions',quote_display_rights:'Permission to show market data',all_latest_required_filings_and_later_material_announcements:'Complete filing and announcement coverage'};
 
-// Short editorial questions for the retained cases. They cannot go stale after
-// an event date. Full source wording, qualifications and references remain
-// below each native disclosure. They were written for one review only: any
-// other review clock gets the neutral fallback, never a stale question.
-const previewReview='2026-10-17T02:40:41.433Z';
-const previews={
-  IBM:{question:'After its July guidance cut, are delayed deals turning into revenue?',risk:'More delayed deals'},
-  JNJ:{question:'Does a small raise to the yearly outlook change the case?',risk:'Legal and acquisition costs'},
-  NFLX:{question:'Can pricing and ads lift revenue and margins?',risk:'Weaker retention and higher content costs'},
-  PG:{question:'Can sales volume and margins improve together?',risk:'Weak demand and margin pressure'},
-  TSLA:{question:'Will deliveries turn into operating profit and cash flow?',risk:'Margin pressure and heavy investment needs'},
-  TXN:{question:'Is demand from industrial customers still recovering?',risk:'Weaker orders or too much inventory'},
+// Mirrors the live renderer: each case carries its own question and main risk,
+// shown only for the review they were written for (case_text_review_at).
+const caseFallback={question:'What evidence would move this case?',risk:'Operating outlook uncertain'};
+function caseText(item,snapshot){
+  const filled=value=>typeof value==='string'&&value.trim()!=='';
+  return filled(item.case_question)&&filled(item.main_risk)&&typeof item.case_text_review_at==='string'&&item.case_text_review_at===snapshot.reviewed_at?{question:item.case_question.trim(),risk:item.main_risk.trim()}:caseFallback;
+}
+// Mirrors the live renderer: company guidance comes only from the guidance record.
+const validDate=value=>typeof value==='string'&&Number.isFinite(Date.parse(value));
+// A figure shows with the record's own decimals only when that loses nothing.
+const shown=(value,decimals)=>Number.isInteger(decimals)&&decimals>=0&&decimals<=6&&Number(value.toFixed(decimals))===value?value.toFixed(decimals):String(value);
+const guidanceUnits={
+  usd_per_share:{format:(value,decimals=2)=>`$${shown(value,decimals)}`},
+  usd_billion:{format:(value,decimals)=>`$${shown(value,decimals)} billion`},
+  percent:{format:(value,decimals)=>`${shown(value,decimals)}%`,change:(value,decimals)=>`${shown(value,decimals)} ${value===1?'percentage point':'percentage points'}`},
 };
+const dayDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&validDate(value)&&new Date(value).toISOString().slice(0,10)===value?new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}).format(new Date(value)):null;
+function guidanceBlock(g){
+  const finite=Number.isFinite,filled=value=>typeof value==='string'&&value.trim()!=='';
+  const pair=range=>Array.isArray(range)&&range.length===2&&range.every(finite)&&range[0]<=range[1];
+  const unit=guidanceUnits[g?.unit];
+  const statesNone=g?.issuer_states_midpoint===false,holdsStated=[g?.issuer_stated_before_midpoint,g?.issuer_stated_after_midpoint,g?.issuer_stated_delta].some(value=>value!==null&&value!==undefined);
+  const heading=filled(g?.metric)?`Company guidance: ${g.metric.trim().replace(/^[A-Z](?=[a-z])/,letter=>letter.toLowerCase())}`:'Company guidance';
+  if(!unit||!filled(g.metric)||!filled(g.period)||!pair(g.before_range)||!pair(g.after_range)||!filled(g.source_label)||(statesNone&&holdsStated))return `<h4>${text(heading)}</h4><p>The guidance record for this case is incomplete. Read the company's own release under Sources read. Guidance is the company's own estimate. It does not estimate the stock's return.</p>`;
+  const figure=value=>unit.format(value,g.decimals),change=value=>(unit.change||unit.format)(value,g.decimals),word=value=>value>0?'up':'down';
+  const moved=(from,to,delta,format)=>delta===0?`stayed at ${format(to)}`:`moved from ${format(from)} to ${format(to)}, ${word(delta)} ${change(Math.abs(delta))}`;
+  const statedBefore=g.issuer_stated_before_midpoint,statedAfter=g.issuer_stated_after_midpoint,statedDelta=g.issuer_stated_delta;
+  const rangeBefore=g.unrounded_range_midpoint_before,rangeAfter=g.unrounded_range_midpoint_after;
+  let midpoint='';
+  if([statedBefore,statedAfter,statedDelta].every(finite)){
+    midpoint=` The stated midpoint ${moved(statedBefore,statedAfter,statedDelta,figure)}.`;
+    const before=finite(rangeBefore)&&rangeBefore!==statedBefore,after=finite(rangeAfter)&&rangeAfter!==statedAfter;
+    if(filled(g.midpoint_rounding_note)&&(before||after))midpoint+=` The company rounded ${before&&after?'both midpoints':`its ${before?'earlier':'later'} midpoint`}. ${before&&after?`The ranges themselves give ${figure(rangeBefore)} and ${figure(rangeAfter)}`:`The range itself gives ${figure(before?rangeBefore:rangeAfter)}`}, so the ${change(Math.abs(statedDelta))} ${statedDelta>0?'rise':statedDelta<0?'fall':'change'} is rounded.`;
+  }else if([rangeBefore,rangeAfter,g.range_midpoint_change].every(finite))midpoint=` ${statesNone?'The company gives this figure as a range, with no midpoint.':'The company\'s own midpoint for this figure is not recorded here.'} The middle of its range ${moved(rangeBefore,rangeAfter,g.range_midpoint_change,figure)}.`;
+  const paragraph=`${g.metric.trim()}${filled(g.metric_gloss)?` (${g.metric_gloss.trim()})`:''} for ${g.period.trim()}, as stated by the company.${g.non_gaap===true?' This is a non-GAAP figure (adjusted by the company, outside standard accounting rules).':''}${midpoint} Source: ${g.source_label.trim()}, linked under Sources read. Guidance is the company's own estimate. It does not estimate the stock's return.`;
+  const range=([low,high])=>`${figure(low)} to ${figure(high)}`,stated=value=>dayDate(value)?` · stated ${dayDate(value)}`:'';
+  const rows=[['Earlier range',`${range(g.before_range)}${stated(g.before_stated_on)}`],['Later range',`${range(g.after_range)}${stated(g.after_stated_on)}`],...(filled(g.basis)?[['Basis',g.basis.trim()]]:[])];
+  return `<h4>${text(heading)}</h4><p>${text(paragraph)}</p>${filled(g.scope_note)?`<p class="guidance-scope">${text(g.scope_note.trim())}</p>`:''}<dl class="guidance-figures">${rows.map(([term,value])=>`<div><dt>${text(term)}</dt><dd>${text(value)}</dd></div>`).join('')}</dl>`;
+}
 function sourceLinks(item,snapshot){
   const label=id=>(id.startsWith(`${item.ticker.toLowerCase()}_`)?`${item.ticker}${id.slice(item.ticker.length)}`:id).replaceAll('_',' ');
   return (item.source_refs||[]).map(id=>{const s=snapshot.sources[id];return s?`<li>${link(s.url,label(id))}<span class="source-date">${text(s.published_date||'Publication time not retained')}${s.access_note?` · ${text(s.access_note)}`:''}</span></li>`:'';}).join('');
@@ -29,7 +55,7 @@ function timing(item,snapshot,compact=false){
   return `${compact?shortDate(when):date(when)} · ${precision}${snapshot.window.horizon_id==='next_day'?' · after the window':''}`;
 }
 function stockCard(item,snapshot){
-  const preview=(snapshot.reviewed_at===previewReview&&previews[item.ticker])||{question:'What evidence would move this case?',risk:'Operating outlook uncertain'};
+  const preview=caseText(item,snapshot);
   return `<article class="card stock-card" aria-label="${text(item.ticker)} case">
     <div class="stock-card-header"><div class="stock-identity"><span class="ticker">${text(item.ticker)}</span><h3>${text(item.company)}</h3></div><span class="tag neutral">Not eligible</span></div>
     <p class="stock-thesis"><strong>Question:</strong> ${text(preview.question)}</p>
@@ -45,7 +71,7 @@ function stockCard(item,snapshot){
       ${item.research_application?`<h4>How the research notes shape this case</h4><p>${text(item.research_application.concentric_effect)}</p><p>${text(item.research_application.nobel_effect)}</p><p>${text(item.research_application.ordering_effect)}</p><p class="source-date">This mapping draws on the supplied PDF texts and saved public summaries. Nobody fully reviewed their images or the papers they cite. No predictive validation is claimed.</p>`:''}
       ${item.review_limits?.length?`<h4>Review limits</h4><ul>${item.review_limits.map(limit=>`<li>${text(limit)}</li>`).join('')}</ul>`:''}
       <h4>Funding and new shares</h4><p>${text(item.funding_check)}</p>
-      ${item.guidance?`<h4>Company guidance</h4><p>Adjusted diluted EPS (earnings per share, profit divided by the number of shares) for FY2026, as stated by the company. This is a non-GAAP figure (adjusted by the company, outside standard accounting rules). The stated midpoint moved from $11.04 to $11.10, up $0.06. The company rounded its earlier midpoint. The range itself gives $11.035, so the $0.06 rise is rounded. Source: the company's Q3 2026 results release, linked under Sources read. Guidance is the company's own estimate. It does not estimate the stock's return.</p>`:''}
+      ${item.guidance?guidanceBlock(item.guidance):''}
       <h4>Sources read</h4><ul class="stock-sources">${sourceLinks(item,snapshot)}</ul><p class="source-date">Research checked ${text(date(snapshot.reviewed_at))}. Some publication times are unknown. Some original files were not saved. Permission to use each source is not fully checked. This case has no rank, price, return or probability.</p>
     </div></details>
   </article>`;

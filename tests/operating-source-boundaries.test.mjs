@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-const payload=JSON.parse(await readFile(new URL('../dist/data/stock-evidence.json',import.meta.url),'utf8'));
+const payload=JSON.parse(await readFile(new URL('./fixtures/stock-evidence-2026-10-16.json',import.meta.url),'utf8'));
 const operating=payload.operating_evidence;
 const caseFor=ticker=>{const c=operating.hypotheses.find(c=>c.ticker===ticker);assert.ok(c,`${ticker} case is retained`);return c;};
 function stillWithheld(c){

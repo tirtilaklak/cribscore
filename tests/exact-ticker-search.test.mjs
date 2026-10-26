@@ -10,7 +10,8 @@ import {createApprovedSlateSlot,renderApprovedResearchView} from '../dist/lib/re
 import {serializeResearchSlate} from '../server/research-slate/research-slate.mjs';
 import {fixture,bindCase,at,expiry} from './fixtures/research-slate-fixtures.mjs';
 
-const data=JSON.parse(await readFile(new URL('../dist/data/stock-evidence.json',import.meta.url),'utf8'));
+const data=JSON.parse(await readFile(new URL('./fixtures/stock-evidence-2026-10-16.json',import.meta.url),'utf8'));
+const current=JSON.parse(await readFile(new URL('../dist/data/stock-evidence.json',import.meta.url),'utf8'));
 const snapshot=(horizon='next_week')=>buildStockSnapshot(data,horizon,at);
 const dom=html=>JSON.parse(execFileSync('python3',[fileURLToPath(new URL('./fixtures/html-tree.py',import.meta.url))],{input:html,encoding:'utf8'}));
 const all=(node,tag)=>[...(node.tag===tag?[node]:[]),...(node.children||[]).flatMap(child=>typeof child==='string'?[]:all(child,tag))];
@@ -30,6 +31,21 @@ async function installed({withoutPG=false,ticker='PG'}={}){
   return {slot,payload:JSON.parse(draft.serialized),setTime:value=>{now=Date.parse(value);}};
 }
 const approved=(slot,query)=>renderApprovedResearchView(slot,{horizonId:'next_week',query});
+
+test('current snapshot: the one- and two-letter tickers V and MA find only their own case and call',()=>{
+  const clock=new Date(Date.parse(current.event_evidence.horizons.entry_at_utc)-3600000).toISOString();
+  for(const horizon of ['next_day','next_week']){
+    const s=buildStockSnapshot(current,horizon,clock);
+    for(const [ticker,queries] of [['V',['V','v',' V ','\tv\n']],['MA',['MA','ma','Ma','  MA  ']]]){
+      // A plain text search would match many other cases: the letters sit inside common words.
+      assert.ok(s.hypotheses.filter(row=>JSON.stringify(row).toLowerCase().includes(ticker.toLowerCase())).length>1,`${ticker} collides with other cases as text`);
+      for(const query of queries){
+        const out=visible(renderStockView(s,query));
+        assert.deepEqual(out.cards,[ticker],`${horizon} ${JSON.stringify(query)}`);assert.deepEqual(out.events,[ticker],`${horizon} ${JSON.stringify(query)}`);
+      }
+    }
+  }
+});
 
 test('actual PG search excludes upgrade matches in operating cards and event rows for both horizons',()=>{
   for(const horizon of ['next_day','next_week'])for(const query of queries){

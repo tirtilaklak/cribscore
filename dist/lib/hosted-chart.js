@@ -1,4 +1,6 @@
-const SYMBOLS = Object.freeze({IBM:'NYSE:IBM',JNJ:'NYSE:JNJ',NFLX:'NASDAQ:NFLX',PG:'NYSE:PG',TSLA:'NASDAQ:TSLA',TXN:'NASDAQ:TXN',SPY:'AMEX:SPY'});
+// Exchange prefixes for the October 26 snapshot's companies follow its exchange data, which matches
+// the exchanges SEC lists for each ticker. The October 16 companies and SPY stay so older entries still chart.
+const SYMBOLS = Object.freeze({AMZN:'NASDAQ:AMZN',CAT:'NYSE:CAT',GOOGL:'NASDAQ:GOOGL',KO:'NYSE:KO',MA:'NYSE:MA',MRK:'NYSE:MRK',MSFT:'NASDAQ:MSFT',V:'NYSE:V',XOM:'NYSE:XOM',IBM:'NYSE:IBM',JNJ:'NYSE:JNJ',NFLX:'NASDAQ:NFLX',PG:'NYSE:PG',TSLA:'NASDAQ:TSLA',TXN:'NASDAQ:TXN',SPY:'AMEX:SPY'});
 export function hostedSymbol(symbol) { return typeof symbol==='string'&&Object.hasOwn(SYMBOLS,symbol)?SYMBOLS[symbol]:null; }
 export function hostedChartURL(symbol) { const mapped=hostedSymbol(symbol);return mapped?`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(mapped)}`:null; }
 

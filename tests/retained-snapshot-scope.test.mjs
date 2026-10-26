@@ -10,7 +10,7 @@ import {buildStockSnapshot} from '../dist/lib/candidates.js';
 
 const appPath=new URL('../dist/app.js',import.meta.url);
 const app=await readFile(appPath,'utf8');
-const retainedPayload=JSON.parse(await readFile(new URL('../dist/data/stock-evidence.json',import.meta.url),'utf8'));
+const retainedPayload=JSON.parse(await readFile(new URL('./fixtures/stock-evidence-2026-10-16.json',import.meta.url),'utf8'));
 function presentation(horizon){
   const horizonSource=app.match(/^const horizon = .*$/m)?.[0];
   const stampSource=app.match(/^function utcStamp.*$/m)?.[0];

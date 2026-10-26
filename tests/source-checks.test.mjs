@@ -4,8 +4,10 @@ import {readFile} from 'node:fs/promises';
 import {buildStockSnapshot} from '../dist/lib/candidates.js';
 import {renderStockView} from '../dist/lib/stock-view.js';
 const payload=JSON.parse(await readFile(new URL('../dist/data/stock-evidence.json',import.meta.url),'utf8'));
+// The 2026-10-16 snapshot, kept as a fixture for the test that pins its source checks.
+const retained=JSON.parse(await readFile(new URL('./fixtures/stock-evidence-2026-10-16.json',import.meta.url),'utf8'));
 test('actual public-source checks keep capture clocks and incomplete coverage separate from company recency',()=>{
- const s=buildStockSnapshot(payload,'next_week','2026-10-17T02:00:00Z');
+ const s=buildStockSnapshot(retained,'next_week','2026-10-17T02:00:00Z');
  assert.equal(s.source_checks.length,14);
  assert.equal(s.source_checks.find(c=>c.id==='sec_nflx').observed_at,'2026-10-17T01:25:30.321Z');
  assert.match(s.source_checks.find(c=>c.id==='sec_nflx').note,/2026-07-17/);

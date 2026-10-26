@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import {hostedSymbol,hostedChartURL,hostedChartEmbedURL,createHostedChartFrame} from '../dist/lib/hosted-chart.js';
 
 test('hosted chart permits only fixed public symbols on the official cross-origin widget endpoint',()=>{
-  const expected={IBM:'NYSE:IBM',JNJ:'NYSE:JNJ',NFLX:'NASDAQ:NFLX',PG:'NYSE:PG',TSLA:'NASDAQ:TSLA',TXN:'NASDAQ:TXN',SPY:'AMEX:SPY'};
+  const expected={AMZN:'NASDAQ:AMZN',CAT:'NYSE:CAT',GOOGL:'NASDAQ:GOOGL',KO:'NYSE:KO',MA:'NYSE:MA',MRK:'NYSE:MRK',MSFT:'NASDAQ:MSFT',V:'NYSE:V',XOM:'NYSE:XOM',IBM:'NYSE:IBM',JNJ:'NYSE:JNJ',NFLX:'NASDAQ:NFLX',PG:'NYSE:PG',TSLA:'NASDAQ:TSLA',TXN:'NASDAQ:TXN',SPY:'AMEX:SPY'};
   for(const [symbol,mapped]of Object.entries(expected)){
     assert.equal(hostedSymbol(symbol),mapped);
     const external=new URL(hostedChartURL(symbol));assert.equal(external.origin,'https://www.tradingview.com');assert.equal(external.pathname,'/chart/');assert.equal(external.searchParams.get('symbol'),mapped);

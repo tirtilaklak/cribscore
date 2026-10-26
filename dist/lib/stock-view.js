@@ -24,26 +24,71 @@ function eventRelation(value,window){
   return Date.parse(value)<Date.parse(window.entry_at)?'before_entry':Date.parse(value)>Date.parse(window.exit_at)?'after_exit':'in_window';
 }
 const link=(url,label)=>{try{const u=new URL(url);return u.protocol==='https:'?`<a class="source-link" href="${text(u.href)}" target="_blank" rel="noopener noreferrer">${text(label)} <span aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span></a>`:'';}catch{return '';}};
-const labels={identity:'Security identity',prices_actions:'Prices and corporate actions',company_evidence:'Latest company evidence',latest_completed_session_OHLCV:'Oct 16 daily prices (OHLCV)','60_session_consolidated_liquidity':'Liquidity over the last 60 trading days',corporate_actions_security_master:'Security identity and corporate actions',quote_display_rights:'Permission to show market data',all_latest_required_filings_and_later_material_announcements:'Complete filing and announcement coverage'};
+const labels={identity:'Security identity',prices_actions:'Prices and corporate actions',company_evidence:'Latest company evidence',latest_completed_session_OHLCV:'Latest daily prices (OHLCV)','60_session_consolidated_liquidity':'Liquidity over the last 60 trading days',corporate_actions_security_master:'Security identity and corporate actions',quote_display_rights:'Permission to show market data',all_latest_required_filings_and_later_material_announcements:'Complete filing and announcement coverage'};
 
-// Short editorial questions for the retained cases. They cannot go stale after
-// an event date. Full source wording, qualifications and references remain
-// below each native disclosure. They were written for one review only: any
-// other review clock gets the neutral fallback, never a stale question.
-const previewReview='2026-10-17T02:40:41.433Z';
-const previews={
-  IBM:{question:'After its July guidance cut, are delayed deals turning into revenue?',risk:'More delayed deals'},
-  JNJ:{question:'Does a small raise to the yearly outlook change the case?',risk:'Legal and acquisition costs'},
-  NFLX:{question:'Can pricing and ads lift revenue and margins?',risk:'Weaker retention and higher content costs'},
-  PG:{question:'Can sales volume and margins improve together?',risk:'Weak demand and margin pressure'},
-  TSLA:{question:'Will deliveries turn into operating profit and cash flow?',risk:'Margin pressure and heavy investment needs'},
-  TXN:{question:'Is demand from industrial customers still recovering?',risk:'Weaker orders or too much inventory'},
+// Each case carries its own short question and main risk in the snapshot data.
+// Full source wording, qualifications and references remain below each native
+// disclosure. A question is written for one review only: it shows only when its
+// case_text_review_at equals the snapshot's review clock. Any other clock, or
+// a missing question, gets the neutral fallback, never a stale question.
+// Questions are worded in the present tense ("What do ... results show"), so
+// they read the same before and after the company's event inside the window.
+const caseFallback={question:'What evidence would move this case?',risk:'Operating outlook uncertain'};
+function caseText(item,snapshot){
+  const filled=value=>typeof value==='string'&&value.trim()!=='';
+  return filled(item.case_question)&&filled(item.main_risk)&&typeof item.case_text_review_at==='string'&&item.case_text_review_at===snapshot.reviewed_at?{question:item.case_question.trim(),risk:item.main_risk.trim()}:caseFallback;
+}
+// Company guidance renders only from the case's own guidance record. Every
+// figure is a data field. The code picks the words and formats the numbers;
+// it never rounds a figure the data does not round.
+// A figure shows with the record's own decimals only when that loses nothing.
+// "No midpoint" is a claim about the company, so it needs the record to say so
+// (issuer_states_midpoint: false), and it covers only the record's own figure. A
+// midpoint that was simply not captured shows as not recorded. A record that says
+// "no midpoint" and also holds one is incomplete.
+// The heading names the record's own metric. An optional scope_note says when the
+// same company update moved another figure the other way.
+const shown=(value,decimals)=>Number.isInteger(decimals)&&decimals>=0&&decimals<=6&&Number(value.toFixed(decimals))===value?value.toFixed(decimals):String(value);
+const guidanceUnits={
+  usd_per_share:{format:(value,decimals=2)=>`$${shown(value,decimals)}`},
+  usd_billion:{format:(value,decimals)=>`$${shown(value,decimals)} billion`},
+  percent:{format:(value,decimals)=>`${shown(value,decimals)}%`,change:(value,decimals)=>`${shown(value,decimals)} ${value===1?'percentage point':'percentage points'}`},
 };
+const dayDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&validDate(value)&&new Date(value).toISOString().slice(0,10)===value?new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}).format(new Date(value)):null;
+function guidanceBlock(g){
+  const finite=Number.isFinite,filled=value=>typeof value==='string'&&value.trim()!=='';
+  const pair=range=>Array.isArray(range)&&range.length===2&&range.every(finite)&&range[0]<=range[1];
+  const unit=guidanceUnits[g?.unit];
+  const statesNone=g?.issuer_states_midpoint===false,holdsStated=[g?.issuer_stated_before_midpoint,g?.issuer_stated_after_midpoint,g?.issuer_stated_delta].some(value=>value!==null&&value!==undefined);
+  // "Worldwide sales" reads "worldwide sales" after the colon; "EPS growth" keeps its capitals.
+  const heading=filled(g?.metric)?`Company guidance: ${g.metric.trim().replace(/^[A-Z](?=[a-z])/,letter=>letter.toLowerCase())}`:'Company guidance';
+  if(!unit||!filled(g.metric)||!filled(g.period)||!pair(g.before_range)||!pair(g.after_range)||!filled(g.source_label)||(statesNone&&holdsStated))return `<h4>${text(heading)}</h4><p>The guidance record for this case is incomplete. Read the company's own release under Sources read. Guidance is the company's own estimate. It does not estimate the stock's return.</p>`;
+  const figure=value=>unit.format(value,g.decimals),change=value=>(unit.change||unit.format)(value,g.decimals),word=value=>value>0?'up':'down';
+  const moved=(from,to,delta,format)=>delta===0?`stayed at ${format(to)}`:`moved from ${format(from)} to ${format(to)}, ${word(delta)} ${change(Math.abs(delta))}`;
+  const statedBefore=g.issuer_stated_before_midpoint,statedAfter=g.issuer_stated_after_midpoint,statedDelta=g.issuer_stated_delta;
+  const rangeBefore=g.unrounded_range_midpoint_before,rangeAfter=g.unrounded_range_midpoint_after;
+  let midpoint='';
+  if([statedBefore,statedAfter,statedDelta].every(finite)){
+    midpoint=` The stated midpoint ${moved(statedBefore,statedAfter,statedDelta,figure)}.`;
+    const before=finite(rangeBefore)&&rangeBefore!==statedBefore,after=finite(rangeAfter)&&rangeAfter!==statedAfter;
+    if(filled(g.midpoint_rounding_note)&&(before||after))midpoint+=` The company rounded ${before&&after?'both midpoints':`its ${before?'earlier':'later'} midpoint`}. ${before&&after?`The ranges themselves give ${figure(rangeBefore)} and ${figure(rangeAfter)}`:`The range itself gives ${figure(before?rangeBefore:rangeAfter)}`}, so the ${change(Math.abs(statedDelta))} ${statedDelta>0?'rise':statedDelta<0?'fall':'change'} is rounded.`;
+  }else if([rangeBefore,rangeAfter,g.range_midpoint_change].every(finite))midpoint=` ${statesNone?'The company gives this figure as a range, with no midpoint.':'The company\'s own midpoint for this figure is not recorded here.'} The middle of its range ${moved(rangeBefore,rangeAfter,g.range_midpoint_change,figure)}.`;
+  const paragraph=`${g.metric.trim()}${filled(g.metric_gloss)?` (${g.metric_gloss.trim()})`:''} for ${g.period.trim()}, as stated by the company.${g.non_gaap===true?' This is a non-GAAP figure (adjusted by the company, outside standard accounting rules).':''}${midpoint} Source: ${g.source_label.trim()}, linked under Sources read. Guidance is the company's own estimate. It does not estimate the stock's return.`;
+  const range=([low,high])=>`${figure(low)} to ${figure(high)}`,stated=value=>dayDate(value)?` · stated ${dayDate(value)}`:'';
+  const rows=[['Earlier range',`${range(g.before_range)}${stated(g.before_stated_on)}`],['Later range',`${range(g.after_range)}${stated(g.after_stated_on)}`],...(filled(g.basis)?[['Basis',g.basis.trim()]]:[])];
+  return `<h4>${text(heading)}</h4><p>${text(paragraph)}</p>${filled(g.scope_note)?`<p class="guidance-scope">${text(g.scope_note.trim())}</p>`:''}<dl class="guidance-figures">${rows.map(([term,value])=>`<div><dt>${text(term)}</dt><dd>${text(value)}</dd></div>`).join('')}</dl>`;
+}
+// Owner decision 5: each plain review note keeps its original wording one click
+// away, in a closed disclosure right after the plain line. The original is data
+// and is always escaped. A copy that matches the plain line adds nothing.
+const originalNote=(original,plain,context)=>typeof original==='string'&&original.trim()&&original.trim()!==String(plain??'').trim()?`<details class="original-note"><summary>Original note${context?`<span class="sr-only"> for ${text(context)}</span>`:''}</summary><p>${text(original.trim())}</p></details>`:'';
+// review_limits_audit pairs each original with the exact plain line that replaced it.
+const limitOriginal=(item,limit)=>(Array.isArray(item.review_limits_audit)?item.review_limits_audit:[]).find(entry=>entry&&typeof entry==='object'&&entry.plain===limit)?.original;
 // Source ids such as "ibm_aug14_notes" read as "IBM aug14 notes": the case's own
 // ticker is upper-cased; every other id keeps its words.
 const sourceLabel=(id,ticker)=>(id.startsWith(`${ticker.toLowerCase()}_`)?`${ticker}${id.slice(ticker.length)}`:id).replaceAll('_',' ');
 function sourceLinks(item,snapshot){
-  return (item.source_refs||[]).map(id=>{const s=snapshot.sources[id];return s?`<li>${link(s.url,sourceLabel(id,item.ticker))}<span class="source-date">${text(s.published_date||'Publication time not retained')}${s.access_note?` · ${text(s.access_note)}`:''}</span></li>`:'';}).join('');
+  return (item.source_refs||[]).map(id=>{const s=snapshot.sources[id];return s?`<li>${link(s.url,sourceLabel(id,item.ticker))}<span class="source-date">${text(s.published_date||'Publication time not retained')}${s.access_note?` · ${text(s.access_note)}`:''}</span>${s.access_note?originalNote(s.audit_note,s.access_note,sourceLabel(id,item.ticker)):''}</li>`:'';}).join('');
 }
 function timing(item,snapshot,compact=false){
   const c=item.catalyst;
@@ -55,7 +100,7 @@ function timing(item,snapshot,compact=false){
   return `${compact?shortDate(when):date(when)} · ${precision}${relative}`;
 }
 function stockCard(item,snapshot,priceSymbols){
-  const preview=(snapshot.reviewed_at===previewReview&&previews[item.ticker])||{question:'What evidence would move this case?',risk:'Operating outlook uncertain'};
+  const preview=caseText(item,snapshot);
   return `<article class="card stock-card" aria-label="${text(item.ticker)} case">
     <div class="stock-card-header"><div class="stock-identity"><span class="ticker">${text(item.ticker)}</span><h3>${text(item.company)}</h3></div><span class="tag neutral">Not eligible</span></div>
     <p class="stock-thesis"><strong>Question:</strong> ${text(preview.question)}</p>
@@ -69,9 +114,9 @@ function stockCard(item,snapshot,priceSymbols){
       <dl class="stock-metrics"><div><dt>Window start</dt><dd>${text(date(snapshot.window.entry_at))} open</dd></div><div><dt>Window end</dt><dd>${text(date(snapshot.window.exit_at))} close</dd></div><div><dt>Price</dt><dd>Unavailable</dd></div><div><dt>Expected return</dt><dd>Unavailable</dd></div><div><dt>Chance of gain</dt><dd>Unavailable</dd></div></dl>
       <h4>Macro → industry → company update → event → each share</h4><ol class="evidence-chain">${item.evidence_chain.map(step=>`<li><strong>${text(step.link.replaceAll('_',' '))}</strong><span class="chain-kind">${text(step.kind.replaceAll('_',' '))}</span><p>${text(step.text)}</p></li>`).join('')}</ol>
       ${item.research_application?`<h4>How the research notes shape this case</h4><p>${text(item.research_application.concentric_effect)}</p><p>${text(item.research_application.nobel_effect)}</p><p>${text(item.research_application.ordering_effect)}</p><p class="source-date">This mapping draws on the supplied PDF texts and saved public summaries. Nobody fully reviewed their images or the papers they cite. No predictive validation is claimed.</p>`:''}
-      ${item.review_limits?.length?`<h4>Review limits</h4><ul>${item.review_limits.map(limit=>`<li>${text(limit)}</li>`).join('')}</ul>`:''}
+      ${item.review_limits?.length?`<h4>Review limits</h4><ul>${item.review_limits.map(limit=>`<li>${text(limit)}${originalNote(limitOriginal(item,limit),limit,`${item.ticker} review limit`)}</li>`).join('')}</ul>`:''}
       <h4>Funding and new shares</h4><p>${text(item.funding_check)}</p>
-      ${item.guidance?`<h4>Company guidance</h4><p>Adjusted diluted EPS (earnings per share, profit divided by the number of shares) for FY2026, as stated by the company. This is a non-GAAP figure (adjusted by the company, outside standard accounting rules). The stated midpoint moved from $11.04 to $11.10, up $0.06. The company rounded its earlier midpoint. The range itself gives $11.035, so the $0.06 rise is rounded. Source: the company's Q3 2026 results release, linked under Sources read. Guidance is the company's own estimate. It does not estimate the stock's return.</p>`:''}
+      ${item.guidance?guidanceBlock(item.guidance):''}
       <h4>Sources read</h4><ul class="stock-sources">${sourceLinks(item,snapshot)}</ul><p class="source-date">Research checked ${text(date(snapshot.reviewed_at))}. Some publication times are unknown. Some original files were not saved. Permission to use each source is not fully checked. This case has no rank, price, return or probability.</p>
     </div></details>
 ${priceSymbols.includes(item.ticker)?`    <button type="button" class="desk-button desk-button-secondary" data-price-symbol="${text(item.ticker)}">Price chart<span class="sr-only"> for ${text(item.ticker)}</span><span aria-hidden="true">→</span></button>\n`:''}  </article>`;
@@ -87,7 +132,7 @@ function sourceChecks(checks,summary){
   const originalValid=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(value)&&validDate(value)&&new Date(value).toISOString().slice(0,19)===value.slice(0,19);
   const relatedValid=check=>check.related_sources===undefined||(Array.isArray(check.related_sources)&&check.related_sources.every(source=>record(source)&&typeof source.label==='string'&&source.label.trim()&&link(source.url,source.label)));
   const metadataValid=check=>record(check)&&['id','name','status','note'].every(key=>typeof check[key]==='string'&&check[key].trim())&&link(check.url,'Source')&&relatedValid(check);
-  if(!Array.isArray(summary?.checks)&&checks.every(check=>metadataValid(check)&&originalValid(check.observed_at)))return `<ul class="source-checks" role="list">${checks.map(check=>`<li><strong>${text(check.name)}</strong> · ${text(check.status)}<p>Observed ${text(date(check.observed_at))}. ${text(check.note)} ${link(check.url,'Source')} ${(check.related_sources||[]).map(source=>link(source.url,source.label)).join(' ')}</p></li>`).join('')}</ul>`;
+  if(!Array.isArray(summary?.checks)&&checks.every(check=>metadataValid(check)&&originalValid(check.observed_at)))return `<ul class="source-checks" role="list">${checks.map(check=>`<li><strong>${text(check.name)}</strong> · ${text(check.status)}<p>Observed ${text(date(check.observed_at))}. ${text(check.note)} ${link(check.url,'Source')} ${(check.related_sources||[]).map(source=>link(source.url,source.label)).join(' ')}</p>${originalNote(check.audit_note,check.note,check.name)}</li>`).join('')}</ul>`;
   const clock=value=>originalValid(value)?`<time datetime="${text(value)}">${text(date(value))}</time>`:'Unavailable';
   return `<ul class="source-checks stock-sources" role="list">${checks.map((raw,index)=>{
     const check=record(raw)?raw:{},metadataOK=metadataValid(check);
@@ -102,7 +147,7 @@ function sourceChecks(checks,summary){
     const name=typeof check.name==='string'&&check.name.trim()?check.name:`Source entry ${index+1}`;
     const primary=link(check.url,'Source')||'<span>Source link unavailable.</span>';
     const related=Array.isArray(check.related_sources)?check.related_sources.map(source=>record(source)&&typeof source.label==='string'&&source.label.trim()?link(source.url,source.label)||'<span>Related source link unavailable.</span>':'<span>Related source metadata incomplete.</span>').join(' '):check.related_sources!==undefined?'<span>Related sources incomplete.</span>':'';
-    return `<li data-source-id="${text(typeof check.id==='string'?check.id:`unavailable-${index}`)}"><strong>${text(name)}</strong><p>${text(ageLabel)}<br>Original observation: ${clock(check.observed_at)}${latest?`<br>${checkLabel}: ${clock(row.lastCheckedAt)}${outcome?` · ${outcome}`:''}`:''}</p><details class="source-coverage" data-state-key="source-check:${text(typeof check.id==='string'?check.id:'unavailable')}:${index}"><summary>Coverage & sources<span class="sr-only"> for ${text(name)}</span></summary><p>${typeof check.status==='string'?`${text(check.status)}. `:''}${typeof check.note==='string'?text(check.note):'Source coverage could not be read.'} ${primary} ${related}</p></details></li>`;
+    return `<li data-source-id="${text(typeof check.id==='string'?check.id:`unavailable-${index}`)}"><strong>${text(name)}</strong><p>${text(ageLabel)}<br>Original observation: ${clock(check.observed_at)}${latest?`<br>${checkLabel}: ${clock(row.lastCheckedAt)}${outcome?` · ${outcome}`:''}`:''}</p><details class="source-coverage" data-state-key="source-check:${text(typeof check.id==='string'?check.id:'unavailable')}:${index}"><summary>Coverage & sources<span class="sr-only"> for ${text(name)}</span></summary><p>${typeof check.status==='string'?`${text(check.status)}. `:''}${typeof check.note==='string'?text(check.note):'Source coverage could not be read.'} ${primary} ${related}</p>${typeof check.note==='string'?originalNote(check.audit_note,check.note,name):''}</details></li>`;
   }).join('')}</ul>`;
 }
 // Optional capture-age projection. Default rendering remains byte-for-byte
@@ -138,6 +183,10 @@ export function renderStockView(snapshot,query='',{slateSlot,horizonId=snapshot?
   // first phone screen holds them (R-4). The state sentence follows, before the
   // times. Only past or unreadable windows get the amber alert; an upcoming
   // window gets a neutral note.
+  // The Prices page lists its own companies. When it has none of a shown case's charts,
+  // the desk says so once, instead of a silent missing button on each card.
+  const uncharted=priceSymbols.length?hypotheses.filter(item=>!priceSymbols.includes(item.ticker)).map(item=>item.ticker):[];
+  const chartGap=!uncharted.length?'':`<p class="chart-gap-note">${uncharted.length===hypotheses.length?`The Prices page has no chart for ${hypotheses.length===1?'this company':'these companies'} yet.`:`The Prices page has no chart yet for ${text(new Intl.ListFormat('en-US',{type:'conjunction'}).format(uncharted))}.`}</p>`;
   const stateLine=snapshot.status==='upcoming'?`<p class="window-note">This window (the trading days this research covers) opens ${text(date(snapshot.window.entry_at))}.</p>`:`<p class="window-alert">${snapshot.status==='in_progress'?`This window (the trading days this research covers) opened ${text(date(snapshot.window.entry_at))}. The cases below were written before it opened. The time to use that opening price has passed. A new window needs a new snapshot (a new review with its own date).`:snapshot.status==='archived'?`This snapshot (a dated review that is not updated) is archived. Its window (the trading days it covered) closed ${text(date(snapshot.window.exit_at))}. Nothing on this page is current. A new window needs a new snapshot.`:'The window dates (the trading days this research covers) could not be read. They need review. Treat every case below as background only. A new window needs a new snapshot (a new review with its own date).'}</p>`;
   return `<div class="stock-desk">
     <section class="window-card card" aria-label="Research window"><div class="window-title"><span class="eyebrow">${text(sessionLabel(snapshot.window))}</span><span class="tag neutral">${text(status)}</span></div><h2>${text(windowTitle(snapshot.window))}</h2>
@@ -149,7 +198,7 @@ export function renderStockView(snapshot,query='',{slateSlot,horizonId=snapshot?
       <details class="window-details"><summary>Window details and source checks${freshness?.label||''}</summary><div>${freshness?.content||''}<p>A paper trade (a practice trade with no real money) would use this window's opening and closing prices. A real order might fill at another price. ${text(sessionDate(snapshot.price_session,'long'))} close is a historical reference. No prior-close or weekend opening gap is earned.</p><div class="snapshot-meta"><span>Research checked ${text(date(snapshot.reviewed_at))}</span><span>Manual snapshot · source cutoff varies</span><span>Price reference session ${text(sessionDate(snapshot.price_session))} · OHLCV (open, high, low and close prices plus volume) missing</span></div><h3>Data connections</h3><p>Price API awaiting approved access. No automatic collector is active.</p>${sourceChecks(snapshot.source_checks||[],sourceFreshness)}</div></details>
     </section>
     <p class="coverage-strip"><span class="sr-only">Research coverage: </span>${snapshot.roster_count} stocks on the list <span class="coverage-part"><span aria-hidden="true">·</span> ${snapshot.screened_count} partly reviewed</span> <span class="coverage-part"><span aria-hidden="true">·</span> ${snapshot.blocked_count} blocked</span> <span class="coverage-part"><span aria-hidden="true">·</span> 0 eligible</span></p>
-    <section aria-labelledby="cases-heading"><div class="section-label-row"><h2 id="cases-heading">Company cases <span class="section-count">${hypotheses.length}</span></h2><span>Alphabetical · unranked</span></div><p class="section-intro">Forecast unavailable for every case. Each one lacks inputs that ranking needs. Open a case to see what is missing.</p><div class="stock-list">${hypotheses.map(item=>stockCard(item,snapshot,priceSymbols)).join('')||(needle?`<div class="search-empty"><h3>${events.length?'No company case matches this search.':'No matches for this search.'}</h3><p>${events.length?'Matching earnings calls are listed below.':'Try a shorter search, or clear it.'}</p><button class="text-button" data-clear-search>Clear search</button></div>`:'<p>No company cases are listed.</p>')}</div></section>
+    <section aria-labelledby="cases-heading"><div class="section-label-row"><h2 id="cases-heading">Company cases <span class="section-count">${hypotheses.length}</span></h2><span>Alphabetical · unranked</span></div><p class="section-intro">Forecast unavailable for every case. Each one lacks inputs that ranking needs. Open a case to see what is missing.</p>${chartGap}<div class="stock-list">${hypotheses.map(item=>stockCard(item,snapshot,priceSymbols)).join('')||(needle?`<div class="search-empty"><h3>${events.length?'No company case matches this search.':'No matches for this search.'}</h3><p>${events.length?'Matching earnings calls are listed below.':'Try a shorter search, or clear it.'}</p><button class="text-button" data-clear-search>Clear search</button></div>`:'<p>No company cases are listed.</p>')}</div></section>
     <section aria-labelledby="events-heading"><div class="section-label-row"><h2 id="events-heading">${snapshot.status==='upcoming'?'Earnings calls ahead':'Earnings calls in this snapshot'} <span class="section-count">${events.length}</span></h2></div><p class="section-intro">${text(eventIntro)}${events.length?' These dates come from this snapshot. They are not updated. An earnings call can move a stock up or down.':''}</p>${events.length?`<div class="card event-list">${events.map(eventCard).join('')}</div>`:''}</section>
     <details class="card research-context"><summary>Method and economic context</summary><section class="method-application" aria-labelledby="context-heading"><div><span class="eyebrow">How the research shapes these cases</span><h2 id="context-heading">Company facts, checked against economic ideas</h2><p>The step-by-step method links company facts and event dates to what is left for each share. Ideas from Nobel research help us test claims about the economy. They also help us question prices that look wrong and evidence chosen to fit a story. These ideas are background only. No prize proves an investment edge (a lasting advantage over the market) in either window. The timing and funding rules are our own design choices. So is the rule that every case has a case against. The cases are reviewed by hand and listed A to Z. Neither the review nor the order predicts returns.</p><button class="text-button" id="context-method-link" data-go="methodology">How the method works <span aria-hidden="true">→</span></button></div><div class="macro-strip"><strong>Economic context · dated facts</strong>${snapshot.macro_context.map(item=>`<p>${text(item.fact)} ${link(snapshot.sources[item.source_ref]?.url,'Source')}<span>${text(item.interpretation)}</span>${snapshot.sources[item.source_ref]?.type==='BLS'?'<span>BLS.gov cannot vouch for the data or analyses derived from these data after the data have been retrieved from BLS.gov.</span>':''}</p>`).join('')}</div></section></details>
   </div>`;

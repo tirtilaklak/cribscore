@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {boot} from './continued-research-harness.mjs';
+import {boot,retained} from './continued-research-harness.mjs';
 // Keep the real module code and URL-keyed ESM cache. Only initial fixture exports
 // are corrupted; an explicit retry must request a new URL and recover normally.
 const corruptInitial=(filename,append)=>(url,code)=>new URL(url).pathname.endsWith(`/data/${filename}`)&&!new URL(url).search?`${code}\n${append}\n`:code;
@@ -16,7 +16,7 @@ async function retry(app){app.click(app.query('[data-retry="research"]'));await 
 const scenarios={
   async 'malformed-library-is-atomic-and-recovers'(){
     for(const corruption of ['nobelLibrary[0]=null;','nobelLibrary[0].laureates={bad:true};']){
-      const app=await boot({moduleTransform:corruptInitial('nobel-corpus.js',corruption)});
+      const app=await boot({moduleTransform:corruptInitial('nobel-corpus.js',corruption),stockPayload:retained});
       assert.equal(app.queryAll('.stock-card').length,6,'independent stock load succeeds');
       app.click(app.query('[data-horizon="next_week"]'));app.click(app.query('[data-view="library"]'));expectUnavailable(app);
       app.input('2013');expectUnavailable(app);await retry(app);
