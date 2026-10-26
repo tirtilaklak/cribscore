@@ -25,6 +25,8 @@ const loadConfig = {
   research: {field:'dataState', label:'Research notes', views:['evidence','library','methodology']}
 };
 const loadRuns = new Map();
+// Each load gives up after this long. A run records its deadline so optional parts can stop waiting in time.
+const loadTimeoutMs = 30000;
 const disclosureState = new Map();
 const currentRun = run => loadRuns.get(run.kind) === run && !run.cancelled;
 const loadKindsForView = () => Object.keys(loadConfig).filter(kind=>loadConfig[kind].views.includes(state.view));
@@ -71,7 +73,7 @@ async function startLoad(kind, retry=false) {
   if(retry && config.views.includes(state.view))render();
   run.warning=setTimeout(()=>{if(currentRun(run)){run.delayed=true;finishInitialLoad(config.views);}},12000);
   try {
-    const timeout=new Promise((_,reject)=>{run.timeout=setTimeout(()=>reject(new Error('load_timeout')),30000);run.cancel=()=>reject(new Error('load_replaced'));});
+    const timeout=new Promise((_,reject)=>{run.deadline=Date.now()+loadTimeoutMs;run.timeout=setTimeout(()=>reject(new Error('load_timeout')),loadTimeoutMs);run.cancel=()=>reject(new Error('load_replaced'));});
     await Promise.race([{stocks:loadStocks,evidence:loadEvidence,research:loadResearch}[kind](run),timeout]);
   } catch {
     if(currentRun(run))state[config.field]='unavailable';
@@ -107,7 +109,8 @@ function renderContent(html) {
   // Replacing identical output would destroy an iframe’s browsing context.
   if(sameView && renderedContentHTML===html)return;
   const oldDetails=content.querySelectorAll?[...content.querySelectorAll('details')]:[];
-  if(renderedView)for(const detail of oldDetails)disclosureState.set(`${renderedView}:${disclosureKey(detail)}`,detail.open);
+  // A disclosure that a search opened is not the reader's choice, so its state is not saved.
+  if(renderedView)for(const detail of oldDetails)if(detail.dataset?.searchOpen!=='true')disclosureState.set(`${renderedView}:${disclosureKey(detail)}`,detail.open);
   const oldFocus=document.activeElement, hadFocus=content.contains?.(oldFocus), key=hadFocus?focusKey(oldFocus):null;
   const formKey=form=>JSON.stringify([form.dataset.journalForm||form.dataset.priceForm,form.dataset.journalId||'',form.dataset.journalFillId||'']);
   const openerKey=content.contains?.(lastFocus)?focusKey(lastFocus):null;
@@ -121,7 +124,7 @@ function renderContent(html) {
   content.innerHTML=html;
   if(content.querySelectorAll){
     for(const form of content.querySelectorAll('[data-journal-form],[data-price-form]')){const previous=dirtyForms.get(formKey(form));if(previous?.dataset.deskDirty==='true'&&typeof form.replaceWith==='function')form.replaceWith(previous);}
-    for(const detail of content.querySelectorAll('details'))detail.open=disclosureState.get(`${state.view}:${disclosureKey(detail)}`)||false;
+    for(const detail of content.querySelectorAll('details'))detail.open=detail.dataset?.searchOpen==='true'||disclosureState.get(`${state.view}:${disclosureKey(detail)}`)||false;
     const controls=[...content.querySelectorAll('button,a,summary,input,select,textarea,[tabindex]')];
     if(sameView && openerKey)lastFocus=controls.find(element=>focusKey(element)===openerKey)||lastFocus;
     if(sameView && hadFocus){
@@ -211,13 +214,23 @@ function researchModulesUsable(data,corpus) {
     && rows(corpus.methodologyPublic?.concentric_layers??[],row=>['label','question','result'].every(field=>typeof row[field]==='string'));
 }
 async function loadResearch(run) {
+  // Plain wording is optional. A failed, malformed, throwing or stalled plain module leaves every original in place.
+  const plain=(run.attempt===1?import('./data/plain-language.js'):import(`./data/plain-language.js?retry=${run.attempt}`)).then(usablePlain).catch(()=>new Map());
   const data=await (run.attempt===1?import('./data/research.js'):import(`./data/research.js?retry=${run.attempt}`));
   if(!currentRun(run))return;
   const corpus=await (run.attempt===1?import('./data/nobel-corpus.js'):import(`./data/nobel-corpus.js?retry=${run.attempt}`));
   // Validate only fields consumed by these views before any module data commits.
   // This checks renderable shape, not research truth or source authority.
   if(!researchModulesUsable(data,corpus))throw new Error('invalid_research');
+  // Once the originals are usable, wait at most 2 seconds more for plain wording, and stop
+  // 1 second before the load deadline so slow originals still arrive in time. A later
+  // arrival is ignored for this load, so the text never changes under the reader.
+  const wait=Math.max(0,Math.min(2000,(Number.isFinite(run.deadline)?run.deadline:Infinity)-Date.now()-1000));
+  let plainWait;
+  const plainEntries=await Promise.race([plain,new Promise(resolve=>{plainWait=setTimeout(()=>resolve(new Map()),wait);})]);
+  clearTimeout(plainWait);
   if(!currentRun(run))return;
+  plainTexts=plainEntries;
   state.sources=[...data.sources,...corpus.sources].filter((source,index,all)=>all.findIndex(s=>s.id===source.id)===index);
   state.library=corpus.nobelLibrary;state.study=data.studyState||{};state.methodology=corpus.methodologyPublic;state.dataState='ready';
 }
@@ -286,10 +299,62 @@ function withheldReasons() {
 }
 function visibleMatch(...fields) { const query=state.query.toLowerCase(); return !query||fields.some(field=>String(field??'').toLowerCase().includes(query)); }
 function plainStatus(status) { return status==='metadata_pending'?'Awaiting primary check':status?String(status).replaceAll('_',' '):'Not recorded'; }
-function registryRow(source) { return `<article class="card registry-card"><div><span class="registry-kind">${text(source.type||'Type not recorded')}</span><h3>${text(source.name)}</h3><p>${text(source.status||'Status not recorded')}</p></div><button class="detail-button" data-detail="source-${text(source.id)}" aria-haspopup="dialog">Source details<span class="sr-only"> for ${text(source.name)}</span></button></article>`; }
+// Plain wording for long research passages (data/plain-language.js). Each entry
+// carries the sha256 of the exact original it was checked against. It shows only
+// while that fingerprint matches the current original; otherwise the original
+// renders alone, exactly as it did before plain wording existed.
+let plainTexts=new Map();
+const fingerprints=new Map();
+function usablePlain(module) {
+  const entries=module?.plainLanguage, usable=new Map();
+  if(entries===null||typeof entries!=='object')return usable;
+  for(const [id,entry] of Object.entries(entries))if(entry&&typeof entry.plain==='string'&&entry.plain.trim()&&/^[0-9a-f]{64}$/.test(String(entry.original_sha256)))usable.set(id,entry);
+  return usable;
+}
+function sha256Hex(value) {
+  const k=[],h=[],words=[],bytes=[];let prime=2;
+  while(k.length<64){let composite=false;for(let d=2;d*d<=prime;d++)if(prime%d===0){composite=true;break;}if(!composite){const frac=x=>(x-Math.floor(x))*4294967296|0;if(h.length<8)h.push(frac(prime**(1/2)));k.push(frac(prime**(1/3)));}prime++;}
+  for(const ch of String(value)){const c=ch.codePointAt(0);if(c<128)bytes.push(c);else if(c<2048)bytes.push(192|c>>6,128|c&63);else if(c<65536)bytes.push(224|c>>12,128|c>>6&63,128|c&63);else bytes.push(240|c>>18,128|c>>12&63,128|c>>6&63,128|c&63);}
+  const bits=bytes.length*8;bytes.push(128);while(bytes.length%64!==56)bytes.push(0);for(let i=7;i>=0;i--)bytes.push(Math.floor(bits/2**(8*i))&255);
+  for(let i=0;i<bytes.length;i+=4)words.push(bytes[i]<<24|bytes[i+1]<<16|bytes[i+2]<<8|bytes[i+3]);
+  const rotate=(x,n)=>x>>>n|x<<32-n;
+  for(let block=0;block<words.length;block+=16){
+    const w=words.slice(block,block+16);let [a,b,c,d,e,f,g,j]=h;
+    for(let i=0;i<64;i++){
+      if(i>=16){const s0=rotate(w[i-15],7)^rotate(w[i-15],18)^w[i-15]>>>3,s1=rotate(w[i-2],17)^rotate(w[i-2],19)^w[i-2]>>>10;w[i]=w[i-16]+s0+w[i-7]+s1|0;}
+      const t1=j+(rotate(e,6)^rotate(e,11)^rotate(e,25))+(e&f^~e&g)+k[i]+w[i]|0,t2=(rotate(a,2)^rotate(a,13)^rotate(a,22))+(a&b^a&c^b&c)|0;
+      j=g;g=f;f=e;e=d+t1|0;d=c;c=b;b=a;a=t1+t2|0;
+    }
+    [a,b,c,d,e,f,g,j].forEach((x,i)=>{h[i]=h[i]+x|0;});
+  }
+  return h.map(x=>(x>>>0).toString(16).padStart(8,'0')).join('');
+}
+// Ids are built only from non-empty string parts, so a missing id shows the original.
+const plainKey=(...parts)=>parts.every(part=>typeof part==='string'&&part.length>0)?parts.join(':'):null;
+function plainFor(key,original) {
+  const entry=key&&typeof original==='string'&&original?plainTexts.get(key):null;
+  if(!entry)return null;
+  if(!fingerprints.has(original))fingerprints.set(original,sha256Hex(original));
+  return fingerprints.get(original)===entry.original_sha256?entry.plain:null;
+}
+// A search can match a passage's original wording and miss its plain text. That
+// original then opens on render, so the matched words are on screen. renderContent()
+// never saves this forced state, so clearing the search restores the reader's own.
+function searchOpens(original,plain) { const query=state.query.toLowerCase(); return Boolean(query)&&String(original).toLowerCase().includes(query)&&!String(plain).toLowerCase().includes(query); }
+// Every disclosure shows the same label. Hidden context names its passage for screen readers.
+function originalWording(key,original,context,searchOpen=false) { return `<details class="original-wording" data-state-key="${text(key)}"${searchOpen?' data-search-open="true"':''}><summary>Original wording${context?`<span class="sr-only"> for ${text(context)}</span>`:''}</summary><p>${text(original)}</p></details>`; }
+// One passage: the plain version first, then the exact original one click away.
+// A searched passage (a card the search filters) opens its original on a match there alone.
+function passage(key,original,fallback,className='',context='',searched=false) {
+  const plain=plainFor(key,original), attribute=className?` class="${className}"`:'';
+  return plain?`<p${attribute}>${text(plain)}</p>${originalWording(key,original,context,searched&&searchOpens(original,plain))}`:`<p${attribute}>${text(original||fallback)}</p>`;
+}
+// detailRows with optional plain wording: a row is [label, value, plain key].
+function plainRows(rows) { return `<dl class="provenance-list">${rows.map(([label,value,key])=>{const plain=plainFor(key,value);return `<div><dt>${text(label)}</dt><dd>${text(plain||value)}${plain?originalWording(key,value,label):''}</dd></div>`;}).join('')}</dl>`; }
+function registryRow(source) { return `<article class="card registry-card"><div><span class="registry-kind">${text(source.type||'Type not recorded')}</span><h3>${text(source.name)}</h3>${passage(plainKey('registry',source.id,'status'),source.status,'Status not recorded','',source.name,true)}</div><button class="detail-button" data-detail="source-${text(source.id)}" aria-haspopup="dialog">Source details<span class="sr-only"> for ${text(source.name)}</span></button></article>`; }
 function libraryCard(item) {
   const laureates=(item.laureates||[]).join(' · '), year=item.year==null||item.year===''?'Prize year not recorded':`${item.year} prize`;
-  return `<article class="card library-card"><div class="library-year">${text(year)}</div><h3>${text(item.title)}</h3><p class="authors">${text(laureates||'Laureates not confirmed')}</p><p class="library-mechanism">${text(item.mechanism||'Summary not recorded')}</p><p class="library-use">Used for: ${text(item.topic)}</p><p class="library-status">${text(plainStatus(item.verificationStatus))}</p><div class="card-bottom"><button class="text-button" data-detail="library-${text(item.id)}" aria-haspopup="dialog">Read the note<span class="sr-only">: ${text(item.title)}</span></button>${link(item.sourceUrl,'Primary source')}</div></article>`;
+  return `<article class="card library-card"><div class="library-year">${text(year)}</div><h3>${text(item.title)}</h3><p class="authors">${text(laureates||'Laureates not confirmed')}</p>${passage(plainKey('library',item.id,'mechanism'),item.mechanism,'Summary not recorded','library-mechanism',item.title,true)}<p class="library-use">Used for: ${text(item.topic)}</p><p class="library-status">${text(plainStatus(item.verificationStatus))}</p><div class="card-bottom"><button class="text-button" data-detail="library-${text(item.id)}" aria-haspopup="dialog">Read the note<span class="sr-only">: ${text(item.title)}</span></button>${link(item.sourceUrl,'Primary source')}</div></article>`;
 }
 function claimText(claim) { return typeof claim === 'string' ? claim : String(claim.text || claim.statement || claim.renderedText || ''); }
 function factCard(fact,index) {
@@ -320,7 +385,7 @@ function researchView() {
 function searchEmpty() { return `<div class="search-empty"><h3>No matches for this search.</h3><p>Try a shorter search, or clear it.</p><button class="text-button" data-clear-search>Clear search</button></div>`; }
 function evidenceView() {
   const facts=state.facts.filter(matches), evidenceReady=state.evidenceState==='ready', sourcesReady=state.dataState==='ready', note=state.secPayload?.sourceNote;
-  const isData=source=>['Issuer filings','Economic time series'].includes(source.type), shown=state.sources.filter(source=>visibleMatch(source.name,source.type,source.status));
+  const isData=source=>['Issuer filings','Economic time series'].includes(source.type), shown=state.sources.filter(source=>visibleMatch(source.name,source.type,source.status,plainFor(plainKey('registry',source.id,'status'),source.status)));
   const dataRows=shown.filter(isData), researchRows=shown.filter(source=>!isData(source)), dataTotal=state.sources.filter(isData).length, researchTotal=state.sources.length-dataTotal;
   const withheld=state.rawRecords.filter(record=>!state.facts.some(fact=>fact.record===record)).length, plural=(n,one,many)=>`${n} ${n===1?one:many}`;
   const count=(ready,n,one,many,label)=>ready?`<li><strong>${n}</strong> ${n===1?one:many}</li>`:`<li>${label}: <strong>Not loaded</strong></li>`;
@@ -335,7 +400,7 @@ function evidenceView() {
   return `<p class="view-intro">A filing fact appears here only after it passes six checks. They cover the company, the period, the units and when it became public. The other two cover its provenance (where a number came from and how it was saved) and our permission to show it. A past fact can still be useful when no forecast exists.</p>${counts}<div class="desk-layout"><div class="main-column"><section class="evidence-section">${sectionHead('Filing facts',evidenceReady?facts.length:undefined)}<div class="evidence-grid">${filing}</div></section><section class="evidence-section">${sectionHead('Sources',sourcesReady?shown.length:undefined)}${summary}${registry}</section></div>${rail()}</div>`;
 }
 function libraryView() {
-  const ready=state.dataState==='ready', entries=state.library.filter(item=>visibleMatch(item.year,item.year==null?'':`${item.year} prize`,item.title,(item.laureates||[]).join(' '),item.topic,item.mechanism,plainStatus(item.verificationStatus)));
+  const ready=state.dataState==='ready', entries=state.library.filter(item=>visibleMatch(item.year,item.year==null?'':`${item.year} prize`,item.title,(item.laureates||[]).join(' '),item.topic,item.mechanism,plainFor(plainKey('library',item.id,'mechanism'),item.mechanism),plainStatus(item.verificationStatus)));
   const pending=state.library.filter(item=>item.verificationStatus==='metadata_pending').map(item=>item.year==null||item.year===''?' One entry is waiting for its source check.':` The ${text(item.year)} entry is waiting for its source check.`).join('');
   const fallback=ready&&state.query?searchEmpty():`<div class="search-empty"><h3>${state.dataState==='loading'?'Loading the library':state.dataState==='unavailable'?'Research notes unavailable':'No research notes available'}</h3>${state.dataState==='unavailable'?'<p>The library did not load. Use Retry research notes above.</p>':state.dataState==='loading'?'':'<p>Notes appear when their source records are available.</p>'}</div>`;
   return `<p class="view-intro">Each note keeps the limits of its source. A prize is background only. It does not show that any Cribscore method works.${pending}</p>${sectionHead('Notes by prize year',ready?entries.length:undefined)}<div class="library-grid">${entries.map(libraryCard).join('')||fallback}</div>`;
@@ -345,7 +410,8 @@ function methodologyView() {
   const layers=state.methodology?.concentric_layers||[], gates=state.study?.gates||[], missing=(loading,failed,absent)=>state.dataState==='loading'?loading:state.dataState==='unavailable'?failed:absent;
   // The status comes first and renders in every data state, so its dialog stays reachable.
   const status=`<section class="card method-status" aria-labelledby="method-status-title"><h2 id="method-status-title">Where the method stands</h2><p>This method is unproven. No investment edge (a lasting advantage over the market) is validated. The desk shows research only. It does not rank stocks or forecast returns.</p>${gates.length?`<p class="method-gates-label">Open checks</p><dl class="method-gates">${gates.map(gate=>`<div><dt>${text(gate.label)}</dt><dd>${text(gate.state)}</dd></div>`).join('')}</dl>`:`<p class="method-gates-status">${missing('Loading the open checks.','The open checks did not load. Use Retry research notes above.','The list of open checks is missing from this file.')}</p>`}<button class="text-button" data-detail="gates" aria-haspopup="dialog">What each check means</button></section>`;
-  const steps=layers.length?layers.map(layer=>`<h3>${text(layer.label)}</h3><p>${text(layer.question)} ${text(layer.result)}</p>`).join(''):`<p>${missing('Loading the seven steps.','The seven steps did not load. Use Retry research notes above.','The seven steps are missing from this file.')}</p>`;
+  const step=layer=>{const question=plainFor(plainKey('method','layer',layer.id,'question'),layer.question), result=plainFor(plainKey('method','layer',layer.id,'result'),layer.result);return `<h3>${text(layer.label)}</h3><p>${text(question||layer.question)} ${text(result||layer.result)}</p>${question||result?originalWording(plainKey('method','layer',layer.id),`${layer.question} ${layer.result}`,layer.label):''}`;};
+  const steps=layers.length?layers.map(step).join(''):`<p>${missing('Loading the seven steps.','The seven steps did not load. Use Retry research notes above.','The seven steps are missing from this file.')}</p>`;
   return `${status}<p class="view-intro">The stock desk uses a proposed rule to order stocks for research. A missing required input blocks ranking. There are no expected returns or probabilities. The desk has two windows (the trading days this research covers): 1 trading day and 5 trading days. An earlier test used windows of 5 and 21 trading days. It proves nothing about these two windows.</p><section class="card method-application"><div><span class="eyebrow">The seven steps</span><h2>From the economy to each share</h2>${steps}</div><div><span class="eyebrow">Nobel ideas as research questions</span><h2>How we use Nobel ideas</h2><ul class="method-lenses"><li>2011 prize: find the real effect of policy on the company, and other possible causes.</li><li>2013 prize: match the time frame, and tell known news from a true surprise.</li><li>2017 prize: keep the case against, and record each change of view.</li><li>2022 prize: check funding and new shares.</li></ul><p>These are our own readings of the prizes. We do not use them as return formulas. No prize proves an investment edge in either window.</p><p><strong>How stocks would be ordered.</strong> A stock must first pass every required check. It also needs new company guidance or a dated company event. Then four areas get 0, 1 or 2 points each: business results, the event, price history and the economy. The research score is 12.5 times the total, so it runs from 0 to 100. Equal scores stay tied, including stocks not shown here. This rubric is unvalidated (not proven to work; a test may have failed). It does not estimate returns or the chance of a gain.</p><button class="text-button" data-go="library">Open the library <span aria-hidden="true">→</span></button></div></section>${sectionHead('Research practices')}<div class="method-grid">${methods.map((m,i)=>`<article class="card method-card"><div class="method-number">0${i+1}</div><h3>${text(m.title)}</h3><p>${text(m.body)}</p></article>`).join('')}<article class="card method-card wide-note"><div class="method-number">Still open</div><div><h3>What is not done yet.</h3><p>Read every original source. Check permission for each use of a source. Confirm earnings release times. Record what was known on each date, and where it came from. Calibrate the statistics. Confirm results on new data. Published research explains how things work. It does not validate a view on any one company.</p></div></article></div>`;
 }
 function render() {
@@ -419,9 +485,9 @@ function showDetail(id) {
   if (id==='source-note') {const note=state.secPayload?.sourceNote;if(!note)return;return details(note.title,`<div class="detail-copy"><p>${text(note.note)}</p>${detailRows([['Entity',note.issuer],['SEC company ID',note.cik],['SEC filing ID',note.accession],['Form',note.form],['Reporting period ended',note.periodEnd],['Review attempt',dateText(note.checkedAt)],['Review timing meaning',note.checkSemantics],['Capture state',note.captureStatus==='raw_document_bytes_unavailable'?'Original document not captured':note.captureStatus],['File fingerprint','Not captured'],['Numeric display eligibility','Withheld']])}${link(note.url,'Open original filing')}<br>${link(note.indexUrl,'Open SEC filing index')}<h3>What remains missing</h3><p>The original raw file, the exact context of each financial fact, the file fingerprint and full permission records for each step. No financial value may be shown.</p></div>`,'Manual metadata review');}
   if(id==='timing') return details('Retained snapshot: window dates',timingContent(),'Timing');
   if (id==='evidence-state') return details('Why no filing fact is shown',`<div class="detail-copy"><p>A filing fact appears only after it passes every display check. No placeholder value is shown as a fact.</p>${detailRows([['Source capture',state.evidenceState==='ready'?'A record file is present.':'No successful source capture recorded.'],['Facts shown',state.evidenceState==='ready'?String(state.facts.length):'Not loaded'],['Display rules',state.contract?'Loaded':'Unavailable'],['Shown on the page',state.facts.length?'Yes':state.rawRecords.length?'No, withheld':'No']])}<h3>Current limitations</h3><ul>${withheldReasons().map(reason=>`<li>${text(reason.sentence)}${reason.code?` <code class="reason-code">${text(reason.code)}</code>`:''}</li>`).join('')||'<li>A fact needs its source, its exact context, permission to show it and a saved copy before it can appear.</li>'}</ul><p>Missing data does not imply a problem at an issuer. It describes the coverage of this workspace.</p></div>`,'Filing facts');
-  if(id==='gates') {const gates=state.study.gates||[];return details('Open checks',`<div class="detail-copy">${gates.length?gates.map(gate=>`<h3>${text(gate.label)} · ${text(gate.state)}</h3><p>${text(gate.detail)}</p>`).join(''):`<p>${state.dataState==='loading'?'The list of open checks has not loaded yet.':state.dataState==='unavailable'?'The list of open checks did not load. Use Retry research notes on the page.':'The list of open checks is missing from this file.'}</p>`}<p>No empirical forecast study is validated or frozen.</p></div>`,'Method and limits');}
-  if(id.startsWith('source-')) {const s=state.sources.find(item=>item.id===id.slice(7));if(!s)return;return details(s.name,`<div class="detail-copy">${detailRows([['Source type',s.type||'Not recorded'],['Status',s.status||'Not recorded'],['What we may do with it',s.rightsStatus||'Not recorded'],['Last reviewed',dateText(s.checkedAt)]])}<h3>What was checked</h3><p>${text(s.verificationScope||'Not recorded')}</p>${link(s.url,'Open original source')}</div>`,'Source');}
-  if(id.startsWith('library-')) {const item=state.library.find(item=>item.id===id.slice(8));if(!item)return;const laureates=(item.laureates||[]).join(' · '), year=item.year==null||item.year===''?'Prize year not recorded':`${item.year} prize`;return details(item.title,`<div class="detail-copy"><p>${text(laureates||'Laureates not confirmed')} · ${text(year)}</p><h3>The idea</h3><p>${text(item.mechanism||'Not recorded')}</p><h3>What it means for our research</h3><p>${text(item.takeaway||'Not recorded')}</p><h3>What this does not establish</h3><p>${text(item.limits||'Not recorded')}</p>${detailRows([['Status',plainStatus(item.verificationStatus)],['Last reviewed',dateText(item.checkedAt)],['What was read',item.verificationScope||'Not recorded']])}${link(item.sourceUrl,'Open primary source')}</div>`,'Nobel research note');}
+  if(id==='gates') {const gates=state.study.gates||[];return details('Open checks',`<div class="detail-copy">${gates.length?gates.map(gate=>`<h3>${text(gate.label)} · ${text(gate.state)}</h3>${passage(plainKey('gate',gate.id,'detail'),gate.detail,'','',gate.label)}`).join(''):`<p>${state.dataState==='loading'?'The list of open checks has not loaded yet.':state.dataState==='unavailable'?'The list of open checks did not load. Use Retry research notes on the page.':'The list of open checks is missing from this file.'}</p>`}<p>No empirical forecast study is validated or frozen.</p></div>`,'Method and limits');}
+  if(id.startsWith('source-')) {const s=state.sources.find(item=>item.id===id.slice(7));if(!s)return;return details(s.name,`<div class="detail-copy">${plainRows([['Source type',s.type||'Not recorded'],['Status',s.status||'Not recorded',plainKey('registry',s.id,'status')],['What we may do with it',s.rightsStatus||'Not recorded',plainKey('registry',s.id,'rightsStatus')],['Last reviewed',dateText(s.checkedAt)]])}<h3>What was checked</h3>${passage(plainKey('registry',s.id,'verificationScope'),s.verificationScope,'Not recorded','','What was checked')}${link(s.url,'Open original source')}</div>`,'Source');}
+  if(id.startsWith('library-')) {const item=state.library.find(item=>item.id===id.slice(8));if(!item)return;const laureates=(item.laureates||[]).join(' · '), year=item.year==null||item.year===''?'Prize year not recorded':`${item.year} prize`;return details(item.title,`<div class="detail-copy"><p>${text(laureates||'Laureates not confirmed')} · ${text(year)}</p><h3>The idea</h3>${passage(plainKey('library',item.id,'mechanism'),item.mechanism,'Not recorded','','The idea')}<h3>What it means for our research</h3>${passage(plainKey('library',item.id,'takeaway'),item.takeaway,'Not recorded','','What it means for our research')}<h3>What this does not establish</h3>${passage(plainKey('library',item.id,'limits'),item.limits,'Not recorded','','What this does not establish')}${plainRows([['Status',plainStatus(item.verificationStatus)],['Last reviewed',dateText(item.checkedAt)],['What was read',item.verificationScope||'Not recorded',plainKey('library',item.id,'verificationScope')]])}${link(item.sourceUrl,'Open primary source')}</div>`,'Nobel research note');}
   if(id.startsWith('fact-')) { const f=state.facts[Number(id.slice(5))];if(!f)return;const r=f.record;let current;try{current=state.contract?.inspectEvidence(r,{operation:'display',at:displayTime()});}catch{}if(!current?.eligible){render();return details('This fact is now withheld','<div class="detail-copy"><p>This fact no longer passes its display checks. Permission to show it, and its context, must be valid at the moment it is shown.</p></div>','Filing facts');}return details('The source behind this fact',`<div class="detail-copy"><p>${text(claimText(f.claim))}</p><p>This is a past figure, as the company reported it. It is not a claim about today. It is not a forecast.</p>${detailRows([['Entity',r.entity?.name||r.issuer?.name||r.entityName||r.issuerName||'See record'],['SEC acceptance',dateText(r.source?.acceptedAt||r.filing?.acceptedAt)],['Publication',publicationDescription(r.source||r.filing||{})],['Public availability observed',dateText(availabilityTime(r.source||r.filing||{}))],['Saved on',dateText(r.source?.ingestedAt||r.provenance?.ingestedAt||r.ingestedAt)],['SEC filing ID',r.source?.accession||r.filing?.accession||r.accession||'See source record'],['Observation context',JSON.stringify(r.period||r.fact?.period||{})],['File fingerprint',r.source?.sha256||r.provenance?.sha256||r.snapshot?.sha256||r.contentHash||'See capture record'],['Reader version',r.source?.parserVersion||r.provenance?.parserVersion||r.parserVersion||'See capture record'],['Display state','Passed every display check']])}<h3>Source record</h3><pre class="record-code">${text(JSON.stringify(r,null,2))}</pre></div>`,'Source and provenance');}
 }
 document.addEventListener('click',event=>{

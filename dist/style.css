@@ -737,6 +737,15 @@ details.registry-group[open]>summary{margin-bottom:var(--space-2,8px)}
 .detail-copy li+li{margin-top:var(--space-1,4px)}
 #detail-dialog .detail-copy h3{font-weight:600;color:var(--ink,#1d2926)}
 .fact-label,.fact-context dt,.provenance-list dt,.record-code{font-size:var(--t-meta,12px)}
+/* Plain wording leads. The exact original sits one quiet click below it. */
+.original-wording{margin:calc(var(--space-2,8px)*-1) 0 var(--space-2,8px)}
+.original-wording>summary{display:list-item;width:max-content;max-width:100%;min-height:44px;padding:var(--space-2,8px) 0;font-size:var(--t-meta,12px);line-height:1.5;font-weight:500;color:var(--green,#315d49);cursor:pointer}
+.original-wording>summary:hover{color:#183f2c}
+.original-wording[open]{padding-bottom:var(--space-1,4px)}
+.original-wording>p,.method-application.card .original-wording>p{max-width:68ch;margin:0 0 var(--space-2,8px);padding-left:var(--space-3,12px);border-left:2px solid var(--line,#d9dfd5);font-size:var(--t-small,13px);line-height:1.6;color:var(--muted,#56655e)}
+.registry-card .original-wording,.provenance-list .original-wording{margin:0}
+.provenance-list .original-wording>p{font-size:inherit}
+@media (min-width:1101px){.method-application.card>div:first-child>p{break-after:avoid}.method-application.card>div:first-child>details{break-inside:avoid}}
 @media (max-width:1100px){
   .library-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .method-gates{grid-template-columns:repeat(2,minmax(0,1fr))}
