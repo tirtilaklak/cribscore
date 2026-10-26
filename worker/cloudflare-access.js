@@ -17,6 +17,7 @@ export const ACCESS_LIMITS = Object.freeze({
 const DEFAULT_JWKS_TTL_MS = 5 * 60_000;
 const DEFAULT_UNKNOWN_KID_REFETCH_MS = 30_000;
 const DEFAULT_JWKS_TIMEOUT_MS = 5_000;
+const DEFAULT_FAILED_DOWNLOAD_BACKOFF_MS = 5_000;
 
 const DENIED_BODY = 'Access denied. Sign in through Cloudflare Access to open this site.\n';
 const FRAME_ANCESTORS = "frame-ancestors 'none'";
@@ -97,6 +98,7 @@ export function withCloudflareAccess(app, {
   jwksTtlMs = DEFAULT_JWKS_TTL_MS,
   unknownKidRefetchMs = DEFAULT_UNKNOWN_KID_REFETCH_MS,
   jwksTimeoutMs = DEFAULT_JWKS_TIMEOUT_MS,
+  failedDownloadBackoffMs = DEFAULT_FAILED_DOWNLOAD_BACKOFF_MS,
   log = reason => console.warn(`cloudflare-access: request denied (${reason})`),
 } = {}) {
   if (!app || typeof app.fetch !== 'function') throw TypeError('withCloudflareAccess needs a Worker with a fetch handler');
@@ -127,10 +129,18 @@ export function withCloudflareAccess(app, {
   const running = config => download?.teamDomain === config.teamDomain && !download.settled
     && now() - download.startedAt < jwksTimeoutMs;
 
+  // With no key set cached, a download that failed, or ran out of time, holds off
+  // the next one until the back-off after its start has passed. Until then every
+  // request that needs keys is refused. So a failing endpoint sees at most one
+  // download per back-off, however many requests arrive one after another.
+  const backingOff = config => download?.teamDomain === config.teamDomain && !download.ok && !running(config)
+    && now() - download.startedAt < failedDownloadBackoffMs;
+
   function loadKeys(config) {
     if (!running(config)) {
-      const current = { teamDomain: config.teamDomain, startedAt: now(), settled: false };
-      current.promise = refreshKeys(config).finally(() => { current.settled = true; });
+      const current = { teamDomain: config.teamDomain, startedAt: now(), settled: false, ok: false };
+      current.promise = refreshKeys(config).then(entry => { current.ok = true; return entry; })
+        .finally(() => { current.settled = true; });
       download = current;
     }
     let timer;
@@ -142,8 +152,10 @@ export function withCloudflareAccess(app, {
     let entry = cache?.teamDomain === config.teamDomain && now() - cache.fetchedAt < jwksTtlMs ? cache : null;
     let fetched = false;
     if (!entry) {
-      // An expired or missing set is never reused. A failed download fails closed.
+      // An expired or missing set is never reused. A failed download fails closed,
+      // and the next one waits out the back-off.
       cache = null;
+      if (backingOff(config)) deny('jwks_unavailable');
       entry = await loadKeys(config); fetched = true;
     }
     if (entry.keys.has(kid)) return entry.keys.get(kid);

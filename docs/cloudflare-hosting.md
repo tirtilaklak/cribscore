@@ -159,7 +159,7 @@ To change the list later, run `npx wrangler@4 secret put OWNER_EMAILS` and type 
 
 Check: the deploy output lists the `DB` database, `IDENTITY_MODE`, `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` with your values. `npx wrangler@4 secret list` shows `OWNER_EMAILS`. The Worker has no address yet. That is expected.
 
-**Every later deploy.** Run the same checks before you upload. A clean checkout has no `node_modules`, and the build needs them. `npm test` is the only automated check of the Access gate.
+**Every later deploy.** Run the same checks before you upload. Then apply any new database migration. A clean checkout has no `node_modules`, and the build needs them. `npm test` is the only automated check of the Access gate.
 
 ```sh
 npm ci
@@ -167,10 +167,16 @@ npm run build
 npm test
 npm run validate:worker
 npx wrangler@4 deploy --dry-run --outdir /tmp/cribscore-dry-run
+npx wrangler@4 d1 migrations list cribscore --remote
+npx wrangler@4 d1 migrations apply cribscore --remote
 npx wrangler@4 deploy
 ```
 
 `npm test` may show only the known failures from item 1 above. Any other failure stops the deploy. The committed `wrangler.jsonc` carries the vars and the database id. Secrets stay in place between deploys.
+
+`npx wrangler@4 deploy` does not apply database migrations. The old host did that by itself. Here the two `d1 migrations` commands do it. `list` shows each SQL file in `drizzle/` that the remote database does not have yet. `apply` shows them again and asks before it changes the database. When there is nothing new, it says "No migrations to apply!" and changes nothing. Run both only after the checks above pass.
+
+A migration runs before the upload, while the old code still serves requests. So each migration must keep working with the code that runs now. Add tables or columns. Do not rename or remove them in the same release. A rollback does not undo a migration. So the code you might roll back to (step 9) must work with it too.
 
 ## Step 7. Point cribscore.co at the Worker
 
@@ -254,18 +260,28 @@ Run each check. Stop and roll back (step 9) if one fails.
 
 Use this if a check fails or the new site misbehaves.
 
-**First, read the log.** Run `npx wrangler@4 tail` and load the site. If your own requests show `owner_not_allowed` or `config_missing`, the `OWNER_EMAILS` list is most likely wrong or empty. Do not roll back for that. Run `npx wrangler@4 secret put OWNER_EMAILS` and type the right list. That command deploys at once.
+**First, read the log.** Run `npx wrangler@4 tail` and load the site. If your own requests show `owner_not_allowed` or `config_missing`, the `OWNER_EMAILS` list is most likely wrong or empty. Do not roll back for that. Run `npx wrangler@4 secret put OWNER_EMAILS` and type the right list. That command deploys at once. It makes a new deployment that keeps the code that runs now.
 
-**If only the latest deploy is bad**, put the Worker back to the version before it. The domains and DNS stay as they are:
+**If only the latest deploy is bad**, put the Worker back to the code that ran before it. The domains and DNS stay as they are. Always name the version you go back to. Without a version id, Wrangler goes back to the previous deployment. A `secret put` makes a deployment too. So after a `secret put`, a rollback without an id brings back the bad code.
 
-```sh
-npx wrangler@4 deployments list
-npx wrangler@4 rollback
-```
+1. List the deployments. The newest is at the bottom.
 
-`rollback` asks for confirmation and picks the version uploaded before the latest one. To pick another version, pass its id from `npx wrangler@4 versions list`. A rollback does not change the D1 database.
+   ```sh
+   npx wrangler@4 deployments list
+   ```
 
-Each version keeps the secrets it was deployed with. If a secret changed after the version you pick, Wrangler names it and asks first. Saying yes brings back that version's older value. After a rollback, Wrangler refuses `secret put` until you deploy again, because the newest upload is no longer the one running. So fix `OWNER_EMAILS` first, before any rollback.
+2. Find the bad deploy by its **Created** time. Pick the newest deployment before it that ran good code. Copy the version id that follows `(100%)` under its **Version(s)**. A deployment whose **Source** is **Secret Change** still runs the code of the deployment before it. So never pick one that came after the bad deploy.
+3. Roll back to that version:
+
+   ```sh
+   npx wrangler@4 rollback <version-id>
+   ```
+
+   Wrangler asks for a message and then for confirmation. A rollback does not change the D1 database.
+
+4. Each version keeps the secrets it was made with. If a secret changed after the version you pick, Wrangler names it and asks first. If it names `OWNER_EMAILS`, answer **no**. Saying yes would bring back that version's older list. Instead, check out the last good commit and deploy it as in step 6, under "Every later deploy". A deploy keeps the secrets you have now.
+
+After a rollback, Wrangler refuses `secret put` until you deploy again, because the newest upload is no longer the one running. To change `OWNER_EMAILS` after a rollback, first deploy the last good commit as in step 6. Then run `npx wrangler@4 secret put OWNER_EMAILS`.
 
 After the first deploy there is no earlier version, so a rollback cannot help. Fix the problem and deploy again (step 6). If the site must come back now, use "To leave Cloudflare" below.
 
@@ -288,7 +304,7 @@ Records you saved on the new host stay in the D1 database. Export them from the 
 
 ## Notes
 
-- **The Worker refuses by default.** Empty Access settings, a missing or blank `OWNER_EMAILS`, an unknown key, a failed key download or any bad token all lead to 403. The Worker downloads your team's public keys from `https://<team>.cloudflareaccess.com/cdn-cgi/access/certs`. It keeps them for 5 minutes. Requests that need the keys at the same time share one download. When a token names a key it does not know, the Worker downloads the keys again. It does this at most once per request, and only when the last download began more than 30 seconds ago. So tokens with unknown keys cause at most one download every 30 seconds, however many arrive at once. That covers Cloudflare's regular key rotation. Cloudflare may run several copies of the Worker. Each copy keeps its own keys and its own limits.
+- **The Worker refuses by default.** Empty Access settings, a missing or blank `OWNER_EMAILS`, an unknown key, a failed key download or any bad token all lead to 403. The Worker downloads your team's public keys from `https://<team>.cloudflareaccess.com/cdn-cgi/access/certs`. It keeps them for 5 minutes. Requests that need the keys at the same time share one download. When a token names a key it does not know, the Worker downloads the keys again. It does this at most once per request, and only when the last download began more than 30 seconds ago. So while a key set is cached, tokens with unknown keys cause at most one download every 30 seconds, however many arrive at once. That covers Cloudflare's regular key rotation. When no key set is cached, for example right after a restart, a request starts a download. If that download fails or runs out of time, the Worker starts no other download until 5 seconds after the failed one began. Until then every request gets 403 and the log shows `jwks_unavailable`. That includes your own requests, so reload after a few seconds. While the downloads keep failing, there is at most one download every 5 seconds. The Worker does not read the `Retry-After` header. Cloudflare may run several copies of the Worker. Each copy keeps its own keys and its own limits.
 - **Owner identity.** The journal owner is `cf-access:` followed by the token's `sub` value. That value is your Access user ID. Cloudflare keeps one per email address in your account, so it stays the same when you sign in again. Access user IDs are UUIDs (a standard ID of 36 characters). The Worker accepts a `sub` only if it is 1 to 128 characters long, starts with a letter or digit and uses only letters, digits, `.`, `_`, `:`, `@` and `-`. Any other `sub` gets 403 and the log shows `sub_invalid`. Cloudflare's documentation names two cases that change it:
   - your user is removed from the Zero Trust organization and later signs in again;
   - you sign in through a different Zero Trust organization, for example after the appendix rebuild.
