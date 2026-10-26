@@ -8,3 +8,8 @@ node_modules/
 worker/generated-assets.js
 dist/server/
 .local/
+.wrangler/
+# Local Worker secrets. Wrangler reads these; the owner's address must never be committed.
+.dev.vars*
+.env*
+*secrets.env

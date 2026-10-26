@@ -1,0 +1,50 @@
+// Cloudflare Worker for cribscore.co. Follow docs/cloudflare-hosting.md before any deploy.
+// The entry is worker/cloudflare.js: it checks the Cloudflare Access token on every request
+// and answers 403 when the check fails, when the Access settings below are empty or malformed,
+// or when the OWNER_EMAILS secret is missing or names nobody.
+{
+  "name": "cribscore",
+  "main": "worker/cloudflare.js",
+  "compatibility_date": "2026-10-19",
+
+  // Embeds dist/ into worker/generated-assets.js before wrangler bundles the entry.
+  "build": { "command": "npm run build" },
+
+  // No public *.workers.dev address and no workers.dev preview addresses. preview_urls covers
+  // only workers.dev. Each custom domain has its own Preview setting, which this file does not
+  // control: runbook step 7 Part C attaches both domains for Production only. Only custom domains
+  // that sit behind a Cloudflare Access application may reach this Worker.
+  "workers_dev": false,
+  "preview_urls": false,
+
+  // No routes or custom domains here on purpose. The runbook attaches cribscore.co and
+  // www.cribscore.co only after the Access application covers them.
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cribscore",
+      // The id of the D1 database "cribscore" (runbook step 4). An id grants no access.
+      "database_id": "cc757d6f-ead3-4e90-9f11-159d523d1617",
+      "migrations_dir": "drizzle"
+    }
+  ],
+
+  // Every deploy sends these values and replaces what the dashboard holds, so they live here.
+  // They are identifiers, not secrets (runbook step 3). npm test checks their shape.
+  "vars": {
+    // Fixed. The gate refuses every request when this has any other value.
+    "IDENTITY_MODE": "cloudflare-access",
+    // The Zero Trust team domain (no https://).
+    "ACCESS_TEAM_DOMAIN": "gentle-wildflower-930d.cloudflareaccess.com",
+    // The Application Audience (AUD) tag of the Cribscore Access application.
+    "ACCESS_AUD": "2b19b6c5404880177119e064f4dfbaca7c2d37c187b8dda044ebb805bce6158e"
+  },
+
+  // OWNER_EMAILS is a secret: a comma-separated list of the email addresses allowed in.
+  // Wrangler stops a first deploy without it and a later deploy after it was deleted. Wrangler does
+  // not check the value. The Worker does: an empty or blank list lets nobody in.
+  // Set it with `npx wrangler@4 secret put OWNER_EMAILS` or `--secrets-file` (runbook step 5).
+  // Never write the address into this file or anywhere else in the repository.
+  "secrets": { "required": ["OWNER_EMAILS"] }
+}
